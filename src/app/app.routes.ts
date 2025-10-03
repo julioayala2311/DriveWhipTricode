@@ -23,10 +23,10 @@ export const routes: Routes = [
     component: BaseComponent,
     canActivateChild: [authGuard],
     children: [
-      { path: '', redirectTo: 'rideshare', pathMatch: 'full' },
+      { path: '', redirectTo: 'home', pathMatch: 'full' },
       {
-        path: 'rideshare',
-        loadChildren: () => import('./views/admin/pages/rideshare/rideShare.routes')
+        path: 'home',
+        loadChildren: () => import('./views/admin/pages/home/home.routes')
       },
       {
         path: 'locations',

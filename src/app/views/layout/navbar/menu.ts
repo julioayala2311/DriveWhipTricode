@@ -4,7 +4,7 @@ export const MENU: MenuItem[] = [
   {
     label: 'Home',
     icon: 'home',
-    link: '/rideshare'
+    link: '/home'
   },
   {
     label: 'Locations',

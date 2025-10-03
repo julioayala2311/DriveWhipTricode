@@ -48,9 +48,9 @@ export class UserRolesComponent implements OnInit, OnDestroy {
   columnDefs: ColDef[] = [
     { headerName: 'Role', field: 'role', minWidth: 160, flex: 1, sortable: true, filter: true },
     { headerName: 'Description', field: 'description', minWidth: 240, flex: 1.4, sortable: true, filter: true },
-    { headerName: 'Created', field: 'createdat', minWidth: 180, valueFormatter: p => this.formatDate(p.value), sortable: true },
-  { headerName: 'Active', field: 'isactive', minWidth: 120, sortable: true, filter: true, cellRenderer: (p:any)=> this.renderActiveBadge(p.value) },
-    { headerName: 'Actions', field: 'actions', minWidth: 160, pinned: 'right', sortable:false, filter:false, cellRenderer: (p: any) => this.actionButtons(p.data), cellClass: 'dw-actions-cell' }
+    { headerName: 'Created', field: 'createdat', minWidth: 160, flex: .9, valueFormatter: p => this.formatDate(p.value), sortable: true },
+	{ headerName: 'Active', field: 'isactive', minWidth: 120, flex: .6, sortable: true, filter: true, cellRenderer: (p:any)=> this.renderActiveBadge(p.value) },
+    { headerName: 'Actions', field: 'actions', minWidth: 140, maxWidth: 180, pinned: 'right', sortable:false, filter:false, cellRenderer: (p: any) => this.actionButtons(p.data), cellClass: 'dw-actions-cell' }
   ];
 
   // Align default column behavior with applicants grid (sortable/filterable/floating filters, responsive headers)
@@ -151,7 +151,7 @@ export class UserRolesComponent implements OnInit, OnDestroy {
 
   onGridReady(e: GridReadyEvent) {
     this.gridApi = e.api;
-    e.api.sizeColumnsToFit();
+    // Con flex en columnas ya no es necesario sizeColumnsToFit; dejamos ajuste dinámico
     if (this.pendingActionColWidth) {
       const col = this.gridApi.getColumn('actions');
       if (col) this.gridApi.setColumnWidth(col, this.pendingActionColWidth);

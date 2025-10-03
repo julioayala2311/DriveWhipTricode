@@ -1,0 +1,65 @@
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 grid-margin ride-share-header">
+  <div class="flex-grow-1 d-flex align-items-center gap-2 flex-wrap">
+    <div class="d-flex align-items-center gap-1" *ngIf="!locationsError">
+      <div class="dw-location-select" [class.is-loading]="loadingLocations" [class.is-disabled]="loadingLocations || locations.length===0">
+        <i class="feather icon-map-pin select-leading-icon"></i>
+        <select class="form-select form-select-sm fancy-select"
+                [(ngModel)]="selectedLocationId"
+                (change)="onLocationChange()"
+                [disabled]="loadingLocations || locations.length===0"
+                aria-label="Select location">
+          <option *ngFor="let loc of locations" [ngValue]="loc.id">{{ loc.name }}</option>
+        </select>
+        <i *ngIf="!loadingLocations" class="feather icon-chevron-down select-caret" aria-hidden="true"></i>
+        <div *ngIf="loadingLocations" class="spinner-border spinner-border-sm text-primary position-absolute loading-indicator" role="status" aria-label="Loading locations">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    </div>
+    <div *ngIf="locationsError" class="text-danger small">{{ locationsError }}</div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <button type="button" class="btn btn-sm btn-ghost" aria-label="Share" title="Share">
+      <i class="feather icon-link me-1"></i><span class="d-none d-sm-inline">Share</span>
+    </button>
+    <button type="button" class="btn btn-sm btn-ghost" aria-label="Settings" title="Settings">
+      <i class="feather icon-settings me-1"></i><span class="d-none d-sm-inline">Settings</span>
+    </button>
+    <button type="button" class="btn btn-sm btn-primary" aria-label="Post to job boards">
+      <span>Post to Job Boards</span>
+    </button>
+  </div>
+</div>
+
+<div class="carousel-wrapper p-3 mb-2">
+  <div class="carousel-viewport">
+  <div class="carousel-track d-flex" #track [style.transform]="trackTransform" [style.transition]="trackTransitionStyle">
+   <div class="status-card" *ngFor="let s of stages; trackBy: trackCard"
+     (click)="onCardClick(s)" (keydown.enter)="onCardClick(s)" (keydown.space)="onCardClick(s); $event.preventDefault()"
+           tabindex="0" role="button" [attr.aria-pressed]="selectedCardId===s.id_stage" [class.active]="selectedCardId===s.id_stage">
+      <div class="d-flex align-items-start mb-2 gap-2">
+        <div class="icon-box"><i class="feather icon-layers"></i></div>
+        <div class="status-block ms-2">
+          <div class="fw-semibold status-text">{{ s.name }}</div>
+          <div class="sub-status small text-secondary">{{ s.type }}</div>
+        </div>
+      </div>
+      <div class="d-flex align-items-center text-secondary gap-1 meta small">
+        <i class="feather icon-user"></i>
+        <span>{{ s.applicants_count }}</span>
+      </div>
+      </div>
+    </div>
+  </div>
+  <button type="button" class="carousel-nav prev" aria-label="Anterior" [disabled]="!canPrev()" (click)="prev()">
+    <i class="feather icon-chevron-left"></i>
+  </button>
+  <button type="button" class="carousel-nav next" aria-label="Siguiente" [disabled]="!canNext()" (click)="next()">
+    <i class="feather icon-chevron-right"></i>
+  </button>
+  <div class="mt-2 text-end small text-secondary">Showing {{ stages.length===0 ? 0 : (visibleStart + 1) }}–{{ endIndex }} of {{ stages.length }}</div>
+</div>
+
+<div class="p-3" *ngIf="showGrid">
+  <app-applicants-grid [cardId]="selectedCardId" [applicantsCount]="selectedStageApplicantsCount"></app-applicants-grid>
+</div>

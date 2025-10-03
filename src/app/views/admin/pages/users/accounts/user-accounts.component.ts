@@ -45,11 +45,11 @@ export class UserAccountsComponent implements OnInit {
   // Columns
   columnDefs: ColDef[] = [
     { headerName: 'User', field: 'user', minWidth: 170, flex: 1, sortable: true, filter: true },
-    { headerName: 'First Name', field: 'firstname', minWidth: 140, sortable: true, filter: true },
-    { headerName: 'Last Name', field: 'lastname', minWidth: 140, sortable: true, filter: true },
-    { headerName: 'Role', field: 'role', minWidth: 130, sortable: true, filter: true },
-    { headerName: 'Active', field: 'active', minWidth: 110, cellRenderer: (p:any)=> this.activeBadge(p.value), sortable: true, filter: true },
-    { headerName: 'Actions', field: 'actions', minWidth: 150, pinned: 'right', sortable:false, filter:false, cellRenderer: (p: any) => this.actionButtons(p.data), cellClass:'dw-actions-cell' }
+    { headerName: 'First Name', field: 'firstname', minWidth: 140, flex: .9, sortable: true, filter: true },
+    { headerName: 'Last Name', field: 'lastname', minWidth: 140, flex: .9, sortable: true, filter: true },
+    { headerName: 'Role', field: 'role', minWidth: 130, flex: .7, sortable: true, filter: true },
+    { headerName: 'Active', field: 'active', minWidth: 110, flex: .55, cellRenderer: (p:any)=> this.activeBadge(p.value), sortable: true, filter: true },
+    { headerName: 'Actions', field: 'actions', minWidth: 140, maxWidth: 180, pinned: 'right', sortable:false, filter:false, cellRenderer: (p: any) => this.actionButtons(p.data), cellClass:'dw-actions-cell' }
   ];
 
   defaultColDef: ColDef = {
@@ -74,7 +74,7 @@ export class UserAccountsComponent implements OnInit {
 
   onGridReady(e: GridReadyEvent) {
     this.gridApi = e.api;
-    e.api.sizeColumnsToFit();
+    // Con flex en columnas, evitamos sizeColumnsToFit para permitir distribución proporcional.
   }
 
   load(): void {

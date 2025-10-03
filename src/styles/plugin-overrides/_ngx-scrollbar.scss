@@ -1,0 +1,8 @@
+// Plugin: ngx-scrollbar
+// github: https://github.com/MurhafSousli/ngx-scrollbar
+
+// https://github.com/MurhafSousli/ngx-scrollbar/blob/master/projects/ngx-scrollbar/docs/Styling.md
+
+:root {
+  --scrollbar-thumb-color	: rgba(#{to-rgb($secondary)}, .3);
+}

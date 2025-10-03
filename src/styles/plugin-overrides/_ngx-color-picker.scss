@@ -1,0 +1,45 @@
+// Plugin: Ngx-color-picker
+// github: https://github.com/zefoy/ngx-color-picker
+
+color-picker {
+  .color-picker {
+    border: 1px solid var(--#{$prefix}border-color);
+    background-color: var(--#{$prefix}body-bg);
+    .arrow {
+      &.arrow-right,
+      &.arrow-right-bottom,
+      &.arrow-bottom-right {
+        border-color: rgba(0,0,0,0) $secondary rgba(0,0,0,0) rgba(0,0,0,0);
+      }
+    }
+    .selected-color {
+      border: 1px solid var(--#{$prefix}border-color);
+    }
+    input {
+      color: var(--#{$prefix}body-color);
+    }
+    .preset-area {
+      .preset-color {
+        border: var(--#{$prefix}border-color);
+      }
+      .preset-label {
+        color: var(--#{$prefix}body-color);
+      }
+    }
+    .hex-text .box,
+    .cmyk-text .box, 
+    .hsla-text .box, 
+    .rgba-text .box, 
+    .value-text .box {
+      div {
+        color: var(--#{$prefix}body-color);
+      }
+      input {
+        border: 1px solid var(--#{$prefix}border-color);
+        &:focus-visible {
+          outline: 1px solid $input-focus-border-color;
+        }
+      }
+    }
+  }
+}

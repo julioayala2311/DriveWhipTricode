@@ -1,0 +1,23 @@
+{
+  "env": "DEV",
+  "environments": {
+    "DEV": {
+      "apiBaseUrl": "http://localhost:3000/api/v1/",
+      "driveWhipCoreServiceUser": "admin@drivewhip.com",
+      "driveWhipCoreServicePassword": "Secret123!",
+      "googleClientId": "328839192035-jkus1253hvcma6evd9tpfnvfcfg4p37j.apps.googleusercontent.com"
+    },
+    "QA": {
+      "apiBaseUrl": "https://qa.api.drivewhip.com/api/v1/",
+      "driveWhipCoreServiceUser": "admin@drivewhip.com",
+      "driveWhipCoreServicePassword": "Secret123!",
+      "googleClientId": "294673509392-5ou7ogpl15html9sd6sa0jdo3oj5jn2l.apps.googleusercontent.com"
+    },
+    "PROD": {
+      "apiBaseUrl": "https://api.drivewhip.com/api/v1/",
+      "driveWhipCoreServiceUser": "admin@drivewhip.com",
+      "driveWhipCoreServicePassword": "Secret123!",
+      "googleClientId": "REEMPLAZAR_CLIENT_ID_PROD"
+    }
+  }
+}

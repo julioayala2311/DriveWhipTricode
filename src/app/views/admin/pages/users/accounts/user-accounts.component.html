@@ -1,0 +1,54 @@
+<div class="page-header d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h2 class="page-title mb-1">User Accounts</h2>
+    <small class="text-muted">Manage application users</small>
+  </div>
+  <div class="d-flex gap-2">
+    <button
+      class="btn btn-sm btn-ghost"
+      (click)="load()"
+      [disabled]="loading()"
+    >
+      Refresh
+    </button>
+    <button
+      class="btn btn-sm btn-primary"
+      (click)="openCreate()"
+      [disabled]="loading()"
+    >
+      Create Account
+    </button>
+  </div>
+</div>
+
+<div *ngIf="error()" class="alert alert-danger py-2 px-3 mb-3">
+  {{ error() }}
+</div>
+
+<dw-account-dialog
+  *ngIf="showDialog()"
+  [mode]="dialogMode()"
+  [record]="editingRecord()"
+  [existingUsernames]="usernames()"
+  [roles]="roles()"
+  [saving]="saving()"
+  (closed)="closeDialog()"
+  (saved)="handleDialogSave($event)"
+></dw-account-dialog>
+
+<div *ngIf="loading()" class="p-3">Loading accounts...</div>
+<ag-grid-angular
+  *ngIf="!loading()"
+  class="ag-theme-quartz dw-grid-theme"
+  style="width: 100%; height: 480px"
+  [rowData]="records()"
+  [columnDefs]="columnDefs"
+  [defaultColDef]="defaultColDef"
+  rowSelection="single"
+  [pagination]="true"
+  [paginationPageSize]="pageSize"
+  [paginationPageSizeSelector]="pageSizeOptions"
+  (gridReady)="onGridReady($event)"
+  (cellClicked)="onCellClicked($event)"
+>
+</ag-grid-angular>

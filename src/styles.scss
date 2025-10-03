@@ -1,0 +1,244 @@
+/* You can add global styles to this file, and also import other style files */
+
+
+// Global icon font
+@import "../public/fonts/feather/style.css";
+
+
+// 3rd party plugins
+@import "highlight.js/styles/atom-one-light.css";
+@import 'ngx-owl-carousel-o/lib/styles/scss/owl.carousel';
+@import 'ngx-owl-carousel-o/lib/styles/scss/owl.theme.default';
+@import "animate.css/animate.min.css"; // used in ngx-owl-carousel-o
+@import "@ng-select/ng-select/themes/default.theme.css";
+@import "metismenujs/scss/metismenujs";
+@import "dropzone/dist/min/dropzone.min.css";
+@import "quill/dist/quill.snow.css";
+@import "@rg-software/angular-archwizard/styles/archwizard";
+@import "@siemens/ngx-datatable/index";
+@import "@siemens/ngx-datatable/themes/bootstrap";
+@import "@siemens/ngx-datatable/assets/icons";
+
+// AG Grid styles (Quartz theme)
+@import "ag-grid-community/styles/ag-grid.css";
+@import "ag-grid-community/styles/ag-theme-quartz.css";
+
+
+// NobleUI styles for LTR layout
+@import "./styles/styles.scss";
+
+// NobleUI styles for RTL layout. Replace the above style with this CSS file to enable RTL styles
+// @import "./styles/rtl-css/styles.rtl.css";
+
+.card {
+    border-radius: 15px !important;
+}
+
+.btn-primary{
+    color: white !important;
+}
+
+.btn-ghost {
+	background:transparent;
+	border:1px solid transparent;
+	color: var(--bs-body-color);
+	padding: .45rem .75rem;
+	display:inline-flex;
+	align-items:center;
+	line-height:1;
+	border-radius:.5rem;
+	transition: background .25s ease, color .25s ease, border-color .25s ease;
+}
+.btn-ghost:hover {
+	background: rgba(var(--bs-primary-rgb, 13,110,253), 0.08);
+	border-color: rgba(var(--bs-primary-rgb, 13,110,253), 0.25);
+	color: var(--bs-primary, #0d6efd);
+}
+.btn-ghost:active { background: rgba(var(--bs-primary-rgb, 13,110,253), 0.16); }
+.btn-ghost:focus-visible { outline:2px solid var(--bs-primary,#0d6efd); outline-offset:2px; }
+
+@media (max-width: 576px) {
+	.ride-share-header { gap: .75rem; }
+	.btn-ghost span { display:none !important; }
+}
+
+:host { display:block; }
+.dw-grid-theme {
+  --ag-foreground-color: var(--bs-body-color);
+  --ag-background-color: var(--bs-body-bg);
+  --ag-header-background-color: linear-gradient(180deg, rgba(var(--bs-primary-rgb,13,110,253),0.08) 0%, rgba(var(--bs-primary-rgb,13,110,253),0.02) 100%);
+  --ag-header-foreground-color: var(--bs-body-color);
+  --ag-border-color: var(--bs-border-color, rgba(0,0,0,.12));
+  --ag-row-border-color: rgba(0,0,0,.06);
+  --ag-font-size: 12.5px;
+  --ag-font-family: inherit;
+  --ag-header-column-resize-handle-color: var(--bs-primary,#0d6efd);
+  --ag-selected-row-background-color: rgba(var(--bs-primary-rgb,13,110,253),0.12);
+  --ag-row-hover-color: rgba(var(--bs-primary-rgb,13,110,253),0.08);
+  --ag-active-color: var(--bs-primary,#0d6efd);
+  --ag-control-panel-background-color: transparent;
+}
+
+// Actions cell modern compact icon buttons
+.dw-actions-cell {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+.dw-action-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-start;
+}
+
+.dw-action-btn {
+  --_size: 28px;
+  width: var(--_size);
+  height: var(--_size);
+  border: 1px solid var(--dw-border-color, rgba(0,0,0,.12));
+  background: var(--dw-surface-alt, #fff);
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
+  color: var(--dw-text-secondary, #555);
+  position: relative;
+  font-size: 14px;
+}
+
+.dw-action-btn i { font-size: 16px; line-height: 1; }
+
+.dw-action-btn:hover:not(:disabled) {
+  background: var(--dw-surface-hover, #f5f7fa);
+  color: var(--dw-text, #222);
+}
+
+.dw-action-btn:active:not(:disabled) {
+  background: var(--dw-surface-active, #e8edf3);
+}
+
+.dw-action-btn:focus-visible {
+  outline: 2px solid var(--dw-focus, #2684ff);
+  outline-offset: 2px;
+}
+
+.dw-action-btn.danger {
+  color: #c03333;
+  border-color: rgba(192,51,51,.35);
+}
+
+.dw-action-btn.danger:hover:not(:disabled) {
+  background: #fdecec;
+  color: #a32020;
+  border-color: rgba(192,51,51,.55);
+}
+
+.dw-action-btn:disabled {
+  opacity: .4;
+  cursor: default;
+  filter: grayscale(.4);
+}
+
+// Dark mode tweaks (if body.dark present for example)
+body.dark .dw-action-btn {
+  background: var(--dw-surface-alt, #252b32);
+  border-color: var(--dw-border-color, rgba(255,255,255,.12));
+  color: var(--dw-text-secondary, #b7c1cc);
+}
+body.dark .dw-action-btn:hover:not(:disabled) {
+  background: #2f3740;
+  color: var(--dw-text, #fff);
+}
+body.dark .dw-action-btn.danger:hover:not(:disabled) {
+  background: #4a1f1f;
+  color: #ffb7b7;
+}
+
+.dw-grid-theme .ag-root-wrapper { border-radius: .9rem; box-shadow: 0 4px 18px -6px rgba(0,0,0,.12); border:1px solid var(--bs-border-color,rgba(0,0,0,.15)); overflow:hidden; }
+.dw-grid-theme .ag-header { border-bottom: 1px solid var(--bs-border-color,rgba(0,0,0,.12)); }
+.dw-grid-theme .ag-header-cell, .dw-grid-theme .ag-header-group-cell { font-weight:600; letter-spacing:.3px; }
+.dw-grid-theme .ag-row { transition: background .25s ease, box-shadow .25s ease; }
+.dw-grid-theme .ag-row.ag-row-selected { box-shadow: inset 0 0 0 1px var(--bs-primary,#0d6efd); }
+.dw-grid-theme .ag-cell { padding-block:6px; }
+.dw-grid-theme .ag-cell:focus, .dw-grid-theme .ag-cell:focus-within { outline:2px solid var(--bs-primary,#0d6efd) !important; outline-offset: -1px; }
+@media (max-width: 600px) {
+  .dw-grid-theme { --ag-font-size: 11.5px; }
+  .dw-grid-theme .ag-cell { padding-block:4px; }
+}
+@media (prefers-color-scheme: dark) {
+  .dw-grid-theme { --ag-row-border-color: rgba(255,255,255,.08); }
+}
+
+/* =========================
+   ag-Grid footer (pagination) responsive tweaks
+   Evita overflow de textos en móviles
+========================= */
+@media (max-width: 640px) {
+  .dw-grid-theme .ag-paging-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding: 6px 8px !important;
+    font-size: 11px;
+    line-height: 1.15;
+  }
+  /* Ajusta orden para que info principal quede primero */
+  .dw-grid-theme .ag-paging-panel .ag-paging-page-summary-panel { order: 1; }
+  .dw-grid-theme .ag-paging-panel .ag-paging-row-summary-panel { order: 2; }
+  .dw-grid-theme .ag-paging-panel .ag-paging-page-size { order: 3; }
+  .dw-grid-theme .ag-paging-panel .ag-paging-navigation { order: 4; }
+
+  /* Botones más compactos */
+  .dw-grid-theme .ag-paging-panel .ag-paging-button {
+    padding: 2px 6px;
+    min-width: 28px;
+    line-height: 1.1;
+    font-size: 11px;
+  }
+
+  /* Selector de page size más reducido */
+  .dw-grid-theme .ag-paging-panel select.ag-paging-page-size {
+    max-width: 85px;
+    padding: 2px 4px;
+    font-size: 11px;
+  }
+
+  /* Limita crecimiento horizontal de paneles de texto */
+  .dw-grid-theme .ag-paging-page-summary-panel,
+  .dw-grid-theme .ag-paging-row-summary-panel { flex: 1 1 100%; }
+
+  /* Oculta textos menos críticos si el ancho es extremadamente pequeño */
+  @media (max-width: 420px) {
+    .dw-grid-theme .ag-paging-row-summary-panel { display: none; }
+    .dw-grid-theme .ag-paging-panel { gap: 4px 6px; }
+  }
+  @media (max-width: 360px) {
+    .dw-grid-theme .ag-paging-page-size { display: none; }
+  }
+}
+
+/* Evita que contenido desborde lateralmente si hay columnas muy anchas */
+.dw-grid-theme .ag-root-wrapper-body { overflow-x: auto; }
+
+/* Vertical centering for ag-Grid cells in this component */
+.dw-grid-theme .ag-cell {
+  display: flex;
+  align-items: center;
+}
+
+.dw-grid-theme .ag-cell .ag-cell-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* Badges alignment refinement */
+.dw-grid-theme .ag-cell .badge { position: relative; top: 0; }
+
+@media (max-width: 640px) {
+  .dw-grid-theme .ag-cell.dw-actions-cell { padding-right: 4px; }
+}

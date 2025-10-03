@@ -1,0 +1,312 @@
+<div class="horizontal-menu">
+  <nav class="navbar top-navbar">
+    <div class="container">
+      <div class="navbar-content">
+    
+        <!--- Logo -->
+        <a routerLink="/" class="navbar-brand">
+          Drive<span>Whip</span>
+        </a>
+
+        <!-- <a routerLink="/" class="navbar-brand">
+          <img src="assets/images/logo.png" alt="logo">
+        </a> -->
+
+        <!-- Logo-mini for small screen devices (mobile/tablet) -->
+        <div class="logo-mini-wrapper">
+          <img src="images/logo-mini-light.png" class="logo-mini logo-mini-light" alt="logo">
+          <img src="images/logo-mini-dark.png" class="logo-mini logo-mini-dark" alt="logo">
+        </div>
+    
+        <form class="search-form">
+          <div class="input-group">
+            <div class="input-group-text">
+              <i class="feather icon-search"></i>
+            </div>
+            <input type="text" class="form-control" id="navbarForm" placeholder="Search Applicants">
+          </div>
+        </form>
+    
+        <ul class="navbar-nav">
+          <li class="theme-switcher-wrapper nav-item">
+            <input type="checkbox" (change)="onThemeCheckboxChange($event)" value="" id="theme-switcher">
+            <label for="theme-switcher">
+              <div class="box">
+                <div class="ball"></div>
+                <div class="icons">
+                  <i class="feather icon-sun"></i>
+                  <i class="feather icon-moon"></i>
+                </div>
+              </div>
+            </label>
+          </li>
+          <li class="nav-item nav-messages" ngbDropdown>
+            <a class="nav-link" ngbDropdownToggle id="messageDropdown">
+              <i class="link-icon feather icon-mail"></i>
+            </a>
+            <div ngbDropdownMenu class="px-0" aria-labelledby="messageDropdown">
+              <div class="px-3 py-2 d-flex align-items-center justify-content-between border-bottom">
+                <p>9 New Messages</p>
+                <button type="button" class="btn btn-link p-0 text-secondary text-decoration-none">Clear all</button>
+              </div>
+              <div class="p-1">
+                <button type="button" class="dropdown-item d-flex align-items-center py-2">
+                  <div class="me-3">
+                    <img class="w-30px h-30px rounded-circle" src="https://placehold.co/30x30" alt="user">
+                  </div>
+                  <div class="d-flex justify-content-between flex-grow-1">
+                    <div class="me-4">
+                      <p>Leonardo Payne</p>
+                      <p class="fs-12px text-secondary">Project status</p>
+                    </div>
+                    <p class="fs-12px text-secondary">2 min ago</p>
+                  </div>	
+                </button>
+                <button type="button" class="dropdown-item d-flex align-items-center py-2">
+                  <div class="me-3">
+                    <img class="w-30px h-30px rounded-circle" src="https://placehold.co/30x30" alt="user">
+                  </div>
+                  <div class="d-flex justify-content-between flex-grow-1">
+                    <div class="me-4">
+                      <p>Carl Henson</p>
+                      <p class="fs-12px text-secondary">Client meeting</p>
+                    </div>
+                    <p class="fs-12px text-secondary">30 min ago</p>
+                  </div>	
+                </button>
+                <button type="button" class="dropdown-item d-flex align-items-center py-2">
+                  <div class="me-3">
+                    <img class="w-30px h-30px rounded-circle" src="https://placehold.co/30x30" alt="user">
+                  </div>
+                  <div class="d-flex justify-content-between flex-grow-1">
+                    <div class="me-4">
+                      <p>Jensen Combs</p>
+                      <p class="fs-12px text-secondary">Project updates</p>
+                    </div>
+                    <p class="fs-12px text-secondary">1 hrs ago</p>
+                  </div>	
+                </button>
+                <button type="button" class="dropdown-item d-flex align-items-center py-2">
+                  <div class="me-3">
+                    <img class="w-30px h-30px rounded-circle" src="https://placehold.co/30x30" alt="user">
+                  </div>
+                  <div class="d-flex justify-content-between flex-grow-1">
+                    <div class="me-4">
+                      <p>Amiah Burton</p>
+                      <p class="fs-12px text-secondary">Project deatline</p>
+                    </div>
+                    <p class="fs-12px text-secondary">2 hrs ago</p>
+                  </div>	
+                </button>
+                <button type="button" class="dropdown-item d-flex align-items-center py-2">
+                  <div class="me-3">
+                    <img class="w-30px h-30px rounded-circle" src="https://placehold.co/30x30" alt="user">
+                  </div>
+                  <div class="d-flex justify-content-between flex-grow-1">
+                    <div class="me-4">
+                      <p>Yaretzi Mayo</p>
+                      <p class="fs-12px text-secondary">New record</p>
+                    </div>
+                    <p class="fs-12px text-secondary">5 hrs ago</p>
+                  </div>	
+                </button>
+              </div>
+              <div class="px-3 py-2 d-flex align-items-center justify-content-center border-top">
+                <button type="button" class="btn btn-link p-0 text-decoration-none">View all</button>
+              </div>
+            </div>
+          </li>
+          <li class="nav-item nav-notifications" ngbDropdown>
+            <a class="nav-link" ngbDropdownToggle id="notificationDropdown">
+              <i class="link-icon feather icon-bell"></i>
+              <div class="indicator">
+                <div class="circle"></div>
+              </div>
+            </a>
+            <div ngbDropdownMenu class="px-0" aria-labelledby="notificationDropdown">
+              <div class="px-3 py-2 d-flex align-items-center justify-content-between border-bottom">
+                <p>6 New Notifications</p>
+                <button type="button" class="btn btn-link p-0 text-secondary text-decoration-none">Clear all</button>
+              </div>
+              <div class="p-1">
+                <button type="button" class="dropdown-item d-flex align-items-center py-2">
+                  <div class="w-30px h-30px d-flex align-items-center justify-content-center bg-primary rounded-circle me-3">
+                    <i class="feather icon-gift icon-sm text-white"></i>
+                  </div>
+                  <div class="flex-grow-1 me-2">
+                    <p>New Order Recieved</p>
+                    <p class="fs-12px text-secondary">30 min ago</p>
+                  </div>	
+                </button>
+                <button type="button" class="dropdown-item d-flex align-items-center py-2">
+                  <div class="w-30px h-30px d-flex align-items-center justify-content-center bg-primary rounded-circle me-3">
+                    <i class="feather icon-alert-circle icon-sm text-white"></i>
+                  </div>
+                  <div class="flex-grow-1 me-2">
+                    <p>Server Limit Reached!</p>
+                    <p class="fs-12px text-secondary">1 hrs ago</p>
+                  </div>	
+                </button>
+                <button type="button" class="dropdown-item d-flex align-items-center py-2">
+                  <div class="w-30px h-30px d-flex align-items-center justify-content-center bg-primary rounded-circle me-3">
+                    <img class="w-30px h-30px rounded-circle" src="https://placehold.co/30x30" alt="userr">
+                  </div>
+                  <div class="flex-grow-1 me-2">
+                    <p>New customer registered</p>
+                    <p class="fs-12px text-secondary">2 sec ago</p>
+                  </div>	
+                </button>
+                <button type="button" class="dropdown-item d-flex align-items-center py-2">
+                  <div class="w-30px h-30px d-flex align-items-center justify-content-center bg-primary rounded-circle me-3">
+                    <i class="feather icon-layers icon-sm text-white"></i>
+                  </div>
+                  <div class="flex-grow-1 me-2">
+                    <p>Apps are ready for update</p>
+                    <p class="fs-12px text-secondary">5 hrs ago</p>
+                  </div>	
+                </button>
+                <button type="button" class="dropdown-item d-flex align-items-center py-2">
+                  <div class="w-30px h-30px d-flex align-items-center justify-content-center bg-primary rounded-circle me-3">
+                    <i class="feather icon-download icon-sm text-white"></i>
+                  </div>
+                  <div class="flex-grow-1 me-2">
+                    <p>Download completed</p>
+                    <p class="fs-12px text-secondary">6 hrs ago</p>
+                  </div>	
+                </button>
+              </div>
+              <div class="px-3 py-2 d-flex align-items-center justify-content-center border-top">
+                <button type="button" class="btn btn-link p-0 text-decoration-none">View all</button>
+              </div>
+            </div>
+          </li>
+          <li class="nav-item nav-profile" ngbDropdown>
+            <a class="nav-link" ngbDropdownToggle id="profileDropdown">
+              <img class="w-30px ms-1 rounded-circle" src="../images/logo-mini-light.png" alt="profile">
+            </a>
+            <div ngbDropdownMenu class="px-0" aria-labelledby="profileDropdown">
+              <div class="d-flex flex-column align-items-center border-bottom px-5 py-3">
+                <div class="mb-3">
+                  <img class="w-80px rounded-circle" src="../images/logo-mini-light.png" alt="">
+                </div>
+                <div class="text-center">
+                  <p class="tx-16 fw-bolder">Drive Whip</p>
+                  <p class="fs-12px text-secondary">drivewhip&#64;gmail.com</p>
+                </div>
+              </div>
+              <ul class="list-unstyled p-1">
+                <li>
+                  <a href="" (click)="onLogout($event)" class="dropdown-item py-2 d-flex ms-0">
+                    <i class="feather icon-log-out me-2 icon-md"></i>
+                    <span>Log Out</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </li>
+        </ul>
+
+        <!-- Navbar-menu-toggler on small devices (mobile/tablet) -->
+        <div data-toggle="horizontal-menu-toggle" class="navbar-toggler d-lg-none align-self-center" (click)="toggleHeaderMenu()">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        
+      </div>
+    </div>
+  </nav>
+
+  <nav class="bottom-navbar">
+		<div class="container">
+
+      <!--- Menu -->
+			<ul class="nav page-navigation">
+        @for (item of menuItems; track item.label) {
+
+          <!-- Nav item with a mega menu -->
+          @if (item.isMegaMenu) {
+            <li class="nav-item mega-menu" [routerLinkActive]="['active']" #navItemMegaMenu (click)="toggleSubmenuOnSmallDevices(navItemMegaMenu)" [ngClass]="{'show-submenu': currentlyOpenedNavItem === navItemMegaMenu}">
+              <a href="javascript:void(0);" class="nav-link">
+                @if (item.icon) {
+                  <i class="link-icon" [attr.data-feather]="item.icon" appFeatherIcon></i>
+                }
+                <span class="menu-title">{{ item.label }}</span>
+                <i class="link-arrow"></i>
+              </a>
+              <div class="submenu">
+                <div class="row">
+                  @for (subMenu of item.subMenus; track $index) {
+                    <div class="col-md-3">
+                      <ul class="submenu-item">
+                        @for (subMenuItem of subMenu.subMenuItems; track subMenuItem.label) {
+                          @if (subMenuItem.isTitle) {
+                            <li class="category-heading">{{ subMenuItem.label }}</li>
+                          }
+                          @else {
+                            <li class="nav-item">
+                              <a class="nav-link" [routerLinkActive]="['active']" [routerLink]="subMenuItem.link">{{ subMenuItem.label }}</a>
+                            </li>
+                          }
+                        }
+                      </ul>
+                    </div>
+                  }
+                </div>
+              </div>
+            </li>
+          }
+
+          <!-- Nav item with no mega menu -->
+          @else {
+            <li class="nav-item" [routerLinkActive]="['active']" #navItem (click)="toggleSubmenuOnSmallDevices(navItem)" [ngClass]="{'show-submenu': currentlyOpenedNavItem === navItem}">
+              
+              <!-- Nav link with a submenu -->
+              @if (hasItems(item)) {
+                <a href="javascript:void(0);" class="nav-link">
+                  @if (item.icon) {
+                    <i class="link-icon" [attr.data-feather]="item.icon" appFeatherIcon></i>
+                  }
+                  <span class="menu-title">{{ item.label }}</span>
+                  <i class="link-arrow"></i>
+                </a>
+                <div class="submenu">
+                  @for (subMenu of item.subMenus; track $index) {
+                    <ul class="submenu-item">
+                      @for (subMenuItem of subMenu.subMenuItems; track subMenuItem.label) {
+                        @if (subMenuItem.isTitle) {
+                          <li class="category-heading">{{ subMenuItem.label }}</li>
+                        }
+                        @else {
+                          <li class="nav-item">
+                            <a class="nav-link" [routerLinkActive]="['active']" [routerLink]="subMenuItem.link">{{ subMenuItem.label }}</a>
+                            @if (subMenuItem.badge) {
+                              <span class="badge bg-{{subMenuItem.badge.variant}}">{{subMenuItem.badge.text}}</span>
+                            }
+                          </li>
+                        }
+                      }
+                    </ul>
+                  }
+                </div>
+              }
+
+              <!-- Nav link with no submenu  -->
+              @else {
+                <a class="nav-link" [routerLink]="item.link">
+                  @if (item.icon) {
+                    <i class="link-icon" [attr.data-feather]="item.icon" appFeatherIcon></i>
+                  }
+                  <span class="menu-title">{{ item.label }}</span>
+                </a>
+              }
+
+            </li>
+          }
+
+        }
+			</ul>
+		</div>
+	</nav>
+</div>

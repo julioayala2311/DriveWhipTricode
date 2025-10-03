@@ -1,0 +1,179 @@
+import { Component, OnInit, AfterViewInit, NgZone } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
+import { finalize, map, switchMap, tap } from 'rxjs/operators';
+import { GoogleAuthService } from '../../../../../core/services/googleAccounts/google.service';
+import { DriveWhipCoreService } from '../../../../../core/services/drivewhip-core/drivewhip-core.service';
+import { Utilities } from '../../../../../Utilities/Utilities';
+import { IDriveWhipCoreAPI, DriveWhipCommandResponse, IAuthResponseModel } from '../../../../../core/models/entities.model';
+import { DriveWhipAdminCommand } from '../../../../../core/db/procedures';
+import { CryptoService } from '../../../../../core/services/crypto/crypto.service';
+
+interface GoogleAuthPayload {
+  email: string;
+  firstName: string;
+  lastName: string;
+  jwt: string;
+}
+
+@Component({
+  selector: 'app-login',
+  standalone: true,
+  imports: [
+    CommonModule
+  ],
+  templateUrl: './login.component.html',
+  styleUrl: './login.component.scss'
+})
+export class LoginComponent implements OnInit, AfterViewInit {
+  returnUrl: string = '/';
+  coreLoginLoading = false;
+  private pendingGooglePayload: GoogleAuthPayload | null = null;
+
+  constructor(private router: Router,
+              private route: ActivatedRoute,
+              private googleAuthService: GoogleAuthService,
+              private driveWhipCore: DriveWhipCoreService,
+              private ngZone: NgZone,
+              private crypto: CryptoService) {}
+
+  ngOnInit(): void {
+    this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
+  }
+
+  ngAfterViewInit(): void {
+    this.googleAuthService.loadGoogleScript().then(() => {
+      this.googleAuthService.initializeGoogleSignIn(this.handleCredentialResponse.bind(this));
+      this.googleAuthService.renderGoogleButton('googleButton');
+    }).catch((error) => {
+      console.error('Failed to load Google script:', error);
+      Utilities.showToast('We could not load Google Sign-in. Please refresh and try again.', 'error');
+    });
+  }
+
+  handleCredentialResponse(response: any): void {
+    const payload = this.buildGooglePayload(response);
+    if (!payload) {
+      Utilities.showToast('Invalid Google response. Please try again.', 'error');
+      return;
+    }
+
+    this.pendingGooglePayload = payload;
+    this.startDriveWhipWorkflow(payload);
+  }
+
+  private buildGooglePayload(response: any): GoogleAuthPayload | null {
+    if (!response || !response.credential) {
+      console.warn('[GoogleAuth] Missing credential in response');
+      return null;
+    }
+
+    const jwt = response.credential;
+    let decoded: any = null;
+
+    try {
+      const [, payloadB64] = jwt.split('.');
+      const payloadJson = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
+      decoded = JSON.parse(payloadJson);
+    } catch (err) {
+      console.error('[GoogleAuth] Failed to decode JWT payload:', err);
+    }
+
+    const email = decoded?.email ?? '';
+    const rawFullName: string = decoded?.name || '';
+    const firstName = decoded?.given_name || (rawFullName ? rawFullName.split(/\s+/)[0] : '');
+    const lastName = decoded?.family_name || (rawFullName ? rawFullName.split(/\s+/).slice(1).join(' ') : '');
+
+    if (!email) {
+      console.warn('[GoogleAuth] Missing email in Google token');
+      return null;
+    }
+
+    return { email, firstName, lastName, jwt };
+  }
+
+  private startDriveWhipWorkflow(googlePayload: GoogleAuthPayload): void {
+    const serviceUser = this.driveWhipCore.serviceUser;
+    const servicePassword = this.driveWhipCore.servicePassword;
+
+    if (!serviceUser || !servicePassword) {
+      Utilities.showToast('DriveWhip credentials are not configured.', 'error');
+      return;
+    }
+
+    this.coreLoginLoading = true;
+
+    this.driveWhipCore.login(serviceUser, servicePassword).pipe(
+      map(response => {
+        const accessToken = response?.accessToken ?? response?.token ?? response?.jwt;
+        if (!accessToken) {
+          throw new Error('DriveWhip login did not return a token.');
+        }
+        this.driveWhipCore.cacheToken(accessToken);
+        return accessToken;
+      }),
+      switchMap(accessToken => {
+        const driveWhipCoreAPI: IDriveWhipCoreAPI = {
+          commandName: DriveWhipAdminCommand.auth_users_info,
+          parameters: [
+            'hmartinez@gmail.com',
+            // googlePayload.email,
+            accessToken,
+            googlePayload.firstName,
+            googlePayload.lastName
+          ]
+        };
+
+        return this.driveWhipCore.executeCommand<DriveWhipCommandResponse<IAuthResponseModel[]>>(driveWhipCoreAPI).pipe(
+          map(envelope => {
+            if (!envelope?.ok) {
+              throw new Error('DriveWhip authentication failed.');
+            }
+
+            const firstSet = (envelope.data?.[0] as IAuthResponseModel[] | undefined) ?? [];
+            if (!firstSet.length) {
+              throw new Error('This Google account is not linked to a DriveWhip user.');
+            }
+
+            const profile = firstSet[0];
+            this.driveWhipCore.cacheUserProfile(profile);
+            return profile;
+          })
+        );
+      }),
+      finalize(() => {
+        this.coreLoginLoading = false;
+      })
+    ).subscribe({
+      next: profile => {
+        if (this.pendingGooglePayload) {
+          this.persistGoogleState();
+          this.pendingGooglePayload = null;
+        }
+
+        Utilities.showToast(`Welcome, ${profile.firstname} ${profile.lastname}!`, 'success');
+        this.redirectAfterLogin();
+      },
+      error: err => {
+        this.driveWhipCore.clearCachedAuth();
+        this.pendingGooglePayload = null;
+        const message = err?.message || err?.raw?.error?.message || 'DriveWhipCoreApi: Unhandled error.';
+        Utilities.showToast(message, 'error');
+      }
+    });
+  }
+
+  private persistGoogleState(): void {
+    if (typeof window === 'undefined') return;
+  }
+
+  private redirectAfterLogin(): void {
+    this.ngZone.run(() => this.router.navigateByUrl(this.returnUrl, { replaceUrl: true }));
+  }
+
+  logIn(){
+    localStorage.setItem('dw.auth.session', 'true');
+    this.router.navigateByUrl(this.returnUrl, { replaceUrl: true })
+  }
+
+}

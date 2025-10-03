@@ -1,0 +1,203 @@
+<div class="container py-5">
+  <!-- Encabezado -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <h4 class="mb-0">Rideshare</h4>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-primary" (click)="focusFirstName()">
+        Start Application
+      </button>
+        <button type="button" class="btn btn-sm btn-primary" (click)="onClickTestLink()">
+        Test Link
+      </button>
+      <!-- <a href="https://www.drivewhip.com/terms-of-service/" target="_blank" class="btn btn-sm btn-ghost">
+        <i class="feather icon-file-text me-1"></i>
+        <span class="d-none d-sm-inline">Terms of Service</span>
+      </a> -->
+    </div>
+  </div>
+
+  <!-- Formulario centrado -->
+  <div class="d-flex justify-content-center">
+    <div class="col-lg-6 col-md-8 col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+          <form novalidate>
+
+            <h5 class="fw-bold mb-4">Start Your Application</h5>
+
+            <!-- Address Section -->
+            <h6 class="fw-bold mt-4 mb-3">Personal Information</h6>
+            <!-- First Name -->
+            <div class="mb-3">
+              <label class="form-label">First Name <span class="text-danger">*</span></label>
+              <input class="form-control" type="text" placeholder="First Name"
+                     name="firstName" ngModel #firstName="ngModel" #firstNameInput required autocomplete="given-name" />
+              @if (firstName?.invalid && (firstName?.dirty || firstName?.touched)) {
+                <small class="text-danger">First name is required.</small>
+              }
+            </div>
+
+            <!-- Last Name -->
+            <div class="mb-3">
+              <label class="form-label">Last Name <span class="text-danger">*</span></label>
+              <input class="form-control" type="text" placeholder="Last Name"
+                     name="lastName" ngModel #lastName="ngModel" required autocomplete="family-name" />
+              @if (lastName?.invalid && (lastName?.dirty || lastName?.touched)) {
+                <small class="text-danger">Last name is required.</small>
+              }
+            </div>
+
+            <!-- Date of Birth -->
+            <div class="mb-3">
+              <label class="form-label">Date of Birth <span class="text-danger">*</span></label>
+              <input class="form-control" type="date"
+                     name="dob" ngModel #dob="ngModel" required autocomplete="bday" />
+              @if (dob?.invalid && (dob?.dirty || dob?.touched)) {
+                <small class="text-danger">Date of birth is required.</small>
+              }
+            </div>
+
+            <!-- Email -->
+            <div class="mb-3">
+              <label class="form-label">Email <span class="text-danger">*</span></label>
+              <input class="form-control" type="email" placeholder="name@example.com"
+                     name="email" ngModel #email="ngModel" required email autocomplete="email" />
+              @if (email?.errors?.['required']) {
+                <small class="text-danger">Email is required.</small>
+              }
+              @if (email?.errors?.['email']) {
+                <small class="text-danger">Enter a valid email.</small>
+              }
+            </div>
+
+            <!-- Phone -->
+            <div class="mb-3">
+              <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+              <input class="form-control" type="tel" placeholder="+1 (201) 555-0123"
+                     name="phone" ngModel #phone="ngModel" required autocomplete="tel" />
+              @if (phone?.invalid && (phone?.dirty || phone?.touched)) {
+                <small class="text-danger">Phone number is required.</small>
+              }
+              <small class="text-muted">Include country code.</small>
+            </div>
+
+            <!-- Referral -->
+            <div class="mb-3">
+              <label class="form-label">Were you referred by someone who rents with Whip?</label>
+              <input class="form-control" type="text" placeholder="Optional full name"
+                     name="referral" ngModel />
+            </div>
+
+            <!-- Address Section -->
+            <h6 class="fw-bold mt-4 mb-3">Address</h6>
+
+            <!-- Street Address -->
+            <div class="mb-3">
+              <label class="form-label">Street Address <span class="text-danger">*</span></label>
+              <input class="form-control" type="text" placeholder="123 Main St"
+                     name="street" ngModel #street="ngModel" required autocomplete="address-line1" />
+              @if (street?.invalid && (street?.dirty || street?.touched)) {
+                <small class="text-danger">Street address is required.</small>
+              }
+            </div>
+
+            <!-- City / State / Zip -->
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">City <span class="text-danger">*</span></label>
+                <input class="form-control" type="text" placeholder="City"
+                       name="city" ngModel #city="ngModel" required autocomplete="address-level2" />
+                @if (city?.invalid && (city?.dirty || city?.touched)) {
+                  <small class="text-danger">City is required.</small>
+                }
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label">State <span class="text-danger">*</span></label>
+                <input class="form-control" type="text" placeholder="State"
+                       name="state" ngModel #state="ngModel" required autocomplete="address-level1" />
+                @if (state?.invalid && (state?.dirty || state?.touched)) {
+                  <small class="text-danger">State is required.</small>
+                }
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label">Zip Code <span class="text-danger">*</span></label>
+                <input class="form-control" type="text" placeholder="Zip"
+                       name="zip" ngModel #zip="ngModel" required autocomplete="postal-code" />
+                @if (zip?.invalid && (zip?.dirty || zip?.touched)) {
+                  <small class="text-danger">Zip code is required.</small>
+                }
+              </div>
+            </div>
+
+            <!-- Terms -->
+            <div class="mb-3 mt-4">
+              <label class="form-label d-block">Terms and Conditions <span class="text-danger">*</span></label>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="agreeTos"
+                       name="agreeTos" ngModel #agreeTos="ngModel" required />
+                <label class="form-check-label" for="agreeTos">
+                  By clicking I agree to Whip Inc.’s
+                  <a href="https://www.drivewhip.com/terms-of-service/" target="_blank">Terms of Service</a>.
+                </label>
+              </div>
+              @if (agreeTos?.invalid && (agreeTos?.dirty || agreeTos?.touched)) {
+                <small class="text-danger d-block mt-1">You must agree to the Terms of Service.</small>
+              }
+            </div>
+
+            <!-- Messaging -->
+            <div class="mb-3">
+              <label class="form-label d-block">Messaging <span class="text-danger">*</span></label>
+
+              <div class="border rounded p-3 mb-2 bg-light">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="msgUpdates"
+                         name="msgUpdates" ngModel #msgUpdates="ngModel" required />
+                  <label class="form-check-label" for="msgUpdates">
+                        By selecting this box, I authorize Whip and its service providers to contact me via text message with 
+                        updates related to my application, onboarding, or continued participation. Message and data rates may 
+                        apply. Message frequency may vary. Reply HELP for support or STOP to opt out.
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="msgFountain" name="msgFountain" ngModel />
+                <label class="form-check-label" for="msgFountain">
+                   By checking this box, I agree to receive texts from Drive Whip regarding my application process or retainment.
+                   Message &amp; data rates may apply. Message frequency varies. Text HELP for more information or STOP to opt-out at any time.
+                </label>
+              </div>
+
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="callConsent" name="callConsent" ngModel />
+                <label class="form-check-label" for="callConsent">
+                  By checking this box, I agree to receive calls regarding my application or retainment.
+                </label>
+              </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="d-grid mt-4">
+              <button type="submit" class="btn btn-primary">Continue</button>
+            </div>
+
+            <!-- Footer actions -->
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 mt-4">
+              <button type="button" class="btn btn-link p-0 text-decoration-none" (click)="goToCatalog()">
+                View all openings
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="scrollToTop()" aria-label="Back to top">
+                <i class="feather icon-arrow-up me-1"></i>
+                Back to top
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

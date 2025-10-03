@@ -1,0 +1,21 @@
+<main class="login-shell">
+  <div class="login-panel card" role="dialog" aria-labelledby="loginTitle" aria-describedby="loginTagline">
+    <div class="brand-block text-center">
+      <img src="../images/logo-mini-light.png" alt="DriveWhip" class="brand-logo mb-3" />
+      <h1 id="loginTitle" class="panel-title">DriveWhip Portal</h1>
+      <p id="loginTagline" class="panel-tagline">Access your workspace with your Google account.</p>
+    </div>
+    <div class="google-btn-wrapper mb-3">
+      <div id="googleButton" aria-label="Sign in with Google"></div>
+    </div>
+
+    <div class="login-loader" *ngIf="coreLoginLoading" role="status" aria-live="polite">
+      <span class="login-loader__spinner" aria-hidden="true"></span>
+      <span class="login-loader__label">Signing you in...</span>
+    </div>
+
+    <!-- <button class="btn btn-primary" (click)="logIn()">Log In</button> -->
+
+    <p class="legal text-center mt-4 mb-0">Authorized team members only.</p>
+  </div>
+</main>

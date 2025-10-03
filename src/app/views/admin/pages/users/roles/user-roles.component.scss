@@ -9,3 +9,9 @@
   white-space: nowrap;
   border: 0;
 }
+.roles-wrapper {
+  .ag-center-header .ag-header-cell-label { justify-content: center; }
+  .text-center { text-align: center; }
+}
+
+h5, h6 { font-weight: 600; }

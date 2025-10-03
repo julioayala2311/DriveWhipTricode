@@ -1,0 +1,199 @@
+// Header actions styling
+.ride-share-header {
+	h4 { font-weight:600; letter-spacing:.3px; overflow-wrap:anywhere; }
+}
+
+// Carousel styles
+.carousel-wrapper {
+	position: relative;
+	overflow: visible; /* allow vertical halo */
+}
+
+.carousel-viewport {
+	width:100%;
+	overflow:hidden; /* prevent scrollbars while keeping slide clean */
+	padding: 16px 12px; /* extra vertical room so halo effects remain visible */
+	-ms-overflow-style: none; /* hide scrollbar in IE */
+	scrollbar-width: none; /* hide scrollbar in Firefox */
+}
+.carousel-viewport::-webkit-scrollbar { display:none; }
+
+.carousel-track {
+	gap: 0
+	1rem;
+	width: 100%;
+	will-change: transform;
+}
+
+.carousel-track.animating { will-change: transform; }
+
+.status-card {
+	flex: 0 0 calc((100% - 7rem)/8);
+	max-width: calc((100% - 7rem)/8);
+	min-width: 0; // flex overflow fix
+	background: var(--bs-body-bg);
+	border:1px solid transparent; /* avoid jump on activation */
+	border-radius: .75rem;
+	padding: .85rem .9rem .9rem;
+	margin-block:4px; /* extra breathing space for pseudo-elements */
+	/* first shadow layer emulates border, second gives subtle elevation */
+	box-shadow: 0 0 0 1px var(--bs-border-color, rgba(0,0,0,.12)), 0 1px 2px rgba(0,0,0,.05);
+	position: relative;
+	z-index:0;
+	isolation:isolate; /* ensure pseudo-elements render above this card */
+	display:flex;
+	flex-direction:column;
+	justify-content:flex-start;
+	transition: box-shadow .3s ease, background .3s ease;
+}
+.status-card:hover {
+	box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb,13,110,253), .35), 0 4px 16px -6px rgba(0,0,0,.18);
+}
+.status-card.active {
+	/* highlight without altering physical border */
+	box-shadow: 0 0 0 1px var(--bs-primary,#0d6efd), 0 6px 20px -8px rgba(0,0,0,.35);
+	transition: box-shadow .45s cubic-bezier(.16,.84,.44,1), background .35s ease;
+	z-index:2;
+}
+
+/* Refined selection ring to avoid distorted border when track is transformed */
+
+.status-card.active::after {
+	content: '';
+	position: absolute;
+	inset: -4px; /* expand ring so it is not clipped */
+	border: 2px solid rgba(var(--bs-primary-rgb,13,110,253), .55);
+	border-radius: calc(.75rem + 4px);
+	pointer-events: none;
+	box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb,13,110,253), .18);
+	animation: ringFade .9s ease-out forwards;
+	z-index:1;
+}
+
+/* Avoid double outline (focus + active ring) */
+.status-card.active:focus-within { outline: none; }
+.status-card.active::before {
+	content:'';
+	position:absolute;
+	inset:-12px; /* larger halo outside card crop area */
+	border-radius:inherit;
+	background: radial-gradient(circle at center, rgba(var(--bs-primary-rgb,13,110,253),.35) 0%, rgba(var(--bs-primary-rgb,13,110,253),0) 70%);
+	opacity:.6;
+	transform: scale(.85);
+	filter: blur(2px);
+	animation: pulseHalo 1.05s cubic-bezier(.25,.65,.35,1) forwards;
+	pointer-events:none;
+	z-index:-1; /* behind content but within card */
+}
+
+@keyframes pulseHalo {
+	0% { opacity:.0; transform: scale(.6); }
+	20% { opacity:.55; }
+	60% { opacity:.35; }
+	100% { opacity:0; transform: scale(1.15); }
+}
+
+@keyframes ringFade {
+	0% { opacity:0; transform: scale(.96); }
+	15% { opacity:1; }
+	100% { opacity:1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.status-card.active::before, .status-card.active::after { animation:none; }
+}
+.status-card { cursor:pointer; }
+.status-card:focus-within { outline:2px solid var(--bs-primary,#0d6efd); outline-offset:2px; }
+
+.status-card .icon-box {
+	width: 30px; height:30px;
+	border-radius:.65rem;
+	background: linear-gradient(135deg, rgba(var(--bs-primary-rgb,13,110,253),.12) 0%, rgba(var(--bs-primary-rgb,13,110,253),.04) 100%);
+	display:flex; align-items:center; justify-content:center;
+	color: var(--bs-primary,#0d6efd);
+	font-size:15px;
+}
+
+.status-text { font-size:.9rem; overflow-wrap:anywhere; }
+.status-block { line-height:1.15; min-width:0; }
+.sub-status { font-size:.72rem; margin-top:.1rem; color: var(--bs-secondary-color, rgba(0,0,0,.55)); font-weight:500; letter-spacing:.3px; overflow-wrap:anywhere; }
+.meta { opacity:.85; }
+
+// Responsive sizing based on perView logic (1/2/3/4/6/8)
+// We approximate widths so 8 fit on >=1400px, etc.
+.carousel-track { flex-wrap: nowrap; }
+
+@media (min-width: 1400px) { .status-card { flex: 0 0 calc((100% - 7rem)/8); max-width: calc((100% - 7rem)/8); } } /* 8 */
+@media (min-width: 1200px) and (max-width:1399.98px) { .status-card { flex: 0 0 calc((100% - 5rem)/6); max-width: calc((100% - 5rem)/6); } } /* 6 */
+@media (min-width: 992px) and (max-width:1199.98px) { .status-card { flex: 0 0 calc((100% - 3rem)/5); max-width: calc((100% - 3rem)/4); } } /* 4 */
+@media (min-width: 768px) and (max-width:991.98px) { .status-card { flex: 0 0 calc((100% - 2rem)/4); max-width: calc((100% - 2rem)/3); } } /* 3 */
+@media (min-width: 576px) and (max-width:767.98px) { .status-card { flex: 0 0 calc((100% - 1rem)/3); max-width: calc((100% - 1rem)/2); } } /* 2 */
+@media (max-width:575.98px) { .status-card { flex: 0 0 50%; max-width: 50%; } } /* 1 */
+
+// Arrow buttons spacing
+.carousel-wrapper .btn-outline-secondary { line-height:1; display:inline-flex; align-items:center; justify-content:center; }
+
+// Lateral nav buttons
+.carousel-nav {
+	position:absolute;
+	top:40%;
+	transform: translateY(-40%);
+	background: var(--bs-body-bg);
+	border:1px solid var(--bs-border-color, rgba(0,0,0,.15));
+	width: 30px; height:30px;
+	display:flex; align-items:center; justify-content:center;
+	border-radius:50%;
+	box-shadow:0 2px 6px rgba(0,0,0,.12);
+	color: var(--bs-body-color);
+	transition: background .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease;
+	z-index:2;
+}
+.carousel-nav.prev { left:.35rem; }
+.carousel-nav.next { right:.35rem; }
+.carousel-nav:hover:not(:disabled) {
+	background: var(--bs-primary,#0d6efd);
+	color:#fff;
+	border-color: var(--bs-primary,#0d6efd);
+	box-shadow:0 4px 14px -2px rgba(var(--bs-primary-rgb,13,110,253), .45);
+}
+.carousel-nav:disabled { opacity:.4; cursor:not-allowed; }
+.carousel-nav:focus-visible { outline:2px solid var(--bs-primary,#0d6efd); outline-offset:2px; }
+
+@media (max-width: 576px) {
+	.carousel-nav { width:34px; height:34px; }
+	.carousel-nav.prev { left:.15rem; }
+	.carousel-nav.next { right:.15rem; }
+}
+
+// Reduced motion preference
+@media (prefers-reduced-motion: reduce) {
+	.carousel-track { transition:none; }
+}
+
+/* Centrar encabezado cuando uses headerClass: 'ag-center-header' */
+.ag-center-header .ag-header-cell-label { justify-content: center; }
+
+/* Centrar contenido de la celda */
+.text-center { text-align: center; }
+
+/* Badge estilo “pill” */
+.status-badge {
+  display: inline-block;
+  padding: .25rem .5rem;
+  border-radius: .5rem;
+  font-size: .75rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Verde sutil (Active) */
+.badge-on {
+  background: #d1e7dd;  /* success-subtle */
+  color: #0f5132;       /* success-strong */
+}
+
+/* Rosa sutil (Inactive) */
+.badge-off {
+  background: #f8d7da;  /* danger-subtle */
+  color: #842029;       /* danger-strong */
+}

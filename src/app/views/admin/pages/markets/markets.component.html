@@ -1,0 +1,23 @@
+<div class="d-flex align-items-center mb-3">
+  <h5 class="mb-0">Markets</h5>
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <button type="button" class="btn btn-sm btn-primary" aria-label="Post to job boards" >
+      <span>Add Markets</span>
+    </button>
+  </div>
+</div>
+
+<!-- Mensajes de estado -->
+<div *ngIf="loading" class="alert alert-info py-2">
+  <i class="feather icon-loader me-1"></i> Loading...
+</div>
+<div *ngIf="!loading && errorMsg" class="alert alert-danger py-2">
+  <i class="feather icon-alert-triangle me-1"></i> {{ errorMsg }}
+</div>
+
+<!-- Grid -->
+<app-markets-grid
+  [rowData]="marketsRows" >
+</app-markets-grid>
+
+

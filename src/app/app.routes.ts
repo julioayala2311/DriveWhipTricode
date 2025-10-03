@@ -29,6 +29,14 @@ export const routes: Routes = [
         loadChildren: () => import('./views/admin/pages/rideshare/rideShare.routes')
       },
       {
+        path: 'locations',
+        loadChildren: () => import('./views/admin/pages/locations/locations.routes')
+      },
+      {
+        path: 'markets',
+        loadChildren: () => import('./views/admin/pages/markets/markets.routes')
+      },
+      {
         path: 'icons',
         loadChildren: () => import('./views/icons/icons.routes')
       },

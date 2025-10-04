@@ -25,16 +25,16 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
       {
-        path: 'home',
-        loadChildren: () => import('./views/admin/pages/home/home.routes')
-      },
-      {
         path: 'locations',
         loadChildren: () => import('./views/admin/pages/locations/locations.routes')
       },
       {
-        path: 'markets',
-        loadChildren: () => import('./views/admin/pages/markets/markets.routes')
+        path: 'home',
+        loadChildren: () => import('./views/admin/pages/home/home.routes')
+      },
+      {
+        path: 'workflows',
+        loadChildren: () => import('./views/admin/pages/workflows/workflows.routes')
       },
       {
         path: 'icons',

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 
-import { MarketsGridComponent } from './markets-grid.component';
+import { WorkflowsGridComponent } from './workflows-grid.component';
 
 import { CryptoService } from '../../../../core/services/crypto/crypto.service';
 import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
@@ -11,16 +11,16 @@ import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/mo
 import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
 
 @Component({
-  selector: 'app-ride-share',
+  selector: 'app-workflow',
   standalone: true,
-  imports: [CommonModule, NgbDropdownModule, FormsModule, MarketsGridComponent],
-  templateUrl: './markets.component.html',
-  styleUrl: './markets.component.scss'
+  imports: [CommonModule, NgbDropdownModule, FormsModule, WorkflowsGridComponent],
+  templateUrl: './workflows.component.html',
+  styleUrl: './workflows.component.scss'
 })
-export class MarketsComponent implements OnInit, AfterViewInit, OnDestroy {
+export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Rows for child grid */
-  marketsRows: any[] = [];
+  workflowsRows: any[] = [];
 
   /** UI state */
   loading = false;
@@ -49,7 +49,7 @@ export class MarketsComponent implements OnInit, AfterViewInit, OnDestroy {
     const encryptedProfile = localStorage.getItem('dw.auth.user');
     if (encryptedProfile) { try { this.crypto.decrypt(encryptedProfile); } catch { /* noop */ } }
 
-    this.marketsList();
+    this.workflowsList();
   }
 
   ngAfterViewInit(): void {
@@ -61,12 +61,12 @@ export class MarketsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** Calls SP crm_markets_list and normalizes data[0] */
-  marketsList(): void {
+  workflowsList(): void {
     this.loading = true;
     this.errorMsg = null;
 
     const driveWhipCoreAPI: IDriveWhipCoreAPI = {
-      commandName: DriveWhipAdminCommand.crm_markets_list,
+      commandName: DriveWhipAdminCommand.crm_workflows_list,
       parameters: [] // ajusta si tu SP requiere params
     };
 
@@ -79,16 +79,16 @@ export class MarketsComponent implements OnInit, AfterViewInit, OnDestroy {
             const rows = Array.isArray(raw)
               ? (Array.isArray(raw[0]) ? raw[0] : raw)
               : [];
-            this.marketsRows = rows ?? [];
+            this.workflowsRows = rows ?? [];
           } else {
-            this.marketsRows = [];
+            this.workflowsRows = [];
             // this.errorMsg = response?.error ?? 'Unknown error';
           }
           this.loading = false;
         },
         error: (err) => {
           console.error('Error occurred:', err);
-          this.marketsRows = [];
+          this.workflowsRows = [];
           this.errorMsg = 'Request failed';
           this.loading = false;
         }

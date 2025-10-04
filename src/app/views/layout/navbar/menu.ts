@@ -12,9 +12,9 @@ export const MENU: MenuItem[] = [
     link: '/locations'
   },
   {
-    label: 'Markets',
-    icon: 'markets',
-    link: '/markets'
+    label: 'Workflows',
+    icon: 'workflows',
+    link: '/workflows'
   },
   {
     label: 'Users',

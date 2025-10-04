@@ -4,9 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { AgGridAngular } from 'ag-grid-angular';
 import { ColDef, GridApi, GridReadyEvent, IHeaderParams } from 'ag-grid-community';
 import { IHeaderAngularComp } from 'ag-grid-angular';
-import { Router } from '@angular/router';
+import { workflowsRecord  } from '../../../../core/models/workflows.model';
 
-/* ---------------- Grid Header (con icono) ---------------- */
+/* ---------------- Grid Header (with icon) ---------------- */
 @Component({
   selector: 'app-grid-header',
   standalone: true,
@@ -36,9 +36,9 @@ export class GridHeaderComponent implements IHeaderAngularComp {
   }
 }
 
-/* ---------------- Locations Grid ---------------- */
+/* ---------------- Workflows Grid ---------------- */
 @Component({
-  selector: 'app-locations-grid',
+  selector: 'app-workflows-grid',
   standalone: true,
   imports: [CommonModule, FormsModule, AgGridAngular],
   template: `
@@ -54,39 +54,33 @@ export class GridHeaderComponent implements IHeaderAngularComp {
                      (gridReady)="onGridReady($event)"
                      (selectionChanged)="onSelectionChanged()"
                      (firstDataRendered)="onFirstDataRendered()"
-                     (paginationChanged)="onPaginationChanged()"
-                     (cellClicked)="onCellClicked($event)">
+                     (paginationChanged)="onPaginationChanged()">
     </ag-grid-angular>
   `,
   styles: [`
-    /* Centrado del encabezado cuando se usa headerClass: 'ag-center-header' */
+    /* center header helper when headerClass: 'ag-center-header' is used */
     .ag-center-header .ag-header-cell-label { justify-content: center; }
 
-    /* Link visual en la columna Location */
-    .grid-link {
-      cursor: pointer;                 /* mano al pasar */
-      color: var(--bs-primary, #0d6efd);
-      text-decoration: underline;
+    /* Status badges */
+    .status-badge {
+      display: inline-block;
+      padding: .25rem .5rem;
+      border-radius: .5rem;
+      font-size: .75rem;
+      line-height: 1;
+      white-space: nowrap;
     }
-    .grid-link:hover { filter: brightness(0.9); }
+    .badge-on  { background: #d1e7dd; color: #0f5132; } /* success-subtle */
+    .badge-off { background: #f8d7da; color: #842029; } /* danger-subtle */
 
-    /* Ajustes visuales para Applicants centrado */
-    .applicants-cell { text-align: center; }
-    .applicants-cell .applicants-cell-content {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: .25rem;
-      width: 100%;
-    }
-    .applicants-cell .feather { width: 14px; height: 14px; line-height: 1; }
+    .text-center { text-align: center; }
   `]
 })
-export class LocationsGridComponent implements OnChanges {
-  /** Filas recibidas desde el componente padre */
+export class WorkflowsGridComponent implements OnChanges {
+  /** Rows received from parent */
   @Input() rowData: any[] = [];
 
-  // Paginación
+  // Pagination
   pageSize = 10;
   pageSizeOptions = [10, 25, 50, 100];
   currentPage = 0;
@@ -95,59 +89,85 @@ export class LocationsGridComponent implements OnChanges {
   rowRangeStart = 0;
   rowRangeEnd = 0;
 
-  constructor(private router: Router) {}
-
   columnDefs: ColDef[] = [
     { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
 
-    // LOCATION como <a> link SPA
+    // Market name (plain text)
     {
-      headerName: 'Location',
-      field: 'location_name',
+      headerName: 'Workflow',
+      field: 'name',
       minWidth: 160,
       flex: 1,
       headerComponent: GridHeaderComponent,
-      headerComponentParams: { icon: 'icon-map-pin' },
-      cellRenderer: (p: any) => {
-        const name = (p.value ?? '').toString().replace(/"/g, '&quot;');
-        const id   = p.data?.id_location;
-        const href = id != null ? `/openngs/${encodeURIComponent(id)}` : '#';
-        return `<a class="grid-link" href="${href}" role="link" aria-label="Open openings for ${name}">${name}</a>`;
-      }
+      headerComponentParams: { icon: 'icon-map-pin' }
     },
-
-    { headerName: 'Market', field: 'market_name', minWidth: 140, flex: .9, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
-    { headerName: 'Workflow', field: 'workflow_name', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-git-branch' } },
-    { headerName: 'Address', field: 'market_address', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
-
     {
-      headerName: 'Applicants',
-      field: 'applicants_count',
-      minWidth: 130,
-      flex: .6,
+      headerName: 'Created On',
+      field: 'created_at',
+      minWidth: 170,
+      flex: .8,
       headerComponent: GridHeaderComponent,
-      headerComponentParams: { icon: 'icon-users' },
-      headerClass: 'ag-center-header',          // centra el encabezado
-      filter: 'agNumberColumnFilter',
-      comparator: (a: any, b: any) => (Number(a) || 0) - (Number(b) || 0),
-      cellClass: ['applicants-cell'],           // centrado del contenido
-      cellStyle: { textAlign: 'center' },
-      cellRenderer: (p: any) => {
-        const n = Number(p.value) || 0;
-        const tone = n > 0 ? 'text-primary' : 'text-muted';
-        return `
-          <span class="applicants-cell-content" title="${n} applicants">
-            <i class="feather icon-users ${tone}"></i>
-            <span>${n}</span>
-          </span>
-        `;
+      headerComponentParams: { icon: 'icon-calendar' },
+      headerClass: 'ag-center-header',
+      cellClass: 'text-nowrap',
+      filter: 'agDateColumnFilter',
+      // Normaliza a Date (soporta 'YYYY-MM-DD HH:mm:ss' de MySQL)
+      valueGetter: (p: any) => {
+        const v = p.data?.created_at;
+        if (!v) return null;
+        const iso = typeof v === 'string' ? v.replace(' ', 'T') : v;
+        const d = new Date(iso);
+        return Number.isNaN(d.getTime()) ? null : d;
+      },
+      // Muestra MM/DD/YYYY
+      valueFormatter: (p: any) => {
+        const d: Date | null = p.value instanceof Date ? p.value : null;
+        if (!d) return '';
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${mm}/${dd}/${yyyy}`;
+      },
+      // (Opcional) asegura orden cronológico correcto
+      comparator: (a: any, b: any) => {
+        const ta = a instanceof Date ? a.getTime() : 0;
+        const tb = b instanceof Date ? b.getTime() : 0;
+        return ta - tb;
       }
     },
 
-    // IDs ocultos (útiles para acciones)
-    { headerName: 'Location ID', field: 'id_location', hide: true },
-    { headerName: 'Market ID', field: 'id_market', hide: true },
-    { headerName: 'Workflow ID', field: 'id_workflow', hide: true }
+    // Active as non-interactive badge (no click changes)
+    {
+      headerName: 'Active',
+      field: 'is_active',
+      minWidth: 110,
+      flex: .5,
+      headerComponent: GridHeaderComponent,
+      headerComponentParams: { icon: 'icon-check-circle' },
+      headerClass: 'ag-center-header',
+      valueGetter: (p) => Number(p.data?.is_active) === 1 ? 1 : 0, // normalize 1/0
+      comparator: (a: any, b: any) => Number(a) - Number(b),
+      filter: 'agSetColumnFilter',
+      filterParams: {
+        values: [1, 0],
+        valueFormatter: (p: any) => (Number(p.value) === 1 ? 'Active' : 'Inactive'),
+        textFormatter: (val: string) => val
+      },
+      cellClass: 'text-center',
+      cellStyle: { pointerEvents: 'none' }, // ← evita cualquier click/hover efecto
+      cellRenderer: (p: any) => {
+        const on = Number(p.value) === 1;
+        const label = on ? 'Active' : 'Inactive';
+        const cls = on ? 'badge-on' : 'badge-off';
+        return `<span class="status-badge ${cls}">${label}</span>`;
+      }
+    },
+
+   
+  
+    { headerName: 'Actions', field: 'actions', minWidth: 140, maxWidth: 180, pinned: 'right', sortable:false, filter:false, cellRenderer: (p: any) => this.actionButtons(p.data), cellClass:'dw-actions-cell' },
+    // Hidden technical ID
+    { headerName: 'workflow ID', field: 'id_workflow', hide: true }
   ];
 
   defaultColDef: ColDef = {
@@ -171,6 +191,16 @@ export class LocationsGridComponent implements OnChanges {
     }
   }
 
+  private actionButtons(rec: workflowsRecord) {
+    if (!rec) return '';
+      const disabled = rec.active === 0;
+      return `
+            <div class="d-flex gap-1">
+              <button class="btn btn-xs btn-outline-secondary" type="button" data-action="edit">Edit</button>
+              <button class="btn btn-xs btn-outline-danger" type="button" data-action="delete" ${disabled ? 'disabled' : ''}>Disable</button>
+      </div>`;
+  }
+      
   onGridReady(e: GridReadyEvent) {
     this.gridApi = e.api;
     this.updatePaginationState();
@@ -196,14 +226,6 @@ export class LocationsGridComponent implements OnChanges {
 
   onPaginationChanged() {
     this.updatePaginationState();
-  }
-
-  /** Navegación SPA al hacer click en la celda "Location" (previene el href) */
-  onCellClicked(evt: any) {
-    if (evt?.colDef?.field === 'location_name' && evt?.data?.id_location != null) {
-      evt.event?.preventDefault?.(); // evita navegación por el href
-      this.router.navigate(['/openngs', evt.data.id_location]);
-    }
   }
 
   private updatePaginationState() {

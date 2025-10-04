@@ -49,7 +49,7 @@ export class UserRolesComponent implements OnInit, OnDestroy {
     { headerName: 'Role', field: 'role', minWidth: 160, flex: 1, sortable: true, filter: true },
     { headerName: 'Description', field: 'description', minWidth: 240, flex: 1.4, sortable: true, filter: true },
     { headerName: 'Created', field: 'createdat', minWidth: 160, flex: .9, valueFormatter: p => this.formatDate(p.value), sortable: true },
-	{ headerName: 'Active', field: 'isactive', minWidth: 120, flex: .6, sortable: true, filter: true, cellRenderer: (p:any)=> this.renderActiveBadge(p.value) },
+	  { headerName: 'Active', field: 'isactive', minWidth: 120, flex: .6, sortable: true, filter: true, cellRenderer: (p:any)=> this.renderActiveBadge(p.value) },
     { headerName: 'Actions', field: 'actions', minWidth: 140, maxWidth: 180, pinned: 'right', sortable:false, filter:false, cellRenderer: (p: any) => this.actionButtons(p.data), cellClass: 'dw-actions-cell' }
   ];
 

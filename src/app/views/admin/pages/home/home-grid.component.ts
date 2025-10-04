@@ -7,7 +7,7 @@ import { IHeaderAngularComp } from 'ag-grid-angular';
 import { Router } from '@angular/router';
 import { LocationsRecord } from '../../../../core/models/locations.model';
 
-/* ---------------- Grid Header (con icono) ---------------- */
+/* ---------------- Grid Header (with icon) ---------------- */
 @Component({
   selector: 'app-grid-header',
   standalone: true,
@@ -86,10 +86,10 @@ export class GridHeaderComponent implements IHeaderAngularComp {
   `]
 })
 export class HomeGridComponent implements OnChanges {
-  /** Filas recibidas desde el componente padre */
+  /** Rows received from parent component */
   @Input() rowData: LocationsRecord[] = [];
 
-  // Paginación
+  // Pagination
   pageSize = 10;
   pageSizeOptions = [10, 25, 50, 100];
   currentPage = 0;
@@ -103,7 +103,7 @@ export class HomeGridComponent implements OnChanges {
   columnDefs: ColDef[] = [
     { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
 
-    // LOCATION como "link" SPA (span + onCellClicked)
+  // LOCATION as SPA "link" (span + onCellClicked)
     {
       headerName: 'Location',
       field: 'location_name',
@@ -169,7 +169,7 @@ export class HomeGridComponent implements OnChanges {
       cellClass: 'dw-actions-cell'
     },
 
-    // IDs ocultos (útiles para acciones)
+  // Hidden IDs (useful for actions)
     { headerName: 'Location ID', field: 'id_location', hide: true },
     { headerName: 'Market ID', field: 'id_market', hide: true },
     { headerName: 'Workflow ID', field: 'id_workflow', hide: true }
@@ -223,13 +223,11 @@ export class HomeGridComponent implements OnChanges {
     this.updatePaginationState();
   }
 
-  /** Navegación SPA: click en la celda "Location" envía a /locations */
+  /** SPA navigation: click on the "Location" cell navigates to /locations */
   onCellClicked(e: any) {
-
-      console.log(e?.colDef)
     if (e?.colDef?.field === 'id_location') {
       const id = e?.data?.id_location;
-      e.event?.preventDefault?.(); // no abriría ningún href, pero prevenimos por si acaso
+  e.event?.preventDefault?.(); // not opening any href but prevent just in case
       this.router.navigate(['/locations'], id); // <— ruta interna que pediste
       return;
     }
@@ -248,14 +246,14 @@ export class HomeGridComponent implements OnChanges {
     if (action === 'delete') this.delete(rec);
   }
 
-  // ==== Dialog stubs (completa según tu flujo) ====
+  // ==== Dialog stubs (complete according to your flow) ====
   openCreate(): void {}
   openEdit(rec: LocationsRecord): void {}
   closeDialog(): void {}
   handleDialogSave(result: LocationsRecord) {}
   delete(rec: LocationsRecord): void {}
 
-  // ==== Helpers de UI ====
+  // ==== UI Helpers ====
   private actionButtons(rec: LocationsRecord) {
     if (!rec) return '';
     const disabled = rec.active === 0;

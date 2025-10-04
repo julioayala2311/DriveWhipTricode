@@ -151,7 +151,7 @@ export class UserRolesComponent implements OnInit, OnDestroy {
 
   onGridReady(e: GridReadyEvent) {
     this.gridApi = e.api;
-    // Con flex en columnas ya no es necesario sizeColumnsToFit; dejamos ajuste dinámico
+  // With flex columns we no longer need sizeColumnsToFit; allow natural dynamic sizing
     if (this.pendingActionColWidth) {
       const col = this.gridApi.getColumn('actions');
       if (col) this.gridApi.setColumnWidth(col, this.pendingActionColWidth);

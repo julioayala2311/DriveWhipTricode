@@ -1,4 +1,5 @@
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AgGridAngular } from 'ag-grid-angular';
@@ -42,7 +43,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
   standalone: true,
   imports: [CommonModule, FormsModule, AgGridAngular],
   template: `
-    <ag-grid-angular class="ag-theme-quartz dw-grid-theme" style="width:100%;height:420px;"
+  <ag-grid-angular class="ag-theme-quartz dw-grid-theme" style="width:100%;height:420px;"
                      [rowData]="rowData"
                      [columnDefs]="columnDefs"
                      [defaultColDef]="defaultColDef"
@@ -54,7 +55,8 @@ export class GridHeaderComponent implements IHeaderAngularComp {
                      (gridReady)="onGridReady($event)"
                      (selectionChanged)="onSelectionChanged()"
                      (firstDataRendered)="onFirstDataRendered()"
-                     (paginationChanged)="onPaginationChanged()">
+           (paginationChanged)="onPaginationChanged()"
+           (cellClicked)="onCellClicked($event)">
     </ag-grid-angular>
   `,
   styles: [`
@@ -74,6 +76,8 @@ export class GridHeaderComponent implements IHeaderAngularComp {
     .badge-off { background: #f8d7da; color: #842029; } /* danger-subtle */
 
     .text-center { text-align: center; }
+    .grid-link { cursor:pointer; color: var(--bs-primary,#0d6efd); text-decoration: underline; }
+    .grid-link:hover { filter: brightness(.9); }
   `]
 })
 export class WorkflowsGridComponent implements OnChanges {
@@ -99,7 +103,11 @@ export class WorkflowsGridComponent implements OnChanges {
       minWidth: 160,
       flex: 1,
       headerComponent: GridHeaderComponent,
-      headerComponentParams: { icon: 'icon-map-pin' }
+      headerComponentParams: { icon: 'icon-map-pin' },
+      cellRenderer: (p: any) => {
+        const value = (p.value ?? '').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
+      }
     },
     {
       headerName: 'Created On',
@@ -128,7 +136,7 @@ export class WorkflowsGridComponent implements OnChanges {
         const yyyy = d.getFullYear();
         return `${mm}/${dd}/${yyyy}`;
       },
-      // (Opcional) asegura orden cronológico correcto
+  // (Optional) ensure correct chronological ordering
       comparator: (a: any, b: any) => {
         const ta = a instanceof Date ? a.getTime() : 0;
         const tb = b instanceof Date ? b.getTime() : 0;
@@ -191,6 +199,8 @@ export class WorkflowsGridComponent implements OnChanges {
     }
   }
 
+  constructor(private router: Router) {}
+
   private actionButtons(rec: workflowsRecord) {
     if (!rec) return '';
       const disabled = rec.active === 0;
@@ -199,6 +209,19 @@ export class WorkflowsGridComponent implements OnChanges {
               <button class="btn btn-xs btn-outline-secondary" type="button" data-action="edit">Edit</button>
               <button class="btn btn-xs btn-outline-danger" type="button" data-action="delete" ${disabled ? 'disabled' : ''}>Disable</button>
       </div>`;
+  }
+
+  onCellClicked(e: any) {
+    if (!e?.colDef || !e.event) return;
+    if (e.colDef.field === 'name') {
+      const id = e.data?.id_workflow;
+      if (id != null) {
+        e.event?.preventDefault?.();
+        this.router.navigate(['/workflows','edit', id]);
+        return;
+      }
+    }
+    if (e.colDef.field !== 'actions') return; // actions handled by buttons
   }
       
   onGridReady(e: GridReadyEvent) {

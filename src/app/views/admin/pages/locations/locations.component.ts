@@ -120,11 +120,12 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.updatePerView();
     window.addEventListener('resize', this.resizeHandler);
 
-    const encryptedUser = localStorage.getItem('user');
-    if (encryptedUser) {
-      const googleUser = this.crypto.decrypt(encryptedUser);
-    } else {
-      console.log('No Google user in storage.');
+    // Removed unused googleUser decryption (was dead code). If needed for migration, handle here.
+    const legacyEncryptedUser = localStorage.getItem('user');
+    if (legacyEncryptedUser && !localStorage.getItem('dw.auth.user')) {
+      // Optionally decrypt & migrate to a unified profile key
+      // const legacyProfile = this.crypto.decrypt(legacyEncryptedUser);
+      console.debug('[Locations] Legacy user key found, prefer dw.auth.user');
     }
 
     const token = this.driveWhipCore.getCachedToken();
@@ -150,8 +151,8 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const api: IDriveWhipCoreAPI = {
       commandName: DriveWhipAdminCommand.crm_locations_dropdown,
-      // si tu SP acepta filtrar por id, descomenta la línea de abajo:
-      // parameters: (this.idLocation && this.idLocation.trim() !== '') ? [Number(this.idLocation)] : []
+  // If your stored procedure supports filtering by id, uncomment below:
+  // parameters: (this.idLocation && this.idLocation.trim() !== '') ? [Number(this.idLocation)] : []
       parameters: []
     };
 
@@ -163,7 +164,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
           return;
         }
 
-        // Normaliza el primer resultset
+  // Normalize first resultset
         let raw: any = [];
         if (Array.isArray(res.data)) {
           const top = res.data as any[];
@@ -187,7 +188,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.locations = mapped;
 
         if (this.locations.length > 0) {
-          // Preselección basada en query param ?id_location=...
+          // Preselection based on query param ?id_location=...
           let preselect: number | null = null;
           if (this.idLocation != null && this.idLocation.trim() !== '') {
             const qNum = Number(this.idLocation);
@@ -198,7 +199,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
 
           this.selectedLocationId = preselect ?? this.locations[0].id;
 
-          // Carga dependiente
+          // Dependent load
           this.loadStagesForWorkflow();
         }
       },
@@ -217,16 +218,15 @@ onLocationChange(): void {
   }
 
   private loadStagesForWorkflow(): void {
-    console.log('Loading stages for workflow', this.selectedLocationId);
-    // Solo abortar si es null o undefined, permitir 0 como id válido
+  // Abort only if null or undefined; allow 0 as a valid id
     if (this.selectedLocationId === null || this.selectedLocationId === undefined) {
       this.stages = [];
       return;
     }
-    // Asegurar número (ya debería ser number si usamos [ngValue])
+  // Ensure number (should already be number if using [ngValue])
     const workflowId = this.toNumberStrict(this.selectedLocationId);
     if (workflowId === null || Number.isNaN(workflowId)) {
-      console.warn('[HomeComponent] workflowId inválido', this.selectedLocationId);
+  console.warn('[HomeComponent] Invalid workflowId', this.selectedLocationId);
       this.stages = [];
       return;
     }
@@ -234,7 +234,7 @@ onLocationChange(): void {
       commandName: DriveWhipAdminCommand.crm_stages_list,
       parameters: [ workflowId ]
     };
-    console.log('[HomeComponent] Ejecutando crm_stages_list', api);
+  
     this.driveWhipCore.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
       next: res => {
 
@@ -242,7 +242,6 @@ onLocationChange(): void {
           this.stages = [];
           return;
         }
-        console.log(res);
         let raw: any = [];
         if (Array.isArray(res.data)) {
           const top = res.data as any[];
@@ -287,9 +286,9 @@ onLocationChange(): void {
     } else if (w < 1200) {
       this.perView = 5;
     } else if (w < 1400) {
-      this.perView = 6;
+      this.perView = 5;
     } else {
-      this.perView = 8; // target for desktop
+      this.perView = 7; // target for desktop
     }
 
     if (this.visibleStart + this.perView > this.stages.length) {
@@ -332,11 +331,11 @@ onLocationChange(): void {
     this.endIndex = Math.min(this.visibleStart + this.perView, this.stages.length);
   }
 
-  // Mapa: id_stage_type -> ícono Feather
+  // Map: id_stage_type -> Feather icon
   private readonly stageIconMap: Record<number, string> = {
     1: 'icon-file-text', // Data collection / forms
-    2: 'icon-sliders',   // Rules / filters / conexiones
-    // agrega más si necesitas...
+  2: 'icon-sliders',   // Rules / filters / connections
+  // add more if needed...
   };
 
   stageIcon(type?: number | string | null): string {

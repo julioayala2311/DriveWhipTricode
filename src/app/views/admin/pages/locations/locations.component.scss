@@ -108,8 +108,8 @@
 .carousel-track.animating { will-change: transform; }
 
 .status-card {
-	flex: 0 0 calc((100% - 7rem)/8);
-	max-width: calc((100% - 7rem)/8);
+	flex: 0 0 calc((100% - 7rem)/7);
+	max-width: calc((100% - 7rem)/7);
 	min-width: 0; // flex overflow fix
 	background: var(--bs-body-bg);
 	border:1px solid transparent; /* avoid jump on activation */
@@ -203,11 +203,11 @@
 // We approximate widths so 8 fit on >=1400px, etc.
 .carousel-track { flex-wrap: nowrap; }
 
-@media (min-width: 1400px) { .status-card { flex: 0 0 calc((100% - 7rem)/8); max-width: calc((100% - 7rem)/8); } } /* 8 */
-@media (min-width: 1200px) and (max-width:1399.98px) { .status-card { flex: 0 0 calc((100% - 5rem)/6); max-width: calc((100% - 5rem)/6); } } /* 6 */
-@media (min-width: 992px) and (max-width:1199.98px) { .status-card { flex: 0 0 calc((100% - 3rem)/5); max-width: calc((100% - 3rem)/4); } } /* 4 */
-@media (min-width: 768px) and (max-width:991.98px) { .status-card { flex: 0 0 calc((100% - 2rem)/4); max-width: calc((100% - 2rem)/3); } } /* 3 */
-@media (min-width: 576px) and (max-width:767.98px) { .status-card { flex: 0 0 calc((100% - 1rem)/3); max-width: calc((100% - 1rem)/2); } } /* 2 */
+@media (min-width: 1400px) { .status-card { flex: 0 0 calc((100% - 7rem)/7); max-width: calc((100% - 7rem)/7); } } /* 7 */
+@media (min-width: 1200px) and (max-width:1399.98px) { .status-card { flex: 0 0 calc((100% - 5rem)/5); max-width: calc((100% - 5rem)/5); } } /* 5 */
+@media (min-width: 992px) and (max-width:1199.98px) { .status-card { flex: 0 0 calc((100% - 3rem)/5); max-width: calc((100% - 3rem)/5); } } /* 5 */
+@media (min-width: 768px) and (max-width:991.98px) { .status-card { flex: 0 0 calc((100% - 2rem)/4); max-width: calc((100% - 2rem)/4); } } /* 3 */
+@media (min-width: 576px) and (max-width:767.98px) { .status-card { flex: 0 0 calc((100% - 1rem)/2); max-width: calc((100% - 1rem)/2); } } /* 2 */
 @media (max-width:575.98px) { .status-card { flex: 0 0 50%; max-width: 50%; } } /* 1 */
 
 // Arrow buttons spacing

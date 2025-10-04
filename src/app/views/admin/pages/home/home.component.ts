@@ -19,14 +19,14 @@ import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
 })
 export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
 
-  /** Filas para el grid hijo */
+  /** Rows for child grid */
   locationsRows: any[] = [];
 
-  /** Estado UI */
+  /** UI state */
   loading = false;
   errorMsg: string | null = null;
 
-  // (El resto de props del carrusel/maquetación si las necesitas)
+  // (Remaining carousel/layout props if needed later)
   @ViewChild('track') trackEl?: ElementRef<HTMLElement>;
   visibleStart = 0;
   perView = 8;
@@ -44,7 +44,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.updatePerView();
     window.addEventListener('resize', this.resizeHandler);
 
-    // (Opcional) Carga de perfil/usuario desde localStorage
+  // (Optional) Attempt to load cached user / profile from localStorage
     const encryptedUser = localStorage.getItem('user');
     if (encryptedUser) {
       try { this.crypto.decrypt(encryptedUser); } catch { /* noop */ }
@@ -65,7 +65,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     window.removeEventListener('resize', this.resizeHandler);
   }
 
-  /** Llama al SP crm_locations_list y normaliza data[0] */
+  /** Calls stored procedure crm_locations_list and normalizes data[0] */
   locationsList(): void {
     this.loading = true;
     this.errorMsg = null;
@@ -100,7 +100,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
-  /** --------- utilidades de layout opcionales --------- */
+  /** --------- Optional layout utilities --------- */
   private updatePerView() {
     const w = window.innerWidth;
     if (w < 576) this.perView = 2;

@@ -1,0 +1,80 @@
+<div class="workflow-editor">
+  <!-- Header bar -->
+  <div class="editor-header text-center text-white bg-primary py-2 px-3">
+    <h5 class="mb-0 fw-semibold">{{ workflowName() }}</h5>
+  </div>
+
+  <div class="editor-body d-flex flex-column flex-lg-row">
+    <!-- Left narrow column with vertical stages -->
+    <aside class="stages-panel border-end" *ngIf="!loading(); else loadingTpl">
+      <div class="stages-toolbar px-2 pt-2 pb-1 d-flex flex-column gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div class="small fw-semibold text-uppercase text-secondary" style="letter-spacing:.5px; font-size:.65rem;">Stages</div>
+          <div class="vr d-none d-lg-inline" style="opacity:.15; height:18px;"></div>
+          <div class="d-flex align-items-center gap-1 ms-auto order-actions">
+            <button type="button" class="btn btn-xs btn-outline-secondary" [disabled]="!orderDirty()" (click)="resetOrder()" title="Reset order"><i class="feather icon-rotate-ccw"></i></button>
+            <button type="button" class="btn btn-xs btn-primary" [disabled]="!orderDirty()" (click)="saveOrder()" title="Save order"><i class="feather icon-save"></i></button>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div class="flex-grow-1 position-relative">
+            <input type="text" class="form-control form-control-sm ps-4" placeholder="Filter stages" [value]="filterText()" (input)="onFilterInput($any($event.target).value)" aria-label="Filter stages by name" />
+            <i class="feather icon-search position-absolute" style="left:10px; top:50%; transform:translateY(-50%); font-size:.8rem; opacity:.6;"></i>
+          </div>
+          <div class="small text-secondary d-flex align-items-center gap-2">
+            <span *ngIf="changedCount() > 0" class="badge bg-info-subtle text-info-emphasis border border-info-subtle" style="font-weight:500;">{{ changedCount() }} changed</span>
+            <span *ngIf="filterText()" class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle" style="font-weight:500;">Filtered</span>
+          </div>
+        </div>
+        <div class="hint small text-secondary" style="line-height:1.2;">
+          <span>Drag cards to reorder. Use the filter to locate stages quickly.</span>
+        </div>
+      </div>
+      <div class="stages-scroll" cdkDropList (cdkDropListDropped)="onStageDrop($event)">
+        <div
+          class="status-card vertical"
+          *ngFor="let s of filteredStages(); trackBy: trackStage; let i = index"
+          [class.active]="selectedStageId() === s.id_stage"
+          (click)="selectStage(s.id_stage)"
+          role="button"
+          tabindex="0"
+          [attr.aria-pressed]="selectedStageId() === s.id_stage"
+          cdkDrag
+          [cdkDragDisabled]="false"
+        >
+          <div class="d-flex align-items-start gap-2">
+            <div class="drag-handle" cdkDragHandle title="Drag to reorder">
+              <i class="feather icon-move"></i>
+            </div>
+            <div class="icon-box">
+              <i class="feather" [ngClass]="stageIcon(s.id_stage_type)" aria-hidden="true"></i>
+            </div>
+            <div class="status-block flex-grow-1">
+              <div class="status-text fw-semibold text-truncate">{{ s.name }}</div>
+              <div class="sub-status small">{{ s.type }}</div>
+              <div class="meta small d-flex align-items-center gap-1 mt-1">
+                <i class="feather icon-user"></i><span>{{ s.applicants_count }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div *ngIf="!hasStages() && !loading()" class="p-3 small text-secondary">No stages found.</div>
+      </div>
+    </aside>
+
+    <!-- Right column placeholder -->
+    <section class="editor-main flex-grow-1">
+      <div class="px-3 pb-3 pt-3">
+        <h6 class="fw-semibold mb-3">Workflow Details</h6>
+        <p class="text-secondary small mb-0">
+          Edit workflow metadata and configure stages
+          once the form schema is defined.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="p-4 text-center text-secondary small">Loading…</div>
+  </ng-template>
+</div>

@@ -97,7 +97,7 @@ export class DriveWhipCoreService {
       if (!this.handlingUnauthorized) {
         this.handlingUnauthorized = true;
         try { this.clearCachedAuth(); } catch {}
-        // Mostrar toast unificado y redirigir (pequeño delay para que el usuario lo note)
+  // Show unified toast and redirect (small delay to let user notice it)
         Utilities.showToast('Session expired. Please sign in again.', 'warning', { timer: 4000 });
         setTimeout(() => {
           this.router.navigate(['/auth/login']).finally(() => {

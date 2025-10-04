@@ -50,7 +50,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     /**
      * Close the header menu after a route change on tablet and mobile devices
      */
-    // Suscripción robusta a eventos de navegación (evita forEach que podía perder el primer NavigationEnd)
+  // Robust subscription to navigation events (avoids missing the first NavigationEnd that could happen with forEach)
     this.routerSub = this.router.events.subscribe(event => {
       if (event instanceof NavigationEnd) {
         this.closeMobileMenuIfOpen();
@@ -153,7 +153,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     document.body.classList.remove('header-open');
   }
 
-  // En caso de que se redimensione a escritorio y el backdrop quede montado, lo eliminamos
+  // If the viewport is resized to desktop and the backdrop is still present, ensure it's closed
   @HostListener('window:resize')
   onResize() {
     if (window.innerWidth >= 992) {

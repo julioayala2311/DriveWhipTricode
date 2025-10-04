@@ -1,0 +1,162 @@
+.workflow-editor { min-height: 100%; display:flex; flex-direction: column; }
+.editor-header { position: sticky; top: 0; z-index: 10; }
+.editor-body { min-height: calc(100vh - 64px); }
+
+.stages-panel { 
+	/* Use percentage layout for wide screens */
+	flex: 0 0 25%;
+	max-width: 25%;
+	background: var(--bs-body-bg); 
+	display:flex; 
+	flex-direction: column; 
+	/* fallback min width to avoid collapse */
+	min-width: 240px; 
+}
+.editor-main {
+	flex: 0 0 75%;
+	max-width: 75%;
+	min-width: 0; /* allow content to shrink properly */
+	display:flex;
+	flex-direction: column;
+}
+@media (max-width: 992px) { 
+	.stages-panel { 
+		flex: 0 0 100%;
+		max-width: 100%;
+		width: 100%;
+		min-width: 0;
+		border-right: none; 
+		border-bottom:1px solid var(--bs-border-color,rgba(0,0,0,.15)); 
+	}
+	.editor-main { 
+		flex: 0 0 100%;
+		max-width: 100%;
+	}
+	.editor-body { flex-direction: column; }
+}
+
+.stages-scroll { 
+	overflow-y: auto; 
+	overflow-x: hidden; 
+	padding: .5rem .6rem; 
+	display:flex; 
+	flex-direction: column; 
+	gap: .55rem; 
+	/* Hide scrollbars always (still scrollable) */
+	scrollbar-width: none; /* Firefox */
+	-ms-overflow-style: none; /* IE/Edge */
+}
+.stages-scroll::-webkit-scrollbar { width:0; height:0; display:none; }
+
+/* Hide scrollbars only while dragging to reduce visual noise */
+/* (Drag state keeps same hidden scrollbar behavior; base rule already hides) */
+
+/* Optionally always show slim custom scrollbar (commented out) */
+// .stages-scroll { scrollbar-width: thin; }
+// .stages-scroll::-webkit-scrollbar { width:6px; }
+// .stages-scroll::-webkit-scrollbar-track { background: transparent; }
+// .stages-scroll::-webkit-scrollbar-thumb { background: rgba(var(--bs-primary-rgb,13,110,253), .25); border-radius: 3px; }
+// .stages-scroll::-webkit-scrollbar-thumb:hover { background: rgba(var(--bs-primary-rgb,13,110,253), .4); }
+
+/* Vertical variant of status-card (mirrors locations but stacked) */
+.status-card.vertical {
+	background: var(--bs-body-bg);
+	border:1px solid transparent;
+	border-radius:.75rem;
+	padding:.65rem .65rem .65rem;
+	box-shadow: 0 0 0 1px var(--bs-border-color, rgba(0,0,0,.12)), 0 1px 2px rgba(0,0,0,.05);
+	position: relative;
+	display:flex;
+	flex-direction:column;
+	justify-content:flex-start;
+	transition: box-shadow .3s ease, background .3s ease;
+	cursor:pointer;
+}
+.status-card.vertical:hover {
+	box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb,13,110,253), .35), 0 4px 16px -6px rgba(0,0,0,.18);
+}
+.status-card.vertical.active {
+	box-shadow: 0 0 0 1px var(--bs-primary,#0d6efd), 0 6px 20px -8px rgba(0,0,0,.35);
+	z-index:2;
+}
+.status-card.vertical.active::after {
+	content:'';
+	position:absolute;
+	inset:-4px;
+	border:2px solid rgba(var(--bs-primary-rgb,13,110,253), .55);
+	border-radius: calc(.75rem + 4px);
+	pointer-events:none;
+	box-shadow:0 0 0 3px rgba(var(--bs-primary-rgb,13,110,253), .18);
+	animation: ringFade .9s ease-out forwards;
+}
+.status-card.vertical.active::before {
+	content:'';
+	position:absolute;
+	inset:-12px;
+	border-radius:inherit;
+	background: radial-gradient(circle at center, rgba(var(--bs-primary-rgb,13,110,253),.35) 0%, rgba(var(--bs-primary-rgb,13,110,253),0) 70%);
+	opacity:.6;
+	transform: scale(.85);
+	filter: blur(2px);
+	animation: pulseHalo 1.05s cubic-bezier(.25,.65,.35,1) forwards;
+	pointer-events:none;
+	z-index:-1;
+}
+.status-card.vertical .icon-box {
+	width:30px; height:30px; border-radius:.65rem;
+	background: linear-gradient(135deg, rgba(var(--bs-primary-rgb,13,110,253),.12) 0%, rgba(var(--bs-primary-rgb,13,110,253),.04) 100%);
+	display:flex; align-items:center; justify-content:center;
+	color: var(--bs-primary,#0d6efd); font-size:15px;
+}
+.status-card.vertical .drag-handle { width:26px; height:30px; display:flex; align-items:center; justify-content:center; color: var(--bs-secondary-color,rgba(0,0,0,.55)); cursor:grab; font-size:15px; }
+.status-card.vertical .drag-handle:active { cursor:grabbing; }
+.status-card.vertical.cdk-drag-preview { box-shadow:0 0 0 1px var(--bs-primary,#0d6efd), 0 6px 24px -4px rgba(0,0,0,.35); border-radius:.75rem; }
+.status-card.vertical.cdk-drag-placeholder { opacity:0; }
+.cdk-drop-list-dragging .status-card.vertical:not(.cdk-drag-placeholder) { transition: transform .18s cubic-bezier(.2,.65,.35,1); }
+.status-card.vertical .order-badge { min-width:24px; height:24px; font-size:.65rem; line-height:1; display:flex; align-items:center; justify-content:center; background: var(--bs-secondary-bg,rgba(0,0,0,.06)); color: var(--bs-secondary-color,rgba(0,0,0,.6)); border-radius: 1rem; padding:0 .35rem; font-weight:600; }
+body.dark .status-card.vertical .order-badge { background:#39424b; color:rgba(255,255,255,.65); }
+body.dark .status-card.vertical .drag-handle { color:rgba(255,255,255,.55); }
+
+/* Toolbar */
+.stages-toolbar { border-bottom:1px solid var(--bs-border-color,rgba(0,0,0,.12)); }
+.stages-toolbar .form-control { font-size:.7rem; }
+.stages-toolbar .btn.btn-xs { --bs-btn-padding-y: .25rem; --bs-btn-padding-x: .45rem; font-size:.65rem; line-height:1; }
+
+/* Reorder disabled state (visual hint) */
+
+/* Hint text subtle */
+.stages-toolbar .hint { font-size:.6rem; letter-spacing:.25px; }
+
+/* Focus ring for keyboard navigation */
+.status-card.vertical:focus { outline:2px solid var(--bs-primary,#0d6efd); outline-offset:2px; }
+.status-card.vertical .status-text { font-size:.85rem; }
+.status-card.vertical .sub-status { font-size:.70rem; margin-top:.1rem; letter-spacing:.3px; font-weight:500; color: var(--bs-secondary-color, rgba(0,0,0,.55)); }
+.status-card.vertical .meta { opacity:.85; }
+
+body.dark .status-card.vertical { background:#252b32; box-shadow:0 0 0 1px rgba(255,255,255,.12), 0 1px 2px rgba(0,0,0,.6); }
+body.dark .status-card.vertical:hover { background:#2f3740; }
+body.dark .status-card.vertical.active { background:#2f3740; }
+body.dark .status-card.vertical .sub-status { color: rgba(255,255,255,.55); }
+
+@keyframes pulseHalo {
+	0% { opacity:0; transform: scale(.6); }
+	20% { opacity:.55; }
+	60% { opacity:.35; }
+	100% { opacity:0; transform: scale(1.15); }
+}
+
+@keyframes ringFade {
+	0% { opacity:0; transform: scale(.96); }
+	15% { opacity:1; }
+	100% { opacity:1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.status-card.vertical.active::before,
+	.status-card.vertical.active::after { animation:none; }
+}
+
+// Dark overrides were moved above for clarity
+// body.dark .stage-item { background:#252b32; border-color: rgba(255,255,255,.12); }
+// body.dark .stage-item:hover { background:#2f3740; }
+// body.dark .stage-item.active { background: var(--bs-primary,#0d6efd); }

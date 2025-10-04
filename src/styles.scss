@@ -174,8 +174,8 @@ body.dark .dw-action-btn.danger:hover:not(:disabled) {
 }
 
 /* =========================
-   ag-Grid footer (pagination) responsive tweaks
-   Evita overflow de textos en móviles
+  ag-Grid footer (pagination) responsive tweaks
+  Prevent text overflow on small screens
 ========================= */
 @media (max-width: 640px) {
   .dw-grid-theme .ag-paging-panel {
@@ -186,13 +186,13 @@ body.dark .dw-action-btn.danger:hover:not(:disabled) {
     font-size: 11px;
     line-height: 1.15;
   }
-  /* Ajusta orden para que info principal quede primero */
+  /* Reorder so primary info appears first */
   .dw-grid-theme .ag-paging-panel .ag-paging-page-summary-panel { order: 1; }
   .dw-grid-theme .ag-paging-panel .ag-paging-row-summary-panel { order: 2; }
   .dw-grid-theme .ag-paging-panel .ag-paging-page-size { order: 3; }
   .dw-grid-theme .ag-paging-panel .ag-paging-navigation { order: 4; }
 
-  /* Botones más compactos */
+  /* More compact buttons */
   .dw-grid-theme .ag-paging-panel .ag-paging-button {
     padding: 2px 6px;
     min-width: 28px;
@@ -200,18 +200,18 @@ body.dark .dw-action-btn.danger:hover:not(:disabled) {
     font-size: 11px;
   }
 
-  /* Selector de page size más reducido */
+  /* Smaller page size selector */
   .dw-grid-theme .ag-paging-panel select.ag-paging-page-size {
     max-width: 85px;
     padding: 2px 4px;
     font-size: 11px;
   }
 
-  /* Limita crecimiento horizontal de paneles de texto */
+  /* Limit horizontal growth of summary panels */
   .dw-grid-theme .ag-paging-page-summary-panel,
   .dw-grid-theme .ag-paging-row-summary-panel { flex: 1 1 100%; }
 
-  /* Oculta textos menos críticos si el ancho es extremadamente pequeño */
+  /* Hide less critical texts if width is extremely small */
   @media (max-width: 420px) {
     .dw-grid-theme .ag-paging-row-summary-panel { display: none; }
     .dw-grid-theme .ag-paging-panel { gap: 4px 6px; }
@@ -221,7 +221,7 @@ body.dark .dw-action-btn.danger:hover:not(:disabled) {
   }
 }
 
-/* Evita que contenido desborde lateralmente si hay columnas muy anchas */
+/* Prevent lateral overflow if there are very wide columns */
 .dw-grid-theme .ag-root-wrapper-body { overflow-x: auto; }
 
 /* Vertical centering for ag-Grid cells in this component */
@@ -242,3 +242,7 @@ body.dark .dw-action-btn.danger:hover:not(:disabled) {
 @media (max-width: 640px) {
   .dw-grid-theme .ag-cell.dw-actions-cell { padding-right: 4px; }
 }
+
+// .horizontal-menu .bottom-navbar {
+//   height: 6vh!important;
+// }

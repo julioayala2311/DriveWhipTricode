@@ -4,19 +4,19 @@ import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   { path: 'auth', loadChildren: () => import('./views/admin/pages/auth/auth.routes')},
-   // 🔹 Opening fuera del BaseComponent (sin menú)
+   // Opening outside BaseComponent (no menu shell)
   {
     path: 'opening', // <-- corrige el typo si quieres (antes: 'openning')
     loadChildren: () => import('./views/applicants/pages/opening/opening.routes')
    // canActivate: [authGuard]
   },
  
-  // 🔹 Openings catalog (SIN menú)
+  // Openings catalog (no menu shell)
   {
     path: 'openings/catalog',
     loadChildren: () =>
       import('./views/applicants/pages/openings-catalog/opening-catalog.routes')
-    // canActivate: [authGuard] // opcional
+  // canActivate: [authGuard] // optional
   },
   {
     path: '',

@@ -74,7 +74,7 @@ export class UserAccountsComponent implements OnInit {
 
   onGridReady(e: GridReadyEvent) {
     this.gridApi = e.api;
-    // Con flex en columnas, evitamos sizeColumnsToFit para permitir distribución proporcional.
+  // With flex columns we avoid sizeColumnsToFit to allow proportional distribution.
   }
 
   load(): void {
@@ -127,10 +127,10 @@ export class UserAccountsComponent implements OnInit {
             if (top.length > 0 && Array.isArray(top[0])) raw = top[0]; else raw = top;
         }
         const list: RoleRecord[] = Array.isArray(raw) ? raw : [];
-        const active = list.filter(r => r && r.role && r.isactive === 1).map(r => r.role.trim());
-        // quitar duplicados
+  const active = list.filter(r => r && r.role && r.isactive === 1).map(r => r.role.trim());
+  // Remove duplicates
         const uniq = Array.from(new Set(active.map(r => r.toLowerCase())));
-        // mantener casing original del primero encontrado
+  // Keep original casing of the first occurrence
         const finalRoles: string[] = [];
         uniq.forEach(lower => {
           const original = active.find(r => r.toLowerCase() === lower);
@@ -138,7 +138,7 @@ export class UserAccountsComponent implements OnInit {
         });
         this._roles.set(finalRoles.sort((a,b)=> a.localeCompare(b)));
       },
-      error: () => { /* ignorar error de roles para no romper UI cuentas */ }
+  error: () => { /* ignore roles load error to avoid breaking accounts UI */ }
     });
   }
 

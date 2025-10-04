@@ -8,6 +8,7 @@ import { CryptoService } from '../../../../core/services/crypto/crypto.service';
 import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
 import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/models/entities.model';
 import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-home',
@@ -34,7 +35,8 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
   }[] = [];
 
   @ViewChild('track') trackEl?: ElementRef<HTMLElement>;
-
+  
+  idLocation!: string | null;
   visibleStart = 0;
   perView = 8; // target for desktop
   showGrid = false;
@@ -60,7 +62,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     return st ? st.applicants_count : null;
   }
 
-  constructor(private driveWhipCore: DriveWhipCoreService, private crypto: CryptoService) {}
+  constructor(private driveWhipCore: DriveWhipCoreService, private crypto: CryptoService, private route: ActivatedRoute) {}
 
   onCardClick(stage: any) {
     this.selectedCardId = stage.id_stage ?? stage.id;
@@ -131,7 +133,10 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
       const profile = this.crypto.decrypt(encryptedProfile);
     }
 
-    this.userList();
+    this.route.queryParamMap.subscribe(q => {
+      this.idLocation = q.get('id_location');     
+    });
+
     this.loadLocations();
   }
 
@@ -142,56 +147,71 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadLocations(): void {
     this.loadingLocations = true;
     this.locationsError = null;
+
     const api: IDriveWhipCoreAPI = {
       commandName: DriveWhipAdminCommand.crm_locations_dropdown,
-      parameters: [] 
+      // si tu SP acepta filtrar por id, descomenta la línea de abajo:
+      // parameters: (this.idLocation && this.idLocation.trim() !== '') ? [Number(this.idLocation)] : []
+      parameters: []
     };
+
     this.driveWhipCore.executeCommand<DriveWhipCommandResponse>(api).subscribe({
       next: res => {
         if (!res.ok) {
-          console.log(res);
           this.locations = [];
           this.locationsError = String(res.error || 'Failed to load locations');
           return;
         }
+
+        // Normaliza el primer resultset
         let raw: any = [];
         if (Array.isArray(res.data)) {
           const top = res.data as any[];
-          if (top.length > 0 && Array.isArray(top[0])) raw = top[0]; else raw = top;
+          raw = (top.length > 0 && Array.isArray(top[0])) ? top[0] : top;
         }
         const list = Array.isArray(raw) ? raw : [];
-        // map flexible: try common field names; evitamos usar el idx para no introducir ids 0 falsos
+
+        // Mapea EXCLUSIVAMENTE id_location -> id (number) y name -> name
         const mapped: { id: number; name: string }[] = [];
-        list.forEach((r: any) => {
-          const candidate = r.id ?? r.ID ?? r.id_workflow ?? r.workflow_id ?? r.value ?? r.val;
-            const nameVal = (r.name ?? r.NAME ?? r.label ?? r.text ?? '').toString().trim();
-          if (!nameVal) return;
-          const num = this.toNumberStrict(candidate);
-          if (num === null) {
-            return;
-          }
-          mapped.push({ id: num, name: nameVal });
-        });
-        this.locations = mapped;
-        if (this.locations.length === 0 && list.length > 0) {
-          this.locations = list.map((r:any, idx:number) => ({ id: idx + 1, name: (r.name ?? r.NAME ?? r.label ?? r.text ?? ('Location '+(idx+1))).toString().trim() }))
-            .filter(l => l.name);
+        for (const r of list) {
+          const idRaw = r?.id_location ?? r?.ID_LOCATION ?? r?.id; // fallback suave
+          const name  = (r?.name ?? r?.NAME ?? '').toString().trim();
+          if (idRaw === undefined || idRaw === null || !name) continue;
+
+          const idNum = typeof idRaw === 'number' ? idRaw : Number(String(idRaw));
+          if (!Number.isFinite(idNum)) continue;
+
+          mapped.push({ id: idNum, name });
         }
+
+        this.locations = mapped;
+
         if (this.locations.length > 0) {
-          this.selectedLocationId = this.locations[0].id; // first always selected
+          // Preselección basada en query param ?id_location=...
+          let preselect: number | null = null;
+          if (this.idLocation != null && this.idLocation.trim() !== '') {
+            const qNum = Number(this.idLocation);
+            if (Number.isFinite(qNum) && this.locations.some(x => x.id === qNum)) {
+              preselect = qNum;
+            }
+          }
+
+          this.selectedLocationId = preselect ?? this.locations[0].id;
+
+          // Carga dependiente
           this.loadStagesForWorkflow();
         }
       },
       error: err => {
-        console.error('[HomeComponent] loadLocations error', err);
+        console.error('[Locations] loadLocations error', err);
         this.locations = [];
         this.locationsError = 'Failed to load locations';
       },
       complete: () => this.loadingLocations = false
     });
-  }
+}
 
-  onLocationChange(): void {
+onLocationChange(): void {
     this.visibleStart = 0;
     this.loadStagesForWorkflow();
   }
@@ -312,26 +332,18 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.endIndex = Math.min(this.visibleStart + this.perView, this.stages.length);
   }
 
-  userList(){
-    const driveWhipCoreAPI: IDriveWhipCoreAPI = {
-    commandName: DriveWhipAdminCommand.auth_users_list,
-    parameters: [
-        'hmartinez@gmail.com'
-      ]
-    };
+  // Mapa: id_stage_type -> ícono Feather
+  private readonly stageIconMap: Record<number, string> = {
+    1: 'icon-file-text', // Data collection / forms
+    2: 'icon-sliders',   // Rules / filters / conexiones
+    // agrega más si necesitas...
+  };
 
-    this.driveWhipCore.executeCommand<DriveWhipCommandResponse>(driveWhipCoreAPI).subscribe(
-      (response) => {
-        if (response?.ok) {
-          console.log(response.data); // Successful response data
-        } else {
-          console.error(response?.error); // Error information
-        }
-      },
-      (error) => {
-        console.error('Error occurred:', error);
-      }
-    );
+  stageIcon(type?: number | string | null): string {
+    if (type === null || type === undefined) return 'icon-layers';
+    const t = (typeof type === 'string') ? Number(type) : type;
+    if (!Number.isFinite(t)) return 'icon-layers';
+    return this.stageIconMap[t as number] ?? 'icon-layers';
   }
 
 }

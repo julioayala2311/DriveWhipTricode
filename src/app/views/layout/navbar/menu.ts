@@ -8,12 +8,12 @@ export const MENU: MenuItem[] = [
   },
   {
     label: 'Locations',
-    icon: 'locations',
+    icon: 'map-pin',
     link: '/locations'
   },
   {
     label: 'Workflows',
-    icon: 'workflows',
+    icon: 'git-branch',
     link: '/workflows'
   },
   {

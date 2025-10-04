@@ -56,8 +56,11 @@ export class GridHeaderComponent implements IHeaderAngularComp {
                      (selectionChanged)="onSelectionChanged()"
                      (firstDataRendered)="onFirstDataRendered()"
                      (paginationChanged)="onPaginationChanged()"
-                     (cellClicked)="onCellClicked($event)">
+                     (rowClicked)="onRowClicked($event)"  
+                     
+                     >
     </ag-grid-angular>
+                     <!-- (cellClicked)="onCellClicked($event)" -->
   `,
   styles: [`
     .ag-center-header .ag-header-cell-label { justify-content: center; }
@@ -222,9 +225,12 @@ export class HomeGridComponent implements OnChanges {
 
   /** Navegación SPA: click en la celda "Location" envía a /locations */
   onCellClicked(e: any) {
-    if (e?.colDef?.field === 'location_name') {
+
+      console.log(e?.colDef)
+    if (e?.colDef?.field === 'id_location') {
+      const id = e?.data?.id_location;
       e.event?.preventDefault?.(); // no abriría ningún href, pero prevenimos por si acaso
-      this.router.navigate(['/locations']); // <— ruta interna que pediste
+      this.router.navigate(['/locations'], id); // <— ruta interna que pediste
       return;
     }
 
@@ -288,4 +294,21 @@ export class HomeGridComponent implements OnChanges {
     this.gridApi?.paginationGoToNextPage();
     this.updatePaginationState();
   }
+
+  onRowClicked(e: any) {
+    // Ignorar checkbox
+    if (e?.column?.getColId?.() === 'select') return;
+
+    // Ignorar botones dentro de Actions
+    const target = e.event?.target as HTMLElement | null;
+    if (target && target.closest('button,[data-action]')) return;
+
+    const id = e?.data?.id_location;
+    if (id != null) {
+      this.router.navigate(['/locations'], {
+        queryParams: { id_location: id }   // 👈 solo enviamos id_location
+      });
+    }
+  }
+
 }

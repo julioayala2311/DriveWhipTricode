@@ -1,0 +1,54 @@
+# --- Dependencias ---
+node_modules/
+
+# --- Construcciones / artefactos ---
+dist/
+out-tsc/
+.tmp/
+.temp/
+coverage/
+
+# --- Cachés de herramientas ---
+.angular/
+.angular/cache/
+.npm/
+.yarn/
+.pnpm-store/
+
+# --- Archivos de ambiente locales (ajusta según tu estructura) ---
+# Mantén los .ts normales versionados, sólo ignora variantes locales
+src/environments/*.local.ts
+*.local.env
+*.local.json
+
+# --- Logs ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.iml
+
+# --- SO ---
+.DS_Store
+Thumbs.db
+
+# --- Herramientas de testing / e2e (ajusta si no usas) ---
+cypress/videos/
+cypress/screenshots/
+
+# --- Sass cache ---
+.sass-cache/
+
+# --- Otros empaquetados temporales ---
+*.tgz
+
+# --- Storybook (si lo agregas en el futuro) ---
+storybook-static/
+
+# Nota: NO ignoramos package-lock.json para asegurar builds reproducibles.

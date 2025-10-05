@@ -29,6 +29,10 @@ export class UserAccountsComponent implements OnInit {
   private readonly _roles = signal<string[]>([]); // active role names
   private gridApi?: GridApi;
 
+  private readonly ADMIN_ROLES = new Set([
+    'ADMIN'
+  ]);
+
   // Derived lists
   readonly usernames = computed(() => this._records().map(r => r.user.toLowerCase()));
 
@@ -175,7 +179,21 @@ export class UserAccountsComponent implements OnInit {
     });
   }
 
+  private isAdminRole(rec: UserAccountRecord): boolean {
+    const role = (rec?.role ?? '').toString().trim().toUpperCase();
+    //console.log(role)
+    return this.ADMIN_ROLES.has(role);
+  }
+
+
   delete(rec: UserAccountRecord): void {
+
+    // Bloquear deshabilitar a cuentas administrador
+    if (this.isAdminRole(rec)) {
+      Utilities.showToast('Administrator accounts cannot be disabled.', 'warning');
+      return;
+    }
+
     Utilities.confirm({
       title: 'Disable account',
       text: `The user \"${rec.user}\" will be disabled. Continue?`,

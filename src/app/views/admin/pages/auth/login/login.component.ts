@@ -8,6 +8,7 @@ import { Utilities } from '../../../../../Utilities/Utilities';
 import { IDriveWhipCoreAPI, DriveWhipCommandResponse, IAuthResponseModel } from '../../../../../core/models/entities.model';
 import { DriveWhipAdminCommand } from '../../../../../core/db/procedures';
 import { CryptoService } from '../../../../../core/services/crypto/crypto.service';
+import { HttpErrorResponse } from '@angular/common/http';
 
 interface GoogleAuthPayload {
   email: string;
@@ -116,8 +117,8 @@ export class LoginComponent implements OnInit, AfterViewInit {
         const driveWhipCoreAPI: IDriveWhipCoreAPI = {
           commandName: DriveWhipAdminCommand.auth_users_info,
           parameters: [
-            'hmartinez@gmail.com',
-            // googlePayload.email,
+           // 'hmartinez@gmail.com',
+             googlePayload.email,
             accessToken,
             googlePayload.firstName,
             googlePayload.lastName
@@ -126,6 +127,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
 
         return this.driveWhipCore.executeCommand<DriveWhipCommandResponse<IAuthResponseModel[]>>(driveWhipCoreAPI).pipe(
           map(envelope => {
+            console.log(envelope)
             if (!envelope?.ok) {
               throw new Error('DriveWhip authentication failed.');
             }
@@ -155,12 +157,98 @@ export class LoginComponent implements OnInit, AfterViewInit {
         this.redirectAfterLogin();
       },
       error: err => {
+        //     console.log(err)
+        // this.driveWhipCore.clearCachedAuth();
+        // this.pendingGooglePayload = null;
+        // const message = err?.message || err?.raw?.error?.message || 'DriveWhipCoreApi: Unhandled error.';
+        // Utilities.showToast(message, 'error');
+
+        console.log(err);
         this.driveWhipCore.clearCachedAuth();
         this.pendingGooglePayload = null;
-        const message = err?.message || err?.raw?.error?.message || 'DriveWhipCoreApi: Unhandled error.';
-        Utilities.showToast(message, 'error');
+
+        // 1) toma el mensaje “grande” de donde venga
+        const rawMsg =
+          err?.raw?.error?.error ||
+          err?.raw?.error?.message ||
+          err?.error?.error ||
+          err?.error?.message ||
+          err?.message ||
+          '';
+
+        // 2) quédate solo con lo que va después de "Error:"
+        const pretty =
+          (String(rawMsg).match(/Error:\s*(.*)$/i)?.[1] ?? String(rawMsg)).trim();
+
+        Utilities.showToast(pretty || 'Unhandled error.', 'error');
       }
     });
+  }
+
+  private afterError(s: unknown): string {
+    const txt = String(s ?? '');
+    const i = txt.toLowerCase().indexOf('error:');
+    return i >= 0 ? txt.slice(i + 'error:'.length).trim() : txt;
+  }
+  
+  private extractApiError(err: any): string {
+    // 1) Si viene HttpErrorResponse anidado en err.raw
+    const httpErr: HttpErrorResponse | null =
+      (err?.raw instanceof HttpErrorResponse) ? err.raw :
+      (err?.raw && (err.raw as any)?.status && (err.raw as any)?.message && (err.raw as any)?.error ? err.raw as HttpErrorResponse : null);
+
+    // 2) Intentar leer distintas rutas típicas
+    const candidates: any[] = [
+      // Dentro del HttpErrorResponse anidado
+      httpErr?.error?.error,             // ← tu caso: string con “Failed executing stored procedure…”
+      httpErr?.error?.message,
+      httpErr?.error?.data?.error,
+
+      // A veces el backend manda error como string JSON
+      typeof httpErr?.error === 'string' ? httpErr.error : null,
+
+      // Rutas alternativas por si el wrapper te lo pasó arriba
+      err?.error?.error,
+      err?.error?.message,
+      err?.error?.data?.error,
+      err?.raw?.error?.error,
+      err?.raw?.error?.message,
+      err?.raw?.error?.data?.error,
+
+      // Fallbacks genéricos
+      httpErr?.message,
+      err?.message
+    ];
+
+    for (const c of candidates) {
+      if (!c) continue;
+
+      // Si es string JSON, intentar parsear para extraer .error
+      if (typeof c === 'string') {
+        const trimmed = c.trim();
+        if (!trimmed) continue;
+
+        // Si parece JSON, parsea y busca un .error adentro
+        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            const deep = parsed?.error || parsed?.message || parsed?.data?.error;
+            if (typeof deep === 'string' && deep.trim()) return deep.trim();
+          } catch {
+            // no es JSON válido; usa el string tal cual
+            return trimmed;
+          }
+        }
+        return trimmed;
+      }
+
+      if (typeof c === 'object') {
+        const deep = c?.error || c?.message || c?.data?.error;
+        if (typeof deep === 'string' && deep.trim()) return deep.trim();
+      }
+    }
+
+    return 'DriveWhipCoreApi: Unhandled error.';
   }
 
   private persistGoogleState(): void {

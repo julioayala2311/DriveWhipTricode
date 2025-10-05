@@ -116,8 +116,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
         const driveWhipCoreAPI: IDriveWhipCoreAPI = {
           commandName: DriveWhipAdminCommand.auth_users_info,
           parameters: [
-            'hmartinez@gmail.com',
-            // googlePayload.email,
+            googlePayload.email,
             accessToken,
             googlePayload.firstName,
             googlePayload.lastName
@@ -135,7 +134,18 @@ export class LoginComponent implements OnInit, AfterViewInit {
               throw new Error('This Google account is not linked to a DriveWhip user.');
             }
 
-            const profile = firstSet[0];
+            const profile: any = firstSet[0];
+
+            // Detect inactive user pattern from SP: object has throwMessageTricode
+            if (profile && profile.throwMessageTricode) {
+              // Show backend provided message and abort login flow
+              Utilities.showToast(profile.throwMessageTricode, 'error');
+              // Clear cached token/profile because we already stored token earlier
+              this.driveWhipCore.clearCachedAuth();
+              // Signal a specific error code to short‑circuit further handling
+              throw new Error('INACTIVE_USER');
+            }
+
             this.driveWhipCore.cacheUserProfile(profile);
             return profile;
           })
@@ -150,11 +160,15 @@ export class LoginComponent implements OnInit, AfterViewInit {
           this.persistGoogleState();
           this.pendingGooglePayload = null;
         }
-
         Utilities.showToast(`Welcome, ${profile.firstname} ${profile.lastname}!`, 'success');
         this.redirectAfterLogin();
       },
       error: err => {
+        // If we already handled inactive user with a toast, just exit silently
+        if (err?.message === 'INACTIVE_USER') {
+          this.pendingGooglePayload = null;
+          return;
+        }
         this.driveWhipCore.clearCachedAuth();
         this.pendingGooglePayload = null;
         const message = err?.message || err?.raw?.error?.message || 'DriveWhipCoreApi: Unhandled error.';

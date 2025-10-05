@@ -64,12 +64,93 @@
 
     <!-- Right column placeholder -->
     <section class="editor-main flex-grow-1">
-      <div class="px-3 pb-3 pt-3">
-        <h6 class="fw-semibold mb-3">Workflow Details</h6>
-        <p class="text-secondary small mb-0">
-          Edit workflow metadata and configure stages
-          once the form schema is defined.
-        </p>
+      <div class="px-3 pb-3 pt-3 d-flex flex-column gap-3">
+        <div *ngIf="!dataCollectionVisible() && !rulesVisible(); else stageSpecificTpl">
+          <h6 class="fw-semibold mb-3">Workflow Details</h6>
+          <p class="text-secondary small mb-0">
+            Select a stage to view configuration. Data Collection specific settings will appear when applicable.
+          </p>
+        </div>
+        <ng-template #stageSpecificTpl>
+          <!-- Data Collection Template -->
+          <ng-container *ngIf="dataCollectionVisible(); else rulesTpl">
+          <div class="card shadow-sm border-0 data-collection-card">
+            <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+              <h6 class="mb-0 fw-semibold">Data Collection Form</h6>
+              <span *ngIf="dataSectionLoading()" class="small text-secondary">Loading…</span>
+            </div>
+            <div class="card-body pt-3 pb-3 px-3" *ngIf="!dataSectionLoading(); else loadingDataSec">
+              <div *ngIf="dataSectionError()" class="alert alert-danger py-2 px-3 small mb-3">
+                {{ dataSectionError() }}
+              </div>
+              <div class="form-switch-grid d-flex flex-column gap-3">
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input" type="checkbox" id="dc_show_tracker" [checked]="dc_show_stage_in_tracker()" (change)="toggleDataOption('show_stage_in_tracker', $any($event.target).checked)" />
+                  <label class="form-check-label small" for="dc_show_tracker">Show stage in applicant portal progress tracker</label>
+                </div>
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input" type="checkbox" id="dc_auto_advance" [checked]="dc_auto_advance_stage()" (change)="toggleDataOption('auto_advance_stage', $any($event.target).checked)" />
+                  <label class="form-check-label small" for="dc_auto_advance">Automatically move applicant to next stage after data is collected (recommended)</label>
+                </div>
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input" type="checkbox" id="dc_notify_owner" [checked]="dc_notify_owner_on_submit()" (change)="toggleDataOption('notify_owner_on_submit', $any($event.target).checked)" />
+                  <label class="form-check-label small" for="dc_notify_owner">Notify opening owner when data is submitted</label>
+                </div>
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input" type="checkbox" id="dc_show_one_q" [checked]="dc_show_one_question()" (change)="toggleDataOption('show_one_question', $any($event.target).checked)" />
+                  <label class="form-check-label small" for="dc_show_one_q">Show one question at a time</label>
+                </div>
+              </div>
+            </div>
+            <ng-template #loadingDataSec>
+              <div class="px-2 py-4 text-center small text-secondary">Loading settings…</div>
+            </ng-template>
+          </div>
+          </ng-container>
+          <!-- Rules Template -->
+          <ng-template #rulesTpl>
+            <div *ngIf="rulesVisible()" class="card shadow-sm border-0 rules-card">
+              <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+                <h6 class="mb-0 fw-semibold">Rule 1</h6>
+                <span *ngIf="rulesLoading()" class="small text-secondary">Loading…</span>
+              </div>
+              <div class="card-body pt-3 pb-3 px-3" *ngIf="!rulesLoading(); else loadingRulesTpl">
+                <div *ngIf="rulesError()" class="alert alert-danger py-2 px-3 small mb-3">{{ rulesError() }}</div>
+                <div class="mb-3 small fw-semibold text-uppercase text-secondary" style="letter-spacing:.75px;">Condition</div>
+                <div class="rules-grid">
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold text-secondary mb-1">Condition Type</label>
+                    <select class="form-select form-select-sm" [value]="rule_condition_type_id() ?? ''" (change)="rule_condition_type_id.set(+($any($event.target).value)||null)">
+                      <option value="">Select condition type</option>
+                      <option *ngFor="let c of conditionTypes()" [value]="c.id_condition_type">{{ c.condition }}</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold text-secondary mb-1">Data Key</label>
+                    <select class="form-select form-select-sm" [value]="rule_datakey_id() ?? ''" (change)="rule_datakey_id.set(+($any($event.target).value)||null)">
+                      <option value="">Select data key</option>
+                      <option *ngFor="let d of dataKeys()" [value]="d.id_datakey">{{ d.datakey }}</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold text-secondary mb-1">Operator</label>
+                    <select class="form-select form-select-sm" [value]="rule_operator_id() ?? ''" (change)="rule_operator_id.set(+($any($event.target).value)||null)">
+                      <option value="">Select operator</option>
+                      <option *ngFor="let o of operators()" [value]="o.id_operator">{{ o.operator }}</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold text-secondary mb-1">Value</label>
+                    <input type="text" class="form-control form-control-sm" [value]="rule_value()" (input)="rule_value.set($any($event.target).value)" placeholder="Enter value" />
+                  </div>
+                </div>
+              </div>
+              <ng-template #loadingRulesTpl>
+                <div class="px-2 py-4 text-center small text-secondary">Loading rule catalogs…</div>
+              </ng-template>
+            </div>
+          </ng-template>
+        </ng-template>
       </div>
     </section>
   </div>

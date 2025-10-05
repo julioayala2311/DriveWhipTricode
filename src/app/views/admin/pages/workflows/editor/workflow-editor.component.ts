@@ -64,6 +64,76 @@ export class WorkflowEditorComponent implements OnInit {
 
   private workflowId: number | null = null;
 
+  // Data Collection section signals
+  readonly dataSectionLoading = signal(false);
+  readonly dataSectionError = signal<string | null>(null);
+  readonly dataSectionId = signal<number | null>(null); // id_stage_section
+  readonly dataSectionSaving = signal(false); // saving flag for debounce coordination
+  readonly dc_show_stage_in_tracker = signal<boolean>(false);
+  readonly dc_auto_advance_stage = signal<boolean>(false);
+  readonly dc_notify_owner_on_submit = signal<boolean>(false);
+  readonly dc_show_one_question = signal<boolean>(false);
+  // Hold json_form so that UPDATE never sends NULL (backend constraint)
+  readonly dataSectionJsonForm = signal<string>('[]');
+  readonly dataCollectionVisible = computed(() => {
+    const stId = this.selectedStageId();
+    if (!stId) return false;
+    const st = this.stages().find(s => s.id_stage === stId);
+    return st?.type === 'Data Collection';
+  });
+
+  // Rules section visibility (stage type === 'Rules')
+  readonly rulesVisible = computed(() => {
+    const stId = this.selectedStageId();
+    if (!stId) return false;
+    const st = this.stages().find(s => s.id_stage === stId);
+    return st?.type === 'Rules';
+  });
+
+  // --- Rules Form State (initial single rule card) ---
+  readonly rulesLoading = signal(false);
+  readonly rulesError = signal<string | null>(null);
+  // Catalogs
+  readonly conditionTypes = signal<any[]>([]); // { id_condition_type, condition }
+  readonly dataKeys = signal<any[]>([]); // { id_datakey, datakey }
+  readonly operators = signal<any[]>([]); // { id_operator, operator }
+
+  // Single rule form fields (Rule 1)
+  readonly rule_condition_type_id = signal<number | null>(null);
+  readonly rule_datakey_id = signal<number | null>(null);
+  readonly rule_operator_id = signal<number | null>(null);
+  readonly rule_value = signal<string>('');
+
+  private loadRulesCatalogs(): void {
+    if (this.rulesLoading()) return;
+    this.rulesLoading.set(true);
+    this.rulesError.set(null);
+    const apiCondition: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_condition_type_crud, parameters: ['R', null, null, null, null, null] };
+    const apiDatakey: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_section_datakey_crud, parameters: ['R', null, null, null, null, null] };
+    const apiOperator: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_operator_crud, parameters: ['R', null, null, null, null, null] };
+    forkJoin([
+      this.core.executeCommand<DriveWhipCommandResponse>(apiCondition),
+      this.core.executeCommand<DriveWhipCommandResponse>(apiDatakey),
+      this.core.executeCommand<DriveWhipCommandResponse>(apiOperator)
+    ]).pipe(finalize(()=> this.rulesLoading.set(false))).subscribe({
+      next: ([condRes, dataRes, opRes]) => {
+        if (!condRes.ok || !dataRes.ok || !opRes.ok) {
+          this.rulesError.set('Failed to load catalogs');
+          return;
+        }
+        const extract = (res: any) => {
+          let rows: any[] = [];
+          if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+          return rows || [];
+        };
+        this.conditionTypes.set(extract(condRes));
+        this.dataKeys.set(extract(dataRes));
+        this.operators.set(extract(opRes));
+      },
+      error: () => this.rulesError.set('Failed to load catalogs')
+    });
+  }
+
   ngOnInit(): void {
     this.route.paramMap.subscribe((p) => {
       const raw = p.get("id");
@@ -145,6 +215,13 @@ export class WorkflowEditorComponent implements OnInit {
 
   selectStage(id: number): void {
     this.selectedStageId.set(id);
+    // Attempt load of data-collection section if applicable
+    if (this.stages().find(s => s.id_stage === id)?.type === 'Data Collection') {
+      this.loadDataCollectionSection(id);
+    }
+    if (this.stages().find(s => s.id_stage === id)?.type === 'Rules') {
+      this.loadRulesCatalogs();
+    }
   }
 
   trackStage = (_: number, item: any) => item?.id_stage ?? item?.id;
@@ -163,11 +240,157 @@ export class WorkflowEditorComponent implements OnInit {
     10: 'icon-layers'         // Generic / fallback group
   };
 
+  // Section type mapping provided by user (table): 1 = Data Collection, 2 = Rules
+  private readonly sectionTypeMap: Record<string, number> = {
+    'Data Collection': 1,
+    'Rules': 2
+  };
+
+  private sectionTypeIdForStage(stageId: number): number | null {
+    const st = this.stages().find(s => s.id_stage === stageId);
+    if (!st) return null;
+    const id = this.sectionTypeMap[st.type];
+    return (typeof id === 'number') ? id : null;
+  }
+
   stageIcon(type?: number | string | null): string {
     if (type === null || type === undefined) return 'icon-layers';
     const t = (typeof type === 'string') ? Number(type) : type;
     if (!Number.isFinite(t)) return 'icon-layers';
     return this.stageIconMap[t as number] ?? 'icon-layers';
+  }
+
+  // --- Data Collection Section Logic ---
+  private loadDataCollectionSection(stageId: number): void {
+    if (this.dataSectionLoading()) return;
+    this.dataSectionLoading.set(true);
+    this.dataSectionError.set(null);
+    // READ operation: call SP with p_action_type outside C/U/D (use 'R')
+    // Provide id_section_type if we can resolve it (helps backend filter if supported)
+    const sectionTypeId = this.sectionTypeIdForStage(stageId); // expected 1 for Data Collection
+    const params: any[] = [ 'R', null, stageId, sectionTypeId, null, null, null, null, null, null, null, null ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_section_crud, parameters: params };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.dataSectionLoading.set(false))).subscribe({
+      next: res => {
+        if (!res.ok) { this.dataSectionError.set('Failed to load data collection settings'); return; }
+        let rows: any[] = [];
+        if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+        // Filter by stage id
+        const match = rows.find(r => r.id_stage === stageId);
+        if (match) {
+          this.dataSectionId.set(match.id_stage_section);
+          this.dc_show_stage_in_tracker.set(!!match.show_stage_in_tracker);
+          this.dc_auto_advance_stage.set(!!match.auto_advance_stage);
+          this.dc_notify_owner_on_submit.set(!!match.notify_owner_on_submit);
+          this.dc_show_one_question.set(!!match.show_one_question);
+          // Preserve existing json_form or fallback to default array string
+          this.dataSectionJsonForm.set(match.json_form ?? '[]');
+        } else {
+          // No existing section: reset toggles
+          this.dataSectionId.set(null);
+          this.dc_show_stage_in_tracker.set(false);
+          this.dc_auto_advance_stage.set(false);
+          this.dc_notify_owner_on_submit.set(false);
+          this.dc_show_one_question.set(false);
+          this.dataSectionJsonForm.set('[]');
+        }
+      },
+      error: () => this.dataSectionError.set('Failed to load data collection settings')
+    });
+  }
+
+  toggleDataOption(key: 'show_stage_in_tracker' | 'auto_advance_stage' | 'notify_owner_on_submit' | 'show_one_question', value: boolean): void {
+    const stageId = this.selectedStageId();
+    if (!stageId) return;
+    // Optimistic update
+    const prevValues = {
+      show_stage_in_tracker: this.dc_show_stage_in_tracker(),
+      auto_advance_stage: this.dc_auto_advance_stage(),
+      notify_owner_on_submit: this.dc_notify_owner_on_submit(),
+      show_one_question: this.dc_show_one_question()
+    };
+    switch (key) {
+      case 'show_stage_in_tracker': this.dc_show_stage_in_tracker.set(value); break;
+      case 'auto_advance_stage': this.dc_auto_advance_stage.set(value); break;
+      case 'notify_owner_on_submit': this.dc_notify_owner_on_submit.set(value); break;
+      case 'show_one_question': this.dc_show_one_question.set(value); break;
+    }
+    this.queueTogglePersistence(stageId, key, prevValues[key], value);
+  }
+
+  // --- Debounce & rollback implementation ---
+  private toggleTimers: Record<string, any> = {};
+  private readonly toggleDebounceMs = 250;
+
+  private queueTogglePersistence(stageId: number, key: string, prevValue: boolean, newValue: boolean) {
+    // If a timer exists for this key, clear it (user toggled rapidly)
+    const existing = this.toggleTimers[key];
+    if (existing) clearTimeout(existing);
+
+    // If section is being created (id null AND saving), delay re-queue until creation ends
+    if (this.dataSectionSaving() && this.dataSectionId() == null) {
+      this.toggleTimers[key] = setTimeout(() => this.queueTogglePersistence(stageId, key, prevValue, newValue), this.toggleDebounceMs);
+      return;
+    }
+
+    this.toggleTimers[key] = setTimeout(() => {
+      delete this.toggleTimers[key];
+      this.persistDataSection(stageId, key as any, prevValue, newValue);
+    }, this.toggleDebounceMs);
+  }
+
+  private persistDataSection(stageId: number, key: 'show_stage_in_tracker' | 'auto_advance_stage' | 'notify_owner_on_submit' | 'show_one_question', prevValue: boolean, intendedValue: boolean) {
+    const isCreate = this.dataSectionId() == null;
+    const action = isCreate ? 'C' : 'U';
+    const currentUser = 'system'; // TODO: integrate with auth
+    const sectionTypeId = this.sectionTypeIdForStage(stageId);
+    if (sectionTypeId == null) {
+      this.rollbackToggle(key, prevValue, 'Unknown section type for stage');
+      return;
+    }
+    const params: any[] = [
+      action,
+      isCreate ? null : this.dataSectionId(),
+      stageId,
+      sectionTypeId, // id_section_type resolved from mapping (Data Collection=1, Rules=2)
+      // json_form must not be NULL on UPDATE. Use existing or default placeholder '[]'.
+      isCreate ? this.dataSectionJsonForm() : (this.dataSectionJsonForm() || '[]'),
+      this.dc_show_stage_in_tracker(),
+      this.dc_auto_advance_stage(),
+      this.dc_notify_owner_on_submit(),
+      this.dc_show_one_question(),
+      true,
+      isCreate ? currentUser : null,
+      isCreate ? null : currentUser
+    ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_section_crud, parameters: params };
+    this.dataSectionSaving.set(true);
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.dataSectionSaving.set(false))).subscribe({
+      next: res => {
+        if (!res.ok) {
+          this.rollbackToggle(key, prevValue, 'Failed to save setting');
+          return;
+        }
+        if (isCreate) {
+          // Reload to capture new id
+            this.loadDataCollectionSection(stageId);
+            Utilities.showToast('Section created', 'success');
+        } else {
+          Utilities.showToast('Setting updated', 'success');
+        }
+      },
+      error: () => this.rollbackToggle(key, prevValue, 'Failed to save setting')
+    });
+  }
+
+  private rollbackToggle(key: string, prevValue: boolean, message: string) {
+    switch (key) {
+      case 'show_stage_in_tracker': this.dc_show_stage_in_tracker.set(prevValue); break;
+      case 'auto_advance_stage': this.dc_auto_advance_stage.set(prevValue); break;
+      case 'notify_owner_on_submit': this.dc_notify_owner_on_submit.set(prevValue); break;
+      case 'show_one_question': this.dc_show_one_question.set(prevValue); break;
+    }
+    Utilities.showToast(message, 'error');
   }
 
   // Drag & Drop handler (supports filtered view). Always active.

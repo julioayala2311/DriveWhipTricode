@@ -48,16 +48,6 @@
 }
 .stages-scroll::-webkit-scrollbar { width:0; height:0; display:none; }
 
-/* Hide scrollbars only while dragging to reduce visual noise */
-/* (Drag state keeps same hidden scrollbar behavior; base rule already hides) */
-
-/* Optionally always show slim custom scrollbar (commented out) */
-// .stages-scroll { scrollbar-width: thin; }
-// .stages-scroll::-webkit-scrollbar { width:6px; }
-// .stages-scroll::-webkit-scrollbar-track { background: transparent; }
-// .stages-scroll::-webkit-scrollbar-thumb { background: rgba(var(--bs-primary-rgb,13,110,253), .25); border-radius: 3px; }
-// .stages-scroll::-webkit-scrollbar-thumb:hover { background: rgba(var(--bs-primary-rgb,13,110,253), .4); }
-
 /* Vertical variant of status-card (mirrors locations but stacked) */
 .status-card.vertical {
 	background: var(--bs-body-bg);
@@ -129,6 +119,23 @@ body.dark .status-card.vertical .drag-handle { color:rgba(255,255,255,.55); }
 
 /* Focus ring for keyboard navigation */
 .status-card.vertical:focus { outline:2px solid var(--bs-primary,#0d6efd); outline-offset:2px; }
+
+/* Data Collection card tweaks */
+.data-collection-card { border-radius:.85rem; }
+.data-collection-card .card-header { border-bottom:1px solid var(--bs-border-color,rgba(0,0,0,.08)); background:transparent; }
+.data-collection-card .form-check-input { cursor:pointer; }
+.data-collection-card .form-switch-grid .form-check-label { line-height:1.25; }
+.data-collection-card .form-switch-grid .form-check:not(:last-child) { padding-bottom:.25rem; }
+.data-collection-card .form-switch-grid .form-check:last-child { padding-bottom:0; }
+body.dark .data-collection-card .card-header { border-color: rgba(255,255,255,.12); }
+body.dark .data-collection-card .form-switch-grid .form-check:not(:last-child) { border-color: rgba(255,255,255,.12); }
+.rules-card { border-radius:.85rem; }
+.rules-card .card-header { border-bottom:1px solid var(--bs-border-color,rgba(0,0,0,.08)); background:transparent; }
+.rules-card .rules-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:1rem 1.25rem; }
+.rules-card .form-label { font-size:.6rem; letter-spacing:.25px; text-transform:uppercase; }
+body.dark .rules-card .card-header { border-color: rgba(255,255,255,.12); }
+.rules-card select.form-select, .rules-card input.form-control { font-size:.7rem; }
+.rules-card h6 { font-size:.8rem; }
 .status-card.vertical .status-text { font-size:.85rem; }
 .status-card.vertical .sub-status { font-size:.70rem; margin-top:.1rem; letter-spacing:.3px; font-weight:500; color: var(--bs-secondary-color, rgba(0,0,0,.55)); }
 .status-card.vertical .meta { opacity:.85; }
@@ -155,8 +162,3 @@ body.dark .status-card.vertical .sub-status { color: rgba(255,255,255,.55); }
 	.status-card.vertical.active::before,
 	.status-card.vertical.active::after { animation:none; }
 }
-
-// Dark overrides were moved above for clarity
-// body.dark .stage-item { background:#252b32; border-color: rgba(255,255,255,.12); }
-// body.dark .stage-item:hover { background:#2f3740; }
-// body.dark .stage-item.active { background: var(--bs-primary,#0d6efd); }

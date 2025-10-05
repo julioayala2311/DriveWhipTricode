@@ -669,15 +669,17 @@
     &::before {
       content: '';
       width: 100vw;
-      background: rgba($modal-backdrop-bg, $modal-backdrop-opacity);
+      // Use only a subtle backdrop and place it behind actual menu container
+      background: rgba($modal-backdrop-bg, $modal-backdrop-opacity * .65);
       position: fixed;
-      top: 0;
-      bottom: 0;
-      right: 0;
-      left: 0;
-      z-index: 1020; // debajo de los dropdowns (ngb usa 1000+)
-      pointer-events: none; // no bloquear clics en dropdowns
+      inset: 0; // shorthand for top/right/bottom/left
+      z-index: 900; // debajo del menú real
+      pointer-events: none; // no bloquear clics
     }    
+    .bottom-navbar.header-toggled {
+      position: relative;
+      z-index: 1100; // sobre el backdrop
+    }
   }
 }
 

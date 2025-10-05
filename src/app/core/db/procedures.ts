@@ -4,15 +4,18 @@ export enum DriveWhipAdminCommand {
     auth_roles_crud = "auth_roles_crud", // Generic CRUD (C,R,U,D) via p_action parameter
     auth_users_crud = "auth_users_crud", // Users CRUD stored procedure
     crm_stages_crud = "crm_stages_crud", // CRUD + logical delete for stages (p_action)
-
+    crm_stages_section_crud = "crm_stages_section_crud", // CRUD for stage sections (data collection config)
+    crm_stages_sections_condition_type_crud = "crm_stages_sections_condition_type_crud", // Condition type catalog
+    crm_stages_section_datakey_crud = "crm_stages_section_datakey_crud", // Data key catalog
+    crm_stages_sections_operator_crud = "crm_stages_sections_operator_crud", // Operator catalog
+    
     //Roberto
     crm_locations_list = "crm_locations_list",
     crm_markets_list = "crm_markets_list",
     crm_locations_dropdown = "crm_locations_dropdown",
-    crm_stages_list = "crm_stages_list", // Lista de stages por workflow (p_id_workflow)
-    crm_applicants_X_crm_stages = "crm_applicants_X_crm_stages", // Applicants por stage
+    crm_stages_list = "crm_stages_list", // List of stages for workflow (p_id_workflow)
+    crm_applicants_X_crm_stages = "crm_applicants_X_crm_stages", // Applicants for stage
     crm_workflows_list = "crm_workflows_list"
-
 }
 
 export enum DriveWhipAplicantsCommand {

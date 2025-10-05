@@ -9,6 +9,7 @@ import { RoleRecord } from '../../../../../core/models/role.model';
 import { RoleDialogComponent, RoleDialogResult } from './index';
 import { Observable, tap, catchError, finalize, map, of } from 'rxjs';
 import { Utilities } from '../../../../../Utilities/Utilities';
+import { RoleRouteRecord } from '../../../../../core/models/role.routes.model';
 
 // User Roles management grid (ag-Grid integration)
 
@@ -23,6 +24,7 @@ export class UserRolesComponent implements OnInit, OnDestroy {
   // Signals (Angular 16+) for reactive state
   private readonly _loading = signal(false);
   private readonly _roles = signal<RoleRecord[]>([]);
+  private readonly _rolesroutes = signal<RoleRouteRecord[]>([]);
   private readonly _error = signal<string | null>(null);
   private readonly _dialogOpen = signal(false);
   private readonly _dialogMode = signal<'create' | 'edit'>('create');
@@ -30,6 +32,15 @@ export class UserRolesComponent implements OnInit, OnDestroy {
   private readonly _saving = signal(false);
   private readonly _compactActions = signal(false); // viewport-based
   private pendingActionColWidth: number | null = null;
+  selectedRole = signal<RoleRecord | null>(null);
+  // --- Detail (permissions) ---
+  //routes  = signal<any[]>([]);           // filas del grid de permisos
+  permError = signal<string | null>(null); // mensaje de error (si ocurre)
+
+
+ private readonly ADMIN_ROLES = new Set([
+    'ADMIN'
+  ]);
 
   // Exposed (if needed later)
   readonly compactActions = computed(() => this._compactActions());
@@ -37,6 +48,7 @@ export class UserRolesComponent implements OnInit, OnDestroy {
   // Exposed computed signals
   readonly loading = computed(() => this._loading());
   readonly roles = computed(() => this._roles());
+  readonly rolesroutes = computed(() => this._rolesroutes());
   readonly error = computed(() => this._error());
   readonly showDialog = computed(() => this._dialogOpen());
   readonly dialogMode = computed(() => this._dialogMode());
@@ -51,6 +63,47 @@ export class UserRolesComponent implements OnInit, OnDestroy {
     { headerName: 'Created', field: 'createdat', minWidth: 160, flex: .9, valueFormatter: p => this.formatDate(p.value), sortable: true },
 	  { headerName: 'Active', field: 'isactive', minWidth: 120, flex: .6, sortable: true, filter: true, cellRenderer: (p:any)=> this.renderActiveBadge(p.value) },
     { headerName: 'Actions', field: 'actions', minWidth: 140, maxWidth: 180, pinned: 'right', sortable:false, filter:false, cellRenderer: (p: any) => this.actionButtons(p.data), cellClass: 'dw-actions-cell' }
+  ];
+
+  // ag-Grid column definitions (detalle: rutas por rol)
+  permColumnDefs: ColDef[] = [
+    
+    { headerName: 'Route', field: 'label', minWidth: 160, flex: 1, sortable: true, filter: true },
+    { headerName: 'Icon', field: 'icon', minWidth: 160, flex: 1, sortable: true, filter: true },
+    { headerName: 'Order', field: 'sort_order', minWidth: 160, flex: 1, sortable: true, filter: true },
+	  { headerName: 'Active', field: 'is_active', minWidth: 120, flex: .6, sortable: true, filter: true, cellRenderer: (p:any)=> this.renderActiveBadge(p.value) },
+
+    // ← Switch para activar/desactivar la ruta para el rol
+    {
+        headerName: 'Assigned',
+        field: 'is_assigned',                    // keep backend field name
+        minWidth: 120,
+        flex: .55,
+        headerClass: 'ag-center-header',
+        cellClass: 'text-center',
+        sortable: true,
+        filter: 'agSetColumnFilter',
+        // Default to UNASSIGNED (0) if null/undefined/anything ≠ 1
+        valueGetter: (p) => Number(p.data?.is_active) === 1 ? 1 : 0,
+        filterParams: {
+          values: [1, 0],
+          valueFormatter: (p: any) => (Number(p.value) === 1 ? 'Assigned' : 'Unassigned')
+        },
+        cellRenderer: (p: any) => {
+          const on = Number(p.value) === 1;
+          return `
+            <div class="form-check form-switch d-inline-flex align-items-center justify-content-center">
+              <input type="checkbox" class="form-check-input perm-toggle"
+                    ${on ? 'checked' : ''} data-route="${p?.data?.id_route}">
+            </div>
+          `;
+        }
+      },
+
+    // IDs/fields técnicos ocultos (útiles para acciones)
+    { headerName: 'Route ID', field: 'id_route', hide: true },
+    { headerName: 'Parent ID', field: 'parent_id', hide: true },
+    { headerName: 'Path', field: 'path', hide: true } // ya lo mostramos bajo label
   ];
 
   // Align default column behavior with applicants grid (sortable/filterable/floating filters, responsive headers)
@@ -72,6 +125,7 @@ export class UserRolesComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadRoles();
+    //this.loadRolesRoutes();
     this.evaluateViewport();
     window.addEventListener('resize', this._onResize, { passive: true });
   }
@@ -104,6 +158,14 @@ export class UserRolesComponent implements OnInit, OnDestroy {
       this.gridApi.setColumnWidth(col, width);
     }
   }
+
+  
+  private isAdminRole(rec: RoleRecord): boolean {
+      const role = (rec?.role ?? '').toString().trim().toUpperCase();
+      console.log(role)
+      return this.ADMIN_ROLES.has(role);
+  }
+  
 
   loadRoles(): void {
     this._loading.set(true);
@@ -149,6 +211,51 @@ export class UserRolesComponent implements OnInit, OnDestroy {
     });
   }
 
+  
+  loadRolesRoutes(role:string): void {
+    this._loading.set(true);
+    this._error.set(null);
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.auth_roles_routes,
+      // IMPORTANT: pass null (NOT empty string) for p_role so SP enters ELSE branch and returns all
+      // Also p_active not used on R, send null to avoid confusion
+      parameters: [role]
+    };
+    this.core.executeCommand<DriveWhipCommandResponse<RoleRouteRecord>>(api).subscribe({
+      next: res => {
+        if (!res.ok) {
+          const msg: string = (res.error as any) ? String(res.error) : 'Failed to load roles routes';
+          this._error.set(msg);
+          Utilities.showToast(msg, 'error');
+          this._loading.set(false);
+          return;
+        }
+        let raw: any = [];
+        if (res.ok && Array.isArray(res.data)) {
+          // Some backends (e.g. mysql2 / stored procedure calls) return: [ [ rows ], fields ] or simply [ [ rows ] ]
+          // Our API seems to already strip fields but still wraps rows in an extra array.
+            const top = res.data as any[];
+            if (top.length > 0 && Array.isArray(top[0])) {
+              raw = top[0];
+            } else {
+              raw = top; // fallback if already flat
+            }
+        }
+        const list: RoleRouteRecord[] = Array.isArray(raw) ? raw : [];
+        // Filter out potential empty placeholder objects
+        const cleaned = list.filter(r => r && Object.values(r).some(v => v !== null && v !== undefined && String(v).trim() !== ''));
+        this._rolesroutes.set(cleaned as RoleRouteRecord[]);
+      },
+      error: err => {
+        console.error('[UserRolesComponent] loadRoles error', err);
+        const msg = 'Failed to load roles';
+        this._error.set(msg);
+        Utilities.showToast(msg, 'error');
+      },
+      complete: () => this._loading.set(false)
+    });
+  }
+
   onGridReady(e: GridReadyEvent) {
     this.gridApi = e.api;
   // With flex columns we no longer need sizeColumnsToFit; allow natural dynamic sizing
@@ -177,6 +284,13 @@ export class UserRolesComponent implements OnInit, OnDestroy {
   onDelete(record: RoleRecord): void {
     if (!record) return;
     if (record.isactive !== 1) return; // already inactive, button will be disabled too
+
+    // Bloquear deshabilitar a cuentas administrador
+    if (this.isAdminRole(record)) {
+      Utilities.showToast('Administrator role cannot be disabled.', 'warning');
+      return;
+    }
+
     Utilities.confirm({
       title: 'Disable role',
       text: `The role "${record.role}" will be disabled. Continue?`,
@@ -306,4 +420,31 @@ export class UserRolesComponent implements OnInit, OnDestroy {
     if (isNaN(d.getTime())) return raw;
     return d.toISOString().slice(0,16).replace('T',' ');
   }
+
+  //new 
+
+  onRoleSelectionChanged(): void {
+    if (!this.gridApi) return;
+
+    // Toma la fila seleccionada (compatibilidad: selectedRows o selectedNodes)
+    const selected =
+      (this.gridApi.getSelectedRows?.()[0] as RoleRecord | undefined) ??
+      (this.gridApi.getSelectedNodes?.()[0]?.data as RoleRecord | undefined);
+
+    // Si no hay selección, limpia el hijo
+    if (!selected) {
+      this.selectedRole.set(null);
+     // this.permRows.set([]);
+      this.permError.set(null);
+      return;
+    }
+
+    // Evita recargar si es el mismo rol
+    if (this.selectedRole()?.role === selected.role) return;
+
+    // Guarda selección y carga permisos del hijo
+    this.selectedRole.set(selected);
+    this.loadRolesRoutes(selected.role);
+  }
+
 }

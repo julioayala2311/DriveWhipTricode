@@ -9,14 +9,19 @@ export enum DriveWhipAdminCommand {
     crm_stages_section_datakey_crud = "crm_stages_section_datakey_crud", // Data key catalog
     crm_stages_sections_operator_crud = "crm_stages_sections_operator_crud", // Operator catalog
     
-    //Roberto
+    
     crm_locations_list = "crm_locations_list",
     crm_markets_list = "crm_markets_list",
     crm_locations_dropdown = "crm_locations_dropdown",
     crm_stages_list = "crm_stages_list", // List of stages for workflow (p_id_workflow)
     crm_applicants_X_crm_stages = "crm_applicants_X_crm_stages", // Applicants for stage
     crm_workflows_list = "crm_workflows_list",
-    auth_roles_routes = "auth_roles_routes"
+    auth_roles_routes = "auth_roles_routes",
+    crm_locations_crud = "crm_locations_crud",
+    auth_roles_routes_crud = "auth_roles_routes_crud",
+    crm_workflows_crud = "crm_workflows_crud",
+    crm_locations_active = "crm_locations_active",
+    commun_country_states = "commun_country_states"
 }
 
 export enum DriveWhipAplicantsCommand {

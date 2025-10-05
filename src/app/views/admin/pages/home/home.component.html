@@ -1,19 +1,60 @@
 <div class="d-flex align-items-center mb-3">
   <h5 class="mb-0">Locations</h5>
+
+  <div class="ms-3">
+    <label class="me-2 small text-muted">Show:</label>
+    <select class="form-select form-select-sm d-inline-block w-auto"
+            [(ngModel)]="filterMode"
+            (ngModelChange)="applyFilter()"
+            aria-label="Filter locations by state">
+      <option value="all">All</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
+  </div>
+
   <div class="ms-auto d-flex align-items-center gap-2">
-    <button type="button" class="btn btn-sm btn-primary" aria-label="Post to job boards" >
-      <span>Add Locations</span>
+    <button
+      class="btn btn-sm btn-ghost"
+      (click)="locationsList()"
+      [disabled]="loading()"
+    >
+      Refresh
+    </button>
+
+    <button type="button"
+            class="btn btn-sm btn-primary"
+            (click)="openCreate()"
+            [disabled]="loading()">
+      <span>Add Location</span>
     </button>
   </div>
 </div>
 
 <!-- Mensajes de estado -->
-<div *ngIf="loading" class="alert alert-info py-2">
+<div *ngIf="loading()" class="alert alert-info py-2">
   <i class="feather icon-loader me-1"></i> Loading...
 </div>
-<div *ngIf="!loading && errorMsg" class="alert alert-danger py-2">
+<div *ngIf="!loading() && errorMsg" class="alert alert-danger py-2">
   <i class="feather icon-alert-triangle me-1"></i> {{ errorMsg }}
 </div>
+<div *ngIf="error()" class="alert alert-danger py-2 px-3 mb-3">
+  {{ error() }}
+</div>
 
-<!-- Grid -->
-<app-locations-grid [rowData]="locationsRows"></app-locations-grid>
+<!-- Diálogo -->
+<dw-home-dialog
+  *ngIf="showDialog()"
+  [mode]="dialogMode()"
+  [record]="editingRecord()"
+  [saving]="saving()"
+  (closed)="closeDialog()"
+  (saved)="handleDialogSave($event)">
+</dw-home-dialog>
+
+<!-- Grid con eventos -->
+<app-locations-grid
+  [rowData]="rowsForGrid"
+  (editRow)="openEdit($event)"
+  (deleteRow)="delete($event)">
+</app-locations-grid>

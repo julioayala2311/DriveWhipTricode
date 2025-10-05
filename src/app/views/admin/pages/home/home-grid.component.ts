@@ -1,8 +1,8 @@
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, GridApi, GridReadyEvent, IHeaderParams } from 'ag-grid-community';
+import { ColDef, GridApi, GridReadyEvent, IHeaderParams, CellClickedEvent } from 'ag-grid-community';
 import { IHeaderAngularComp } from 'ag-grid-angular';
 import { Router } from '@angular/router';
 import { LocationsRecord } from '../../../../core/models/locations.model';
@@ -18,23 +18,13 @@ import { LocationsRecord } from '../../../../core/models/locations.model';
       <span class="text-truncate">{{ params?.displayName }}</span>
     </div>
   `,
-  styles: [`
-    .header-cell i { font-size: .9rem; line-height:1; }
-  `]
+  styles: [`.header-cell i { font-size: .9rem; line-height:1; }`]
 })
 export class GridHeaderComponent implements IHeaderAngularComp {
   public params: (IHeaderParams & { icon?: string }) | null = null;
   icon?: string;
-
-  agInit(params: IHeaderParams & { icon?: string }): void {
-    this.params = params;
-    this.icon = params.icon;
-  }
-  refresh(params: IHeaderParams & { icon?: string }): boolean {
-    this.params = params;
-    this.icon = params.icon;
-    return true;
-  }
+  agInit(params: IHeaderParams & { icon?: string }): void { this.params = params; this.icon = params.icon; }
+  refresh(params: IHeaderParams & { icon?: string }): boolean { this.params = params; this.icon = params.icon; return true; }
 }
 
 /* ---------------- Locations Grid ---------------- */
@@ -56,38 +46,25 @@ export class GridHeaderComponent implements IHeaderAngularComp {
                      (selectionChanged)="onSelectionChanged()"
                      (firstDataRendered)="onFirstDataRendered()"
                      (paginationChanged)="onPaginationChanged()"
-                     (rowClicked)="onRowClicked($event)"  
-                     
-                     >
+                     (cellClicked)="onCellClicked($event)"
+                     (rowClicked)="onRowClicked($event)">
     </ag-grid-angular>
-                     <!-- (cellClicked)="onCellClicked($event)" -->
   `,
   styles: [`
     .ag-center-header .ag-header-cell-label { justify-content: center; }
-
-    /* Link visual en la columna Location */
-    .grid-link {
-      cursor: pointer;
-      color: var(--bs-primary, #0d6efd);
-      text-decoration: underline;
-    }
+    .grid-link { cursor: pointer; color: var(--bs-primary, #0d6efd); text-decoration: underline; }
     .grid-link:hover { filter: brightness(0.9); }
-
-    /* Applicants centrado */
     .applicants-cell { text-align: center; }
-    .applicants-cell .applicants-cell-content {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: .25rem;
-      width: 100%;
-    }
-    .applicants-cell .feather { width: 14px; height: 14px; line-height: 1; }
+    .applicants-cell .applicants-cell-content { display:inline-flex; align-items:center; justify-content:center; gap:.25rem; width:100%; }
+    .applicants-cell .feather { width:14px; height:14px; line-height:1; }
   `]
 })
 export class HomeGridComponent implements OnChanges {
-  /** Rows received from parent component */
   @Input() rowData: LocationsRecord[] = [];
+
+  // 👉 Eventos al padre
+  @Output() editRow = new EventEmitter<LocationsRecord>();
+  @Output() deleteRow = new EventEmitter<LocationsRecord>();
 
   // Pagination
   pageSize = 10;
@@ -103,7 +80,7 @@ export class HomeGridComponent implements OnChanges {
   columnDefs: ColDef[] = [
     { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
 
-  // LOCATION as SPA "link" (span + onCellClicked)
+    // LOCATION as SPA "link"
     {
       headerName: 'Location',
       field: 'location_name',
@@ -144,8 +121,8 @@ export class HomeGridComponent implements OnChanges {
     },
 
     {
-      headerName: 'Active',
-      field: 'active',                // <-- usa 'active' del LocationsRecord
+      headerName: 'Status',
+      field: 'active',
       minWidth: 90,
       flex: .5,
       sortable: true,
@@ -169,7 +146,6 @@ export class HomeGridComponent implements OnChanges {
       cellClass: 'dw-actions-cell'
     },
 
-  // Hidden IDs (useful for actions)
     { headerName: 'Location ID', field: 'id_location', hide: true },
     { headerName: 'Market ID', field: 'id_market', hide: true },
     { headerName: 'Workflow ID', field: 'id_workflow', hide: true }
@@ -223,40 +199,46 @@ export class HomeGridComponent implements OnChanges {
     this.updatePaginationState();
   }
 
-  /** SPA navigation: click on the "Location" cell navigates to /locations */
-  onCellClicked(e: any) {
-    if (e?.colDef?.field === 'id_location') {
-      const id = e?.data?.id_location;
-  e.event?.preventDefault?.(); // not opening any href but prevent just in case
-      this.router.navigate(['/locations'], id); // <— ruta interna que pediste
+  // ---- CLICK HANDLER (botones y link) ----
+  onCellClicked(e: CellClickedEvent) {
+    if (!e?.colDef || !e.event) return;
+
+    // 1) Botones dentro de Actions
+    const target = e.event.target as HTMLElement;
+    const btn = target?.closest('button[data-action]') as HTMLButtonElement | null;
+    if (btn) {
+      const action = btn.getAttribute('data-action');
+      const rec = e.data as LocationsRecord;
+      if (action === 'edit')   this.editRow.emit(rec);
+      if (action === 'delete') this.deleteRow.emit(rec);
       return;
     }
 
-    if (e.colDef.field !== 'actions') return;
-    if (!e.event) return;
-    const target = (e.event.target as HTMLElement | null);
-    if (!target) return;
-    const btn = target.closest('button[data-action]') as HTMLButtonElement | null;
-    if (!btn) return;
-    const action = btn.getAttribute('data-action');
-    const rec = e.data as LocationsRecord;
-    if (!rec) return;
-
-    if (action === 'edit')   this.openEdit(rec);
-    if (action === 'delete') this.delete(rec);
+    // 2) Click en Location -> navegar
+    if (e.colDef.field === 'location_name') {
+      const id = (e.data as any)?.id_location;
+      if (id != null) {
+        e.event?.preventDefault?.();
+        this.router.navigate(['/locations'], { queryParams: { id_location: id } });
+      }
+    }
   }
 
-  // ==== Dialog stubs (complete according to your flow) ====
-  openCreate(): void {}
-  openEdit(rec: LocationsRecord): void {}
-  closeDialog(): void {}
-  handleDialogSave(result: LocationsRecord) {}
-  delete(rec: LocationsRecord): void {}
+  onRowClicked(e: any) {
+    // Evita que botones de Actions disparen row navigation
+    const target = e.event?.target as HTMLElement | null;
+    if (target && target.closest('button,[data-action]')) return;
 
-  // ==== UI Helpers ====
+    // Navegación básica al hacer click en la fila (opcional)
+    const id = e?.data?.id_location;
+    if (id != null) {
+      this.router.navigate(['/locations'], { queryParams: { id_location: id } });
+    }
+  }
+
   private actionButtons(rec: LocationsRecord) {
     if (!rec) return '';
-    const disabled = rec.active === 0;
+    const disabled = Number((rec as any).active ?? 1) === 0;
     return `
       <div class="d-flex gap-1">
         <button class="btn btn-xs btn-outline-secondary" type="button" data-action="edit">Edit</button>
@@ -283,30 +265,6 @@ export class HomeGridComponent implements OnChanges {
     this.rowRangeEnd = Math.min(this.rowRangeStart + pageSize, this.rowCount);
   }
 
-  goToPrevious() {
-    this.gridApi?.paginationGoToPreviousPage();
-    this.updatePaginationState();
-  }
-
-  goToNext() {
-    this.gridApi?.paginationGoToNextPage();
-    this.updatePaginationState();
-  }
-
-  onRowClicked(e: any) {
-    // Ignorar checkbox
-    if (e?.column?.getColId?.() === 'select') return;
-
-    // Ignorar botones dentro de Actions
-    const target = e.event?.target as HTMLElement | null;
-    if (target && target.closest('button,[data-action]')) return;
-
-    const id = e?.data?.id_location;
-    if (id != null) {
-      this.router.navigate(['/locations'], {
-        queryParams: { id_location: id }   // 👈 solo enviamos id_location
-      });
-    }
-  }
-
+  goToPrevious() { this.gridApi?.paginationGoToPreviousPage(); this.updatePaginationState(); }
+  goToNext()     { this.gridApi?.paginationGoToNextPage();     this.updatePaginationState(); }
 }

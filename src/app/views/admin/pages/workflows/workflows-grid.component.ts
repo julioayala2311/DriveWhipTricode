@@ -1,11 +1,11 @@
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, GridApi, GridReadyEvent, IHeaderParams } from 'ag-grid-community';
+import { ColDef, GridApi, GridReadyEvent, IHeaderParams, CellClickedEvent } from 'ag-grid-community';
 import { IHeaderAngularComp } from 'ag-grid-angular';
-import { workflowsRecord  } from '../../../../core/models/workflows.model';
+import { WorkflowRecord } from './workflows-dialog.component';
 
 /* ---------------- Grid Header (with icon) ---------------- */
 @Component({
@@ -18,23 +18,13 @@ import { workflowsRecord  } from '../../../../core/models/workflows.model';
       <span class="text-truncate">{{ params?.displayName }}</span>
     </div>
   `,
-  styles: [`
-    .header-cell i { font-size: .9rem; line-height:1; }
-  `]
+  styles: [` .header-cell i { font-size: .9rem; line-height:1; } `]
 })
 export class GridHeaderComponent implements IHeaderAngularComp {
   public params: (IHeaderParams & { icon?: string }) | null = null;
   icon?: string;
-
-  agInit(params: IHeaderParams & { icon?: string }): void {
-    this.params = params;
-    this.icon = params.icon;
-  }
-  refresh(params: IHeaderParams & { icon?: string }): boolean {
-    this.params = params;
-    this.icon = params.icon;
-    return true;
-  }
+  agInit(params: IHeaderParams & { icon?: string }): void { this.params = params; this.icon = params.icon; }
+  refresh(params: IHeaderParams & { icon?: string }): boolean { this.params = params; this.icon = params.icon; return true; }
 }
 
 /* ---------------- Workflows Grid ---------------- */
@@ -43,48 +33,39 @@ export class GridHeaderComponent implements IHeaderAngularComp {
   standalone: true,
   imports: [CommonModule, FormsModule, AgGridAngular],
   template: `
-  <ag-grid-angular class="ag-theme-quartz dw-grid-theme" style="width:100%;height:420px;"
-                     [rowData]="rowData"
-                     [columnDefs]="columnDefs"
-                     [defaultColDef]="defaultColDef"
-                     rowSelection="multiple"
-                     [suppressRowClickSelection]="true"
-                     [pagination]="true"
-                     [paginationPageSize]="pageSize"
-                     [paginationPageSizeSelector]="pageSizeOptions"
-                     (gridReady)="onGridReady($event)"
-                     (selectionChanged)="onSelectionChanged()"
-                     (firstDataRendered)="onFirstDataRendered()"
-           (paginationChanged)="onPaginationChanged()"
-           (cellClicked)="onCellClicked($event)">
+    <ag-grid-angular class="ag-theme-quartz dw-grid-theme" style="width:100%;height:420px;"
+      [rowData]="rowData"
+      [columnDefs]="columnDefs"
+      [defaultColDef]="defaultColDef"
+      rowSelection="multiple"
+      [suppressRowClickSelection]="true"
+      [pagination]="true"
+      [paginationPageSize]="pageSize"
+      [paginationPageSizeSelector]="pageSizeOptions"
+      (gridReady)="onGridReady($event)"
+      (selectionChanged)="onSelectionChanged()"
+      (firstDataRendered)="onFirstDataRendered()"
+      (paginationChanged)="onPaginationChanged()"
+      (cellClicked)="onCellClicked($event)">
     </ag-grid-angular>
   `,
   styles: [`
-    /* center header helper when headerClass: 'ag-center-header' is used */
     .ag-center-header .ag-header-cell-label { justify-content: center; }
-
-    /* Status badges */
-    .status-badge {
-      display: inline-block;
-      padding: .25rem .5rem;
-      border-radius: .5rem;
-      font-size: .75rem;
-      line-height: 1;
-      white-space: nowrap;
-    }
-    .badge-on  { background: #d1e7dd; color: #0f5132; } /* success-subtle */
-    .badge-off { background: #f8d7da; color: #842029; } /* danger-subtle */
-
-    .text-center { text-align: center; }
-    .grid-link { cursor:pointer; color: var(--bs-primary,#0d6efd); text-decoration: underline; }
-    .grid-link:hover { filter: brightness(.9); }
+    .status-badge { display:inline-block; padding:.25rem .5rem; border-radius:.5rem; font-size:.75rem; line-height:1; white-space:nowrap; }
+    .badge-on{ background:#d1e7dd; color:#0f5132; }
+    .badge-off{ background:#f8d7da; color:#842029; }
+    .text-center{ text-align:center; }
+    .grid-link{ cursor:pointer; color: var(--bs-primary,#0d6efd); text-decoration: underline; }
+    .grid-link:hover{ filter:brightness(.9); }
   `]
 })
 export class WorkflowsGridComponent implements OnChanges {
-  /** Rows received from parent */
-  @Input() rowData: any[] = [];
+  @Input() rowData: WorkflowRecord[] = [];
 
-  // Pagination
+  // ⬇️ Eventos al padre
+  @Output() editRow = new EventEmitter<WorkflowRecord>();
+  @Output() deleteRow = new EventEmitter<WorkflowRecord>();
+
   pageSize = 10;
   pageSizeOptions = [10, 25, 50, 100];
   currentPage = 0;
@@ -96,7 +77,6 @@ export class WorkflowsGridComponent implements OnChanges {
   columnDefs: ColDef[] = [
     { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
 
-    // Market name (plain text)
     {
       headerName: 'Workflow',
       field: 'name',
@@ -119,7 +99,6 @@ export class WorkflowsGridComponent implements OnChanges {
       headerClass: 'ag-center-header',
       cellClass: 'text-nowrap',
       filter: 'agDateColumnFilter',
-      // Normaliza a Date (soporta 'YYYY-MM-DD HH:mm:ss' de MySQL)
       valueGetter: (p: any) => {
         const v = p.data?.created_at;
         if (!v) return null;
@@ -127,7 +106,6 @@ export class WorkflowsGridComponent implements OnChanges {
         const d = new Date(iso);
         return Number.isNaN(d.getTime()) ? null : d;
       },
-      // Muestra MM/DD/YYYY
       valueFormatter: (p: any) => {
         const d: Date | null = p.value instanceof Date ? p.value : null;
         if (!d) return '';
@@ -136,15 +114,12 @@ export class WorkflowsGridComponent implements OnChanges {
         const yyyy = d.getFullYear();
         return `${mm}/${dd}/${yyyy}`;
       },
-  // (Optional) ensure correct chronological ordering
       comparator: (a: any, b: any) => {
         const ta = a instanceof Date ? a.getTime() : 0;
         const tb = b instanceof Date ? b.getTime() : 0;
         return ta - tb;
       }
     },
-
-    // Active as non-interactive badge (no click changes)
     {
       headerName: 'Active',
       field: 'is_active',
@@ -153,7 +128,7 @@ export class WorkflowsGridComponent implements OnChanges {
       headerComponent: GridHeaderComponent,
       headerComponentParams: { icon: 'icon-check-circle' },
       headerClass: 'ag-center-header',
-      valueGetter: (p) => Number(p.data?.is_active) === 1 ? 1 : 0, // normalize 1/0
+      valueGetter: (p) => Number(p.data?.is_active) === 1 ? 1 : 0,
       comparator: (a: any, b: any) => Number(a) - Number(b),
       filter: 'agSetColumnFilter',
       filterParams: {
@@ -162,7 +137,7 @@ export class WorkflowsGridComponent implements OnChanges {
         textFormatter: (val: string) => val
       },
       cellClass: 'text-center',
-      cellStyle: { pointerEvents: 'none' }, // ← evita cualquier click/hover efecto
+      cellStyle: { pointerEvents: 'none' },
       cellRenderer: (p: any) => {
         const on = Number(p.value) === 1;
         const label = on ? 'Active' : 'Inactive';
@@ -171,10 +146,18 @@ export class WorkflowsGridComponent implements OnChanges {
       }
     },
 
-   
-  
-    { headerName: 'Actions', field: 'actions', minWidth: 140, maxWidth: 180, pinned: 'right', sortable:false, filter:false, cellRenderer: (p: any) => this.actionButtons(p.data), cellClass:'dw-actions-cell' },
-    // Hidden technical ID
+    {
+      headerName: 'Actions',
+      field: 'actions',
+      minWidth: 140,
+      maxWidth: 180,
+      pinned: 'right',
+      sortable:false,
+      filter:false,
+      cellRenderer: (p: any) => this.actionButtons(p.data),
+      cellClass:'dw-actions-cell'
+    },
+
     { headerName: 'workflow ID', field: 'id_workflow', hide: true }
   ];
 
@@ -201,55 +184,49 @@ export class WorkflowsGridComponent implements OnChanges {
 
   constructor(private router: Router) {}
 
-  private actionButtons(rec: workflowsRecord) {
+  private actionButtons(rec: WorkflowRecord) {
     if (!rec) return '';
-      const disabled = rec.active === 0;
-      return `
-            <div class="d-flex gap-1">
-              <button class="btn btn-xs btn-outline-secondary" type="button" data-action="edit">Edit</button>
-              <button class="btn btn-xs btn-outline-danger" type="button" data-action="delete" ${disabled ? 'disabled' : ''}>Disable</button>
+    const disabled = Number((rec as any).is_active ?? 1) === 0;
+    return `
+      <div class="d-flex gap-1">
+        <button class="btn btn-xs btn-outline-secondary" type="button" data-action="edit">Edit</button>
+        <button class="btn btn-xs btn-outline-danger" type="button" data-action="delete" ${disabled ? 'disabled' : ''}>Disable</button>
       </div>`;
   }
 
-  onCellClicked(e: any) {
+  onCellClicked(e: CellClickedEvent) {
     if (!e?.colDef || !e.event) return;
+
+    // 1) Botones de Actions
+    const target = e.event.target as HTMLElement;
+    const btn = target?.closest('button[data-action]') as HTMLButtonElement | null;
+    if (btn) {
+      const action = btn.getAttribute('data-action');
+      const rec = e.data as WorkflowRecord;
+      if (action === 'edit')   this.editRow.emit(rec);
+      if (action === 'delete') this.deleteRow.emit(rec);
+      return;
+    }
+
+    // 2) Click en el nombre → navegar
     if (e.colDef.field === 'name') {
-      const id = e.data?.id_workflow;
+      const id = (e.data as any)?.id_workflow;
       if (id != null) {
         e.event?.preventDefault?.();
         this.router.navigate(['/workflows','edit', id]);
-        return;
       }
     }
-    if (e.colDef.field !== 'actions') return; // actions handled by buttons
   }
-      
+
   onGridReady(e: GridReadyEvent) {
     this.gridApi = e.api;
     this.updatePaginationState();
   }
-
-  onFirstDataRendered() {
-    this.gridApi?.sizeColumnsToFit();
-    this.updatePaginationState();
-  }
-
-  onSelectionChanged() {
-    this.selectedCount = this.gridApi?.getSelectedNodes().length || 0;
-  }
-
-  clearSelection() {
-    this.gridApi?.deselectAll();
-    this.onSelectionChanged();
-  }
-
-  exportCsv(onlySelected: boolean) {
-    this.gridApi?.exportDataAsCsv({ onlySelected });
-  }
-
-  onPaginationChanged() {
-    this.updatePaginationState();
-  }
+  onFirstDataRendered() { this.gridApi?.sizeColumnsToFit(); this.updatePaginationState(); }
+  onSelectionChanged()  { this.selectedCount = this.gridApi?.getSelectedNodes().length || 0; }
+  clearSelection()      { this.gridApi?.deselectAll(); this.onSelectionChanged(); }
+  exportCsv(onlySelected: boolean) { this.gridApi?.exportDataAsCsv({ onlySelected }); }
+  onPaginationChanged() { this.updatePaginationState(); }
 
   private updatePaginationState() {
     if (!this.gridApi) return;
@@ -259,15 +236,5 @@ export class WorkflowsGridComponent implements OnChanges {
     const pageSize = (this.gridApi as any).getGridOption?.('paginationPageSize') || this.pageSize;
     this.rowRangeStart = this.currentPage * pageSize;
     this.rowRangeEnd = Math.min(this.rowRangeStart + pageSize, this.rowCount);
-  }
-
-  goToPrevious() {
-    this.gridApi?.paginationGoToPreviousPage();
-    this.updatePaginationState();
-  }
-
-  goToNext() {
-    this.gridApi?.paginationGoToNextPage();
-    this.updatePaginationState();
   }
 }

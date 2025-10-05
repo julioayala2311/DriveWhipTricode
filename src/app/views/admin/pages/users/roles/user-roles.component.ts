@@ -60,7 +60,7 @@ export class UserRolesComponent implements OnInit, OnDestroy {
   columnDefs: ColDef[] = [
     { headerName: 'Role', field: 'role', minWidth: 160, flex: 1, sortable: true, filter: true },
     { headerName: 'Description', field: 'description', minWidth: 240, flex: 1.4, sortable: true, filter: true },
-    { headerName: 'Created', field: 'createdat', minWidth: 160, flex: .9, valueFormatter: p => this.formatDate(p.value), sortable: true },
+    { headerName: 'Created At', field: 'createdat', minWidth: 160, flex: .9, valueFormatter: p => this.formatDate(p.value), sortable: true },
 	  { headerName: 'Active', field: 'isactive', minWidth: 120, flex: .6, sortable: true, filter: true, cellRenderer: (p:any)=> this.renderActiveBadge(p.value) },
     { headerName: 'Actions', field: 'actions', minWidth: 140, maxWidth: 180, pinned: 'right', sortable:false, filter:false, cellRenderer: (p: any) => this.actionButtons(p.data), cellClass: 'dw-actions-cell' }
   ];
@@ -69,37 +69,99 @@ export class UserRolesComponent implements OnInit, OnDestroy {
   permColumnDefs: ColDef[] = [
     
     { headerName: 'Route', field: 'label', minWidth: 160, flex: 1, sortable: true, filter: true },
-    { headerName: 'Icon', field: 'icon', minWidth: 160, flex: 1, sortable: true, filter: true },
-    { headerName: 'Order', field: 'sort_order', minWidth: 160, flex: 1, sortable: true, filter: true },
-	  { headerName: 'Active', field: 'is_active', minWidth: 120, flex: .6, sortable: true, filter: true, cellRenderer: (p:any)=> this.renderActiveBadge(p.value) },
+    { headerName: 'Icon', hide: true, field: 'icon', minWidth: 160, flex: 1, sortable: true, filter: true },
+    { headerName: 'Order', hide: true,  field: 'sort_order', minWidth: 160, flex: 1, sortable: true, filter: true },
+	  { headerName: 'Active', hide: true, field: 'is_active', minWidth: 120, flex: .6, sortable: true, filter: true, cellRenderer: (p:any)=> this.renderActiveBadge(p.value) },
 
     // ← Switch para activar/desactivar la ruta para el rol
+    // {
+    //     headerName: 'Assigned',
+    //     field: 'is_assigned',                    // keep backend field name
+    //     minWidth: 120,
+    //     flex: .55,
+    //     headerClass: 'ag-center-header',
+    //     cellClass: 'text-center',
+    //     sortable: true,
+    //     filter: 'agSetColumnFilter',
+    //     // Default to UNASSIGNED (0) if null/undefined/anything ≠ 1
+    //     valueGetter: (p) => Number(p.data?.is_active) === 1 ? 1 : 0,
+    //     filterParams: {
+    //       values: [1, 0],
+    //       valueFormatter: (p: any) => (Number(p.value) === 1 ? 'Assigned' : 'Unassigned')
+    //     },
+    //     cellRenderer: (p: any) => {
+    //       const on = Number(p.value) === 1;
+    //       return `
+    //         <div class="form-check form-switch d-inline-flex align-items-center justify-content-center">
+    //           <input type="checkbox" class="form-check-input perm-toggle"
+    //                 ${on ? 'checked' : ''} data-route="${p?.data?.id_route}">
+    //         </div>
+    //       `;
+    //     }
+    //   },
+
     {
-        headerName: 'Assigned',
-        field: 'is_assigned',                    // keep backend field name
-        minWidth: 120,
-        flex: .55,
-        headerClass: 'ag-center-header',
-        cellClass: 'text-center',
-        sortable: true,
-        filter: 'agSetColumnFilter',
-        // Default to UNASSIGNED (0) if null/undefined/anything ≠ 1
-        valueGetter: (p) => Number(p.data?.is_active) === 1 ? 1 : 0,
-        filterParams: {
-          values: [1, 0],
-          valueFormatter: (p: any) => (Number(p.value) === 1 ? 'Assigned' : 'Unassigned')
-        },
-        cellRenderer: (p: any) => {
-          const on = Number(p.value) === 1;
-          return `
-            <div class="form-check form-switch d-inline-flex align-items-center justify-content-center">
-              <input type="checkbox" class="form-check-input perm-toggle"
-                    ${on ? 'checked' : ''} data-route="${p?.data?.id_route}">
-            </div>
-          `;
-        }
+      headerName: 'Assigned',
+      field: 'is_assigned',
+      minWidth: 120,
+      flex: .55,
+      headerClass: 'ag-center-header',
+      cellClass: 'text-center',
+      sortable: true,
+      filter: 'agSetColumnFilter',
+
+      // Normaliza a 1/0 evitando null/undefined
+      valueGetter: (p) => Number(p.data?.is_assigned) === 1 ? 1 : 0,
+
+      filterParams: {
+        values: [1, 0],
+        valueFormatter: (p: any) => (Number(p.value) === 1 ? 'Assigned' : 'Unassigned')
       },
 
+      cellRenderer: (p: any) => {
+        const on = Number(p.value) === 1;
+        const eDiv = document.createElement('div');
+        eDiv.className = 'form-check form-switch d-inline-flex align-items-center justify-content-center';
+        eDiv.innerHTML = `
+          <input type="checkbox" class="form-check-input perm-toggle" ${on ? 'checked' : ''}>
+        `;
+
+        const input = eDiv.querySelector('input') as HTMLInputElement;
+
+        // evita que el click seleccione la fila
+        eDiv.addEventListener('click', (ev) => ev.stopPropagation());
+
+        input.addEventListener('change', async () => {
+          // datos que necesitas enviar
+          const id_route = p?.data?.id_route;     // ajusta si tu PK se llama distinto
+          const role = p?.data?.role;             // ajusta si tu campo es role_code u otro
+          const label = p?.data?.label;             // ajusta si tu campo es role_code u otro
+          const assigned = input.checked ? 1 : 0;
+
+          // actualización optimista
+          const prev = Number(p.value) === 1 ? 1 : 0;
+          p.node.setDataValue('is_assigned', assigned);
+
+          // deshabilita mientras llama
+          input.disabled = true;
+
+          try {
+            // Llama al método del componente (definido abajo)
+            this.onToggleAssigned({ id_route, role, label, assigned });
+          } catch (e) {
+            // rollback si falla
+            p.node.setDataValue('is_assigned', prev);
+            // re-chequea visualmente acorde al rollback
+            input.checked = prev === 1;
+            console.error(e);
+          } finally {
+            input.disabled = false;
+          }
+        });
+
+        return eDiv;
+      }
+    },
     // IDs/fields técnicos ocultos (útiles para acciones)
     { headerName: 'Route ID', field: 'id_route', hide: true },
     { headerName: 'Parent ID', field: 'parent_id', hide: true },
@@ -122,6 +184,68 @@ export class UserRolesComponent implements OnInit, OnDestroy {
   private gridApi?: GridApi;
 
   constructor(private core: DriveWhipCoreService) {}
+
+
+  // componente.ts
+  private async onToggleAssigned(payload: { id_route: number; role: string; label: string; assigned: 0|1 }) {
+    const isAssign = payload.assigned === 1;
+
+    const ok = await Utilities.confirm({
+      title: isAssign ? 'Assign route' : 'Unassign route',
+      text:  isAssign
+        ? `The role "${payload.role}" will be assigned to route "${payload.label}". Continue?`
+        : `The role "${payload.role}" will be unassigned from route "${payload.label}". Continue?`,
+      confirmButtonText: isAssign ? 'Assign' : 'Unassign'
+    });
+
+    if (!ok) {
+      
+      this.loadRolesRoutes(payload.role);
+      return; // usuario canceló
+
+   }
+
+
+    // Si tu SP es "toggle", no necesitas enviar 'assigned'.
+    // Si tu endpoint requiere saber si asigna o desasigna, pásalo en el body.
+    await this.assignRoleRoute(payload.id_route, payload.role /*, payload.assigned */);
+
+    // opcional: toast
+    // this.toast.success(isAssign ? 'Assigned' : 'Unassigned');
+  }
+
+
+  assignRoleRoute(id_role:number, role:string): void {
+
+    this._loading.set(true);
+    this._error.set(null);
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.auth_roles_routes_crud,
+      // IMPORTANT: pass null (NOT empty string) for p_role so SP enters ELSE branch and returns all
+      // Also p_active not used on R, send null to avoid confusion
+      parameters: [role, id_role, null]
+    };
+    this.core.executeCommand<DriveWhipCommandResponse<RoleRecord>>(api).subscribe({
+      next: res => {
+        if (!res.ok) {
+          const msg: string = (res.error as any) ? String(res.error) : 'Failed to load roles';
+          this._error.set(msg);
+          Utilities.showToast(msg, 'error');
+          this._loading.set(false);
+          return;
+        }
+        
+        this.loadRolesRoutes(role);
+      },
+      error: err => {
+        console.error('[UserRolesComponent] loadRoles error', err);
+        const msg = 'Failed to load roles';
+        this._error.set(msg);
+        Utilities.showToast(msg, 'error');
+      },
+      complete: () => this._loading.set(false)
+    });
+  }
 
   ngOnInit(): void {
     this.loadRoles();
@@ -210,7 +334,6 @@ export class UserRolesComponent implements OnInit, OnDestroy {
       complete: () => this._loading.set(false)
     });
   }
-
   
   loadRolesRoutes(role:string): void {
     this._loading.set(true);

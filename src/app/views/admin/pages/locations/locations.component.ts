@@ -164,7 +164,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
           return;
         }
 
-  // Normalize first resultset
+        
         let raw: any = [];
         if (Array.isArray(res.data)) {
           const top = res.data as any[];
@@ -261,6 +261,9 @@ onLocationChange(): void {
         // Reset transform metrics
         this.visibleStart = 0;
         this.updateTransform();
+
+        //Hide Grid
+        this.showGrid = false;
       },
       error: err => {
         console.error('[HomeComponent] loadStagesForWorkflow error', err);

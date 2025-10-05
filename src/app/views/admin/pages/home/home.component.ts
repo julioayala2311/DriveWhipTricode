@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, OnDestroy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
@@ -9,24 +9,41 @@ import { CryptoService } from '../../../../core/services/crypto/crypto.service';
 import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
 import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/models/entities.model';
 import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
+import { LocationsRecord } from '../../../../core/models/locations.model';
+import { HomeDialogComponent, LocationDialogResult } from './home-dialog.component';
 
 @Component({
   selector: 'app-ride-share',
   standalone: true,
-  imports: [CommonModule, NgbDropdownModule, FormsModule, HomeGridComponent],
+  imports: [CommonModule, NgbDropdownModule, FormsModule, HomeGridComponent, HomeDialogComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss'
 })
 export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
 
-  /** Rows for child grid */
-  locationsRows: any[] = [];
+  locationsRows: LocationsRecord[] = [];
+  rowsForGrid: LocationsRecord[] = [];
 
-  /** UI state */
-  loading = false;
+  filterMode: 'all' | 'active' | 'inactive' = 'all';
+
+  private readonly _loading = signal(false);
+  private readonly _records = signal<LocationsRecord[]>([]);
+  private readonly _error = signal<string | null>(null);
+  private readonly _dialogOpen = signal(false);
+  private readonly _dialogMode = signal<'create' | 'edit'>('create');
+  private readonly _editing = signal<LocationsRecord | null>(null);
+  private readonly _saving = signal(false);
+
+  readonly loading = computed(() => this._loading());
+  readonly error = computed(() => this._error());
+  readonly records = computed(() => this._records());
+  readonly showDialog = computed(() => this._dialogOpen());
+  readonly dialogMode = computed(() => this._dialogMode());
+  readonly saving = computed(() => this._saving());
+  readonly editingRecord = computed(() => this._editing());
+
   errorMsg: string | null = null;
 
-  // (Remaining carousel/layout props if needed later)
   @ViewChild('track') trackEl?: ElementRef<HTMLElement>;
   visibleStart = 0;
   perView = 8;
@@ -44,63 +61,194 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.updatePerView();
     window.addEventListener('resize', this.resizeHandler);
 
-  // (Optional) Attempt to load cached user / profile from localStorage
-    const encryptedUser = localStorage.getItem('user');
-    if (encryptedUser) {
-      try { this.crypto.decrypt(encryptedUser); } catch { /* noop */ }
-    }
-    const encryptedProfile = localStorage.getItem('dw.auth.user');
-    if (encryptedProfile) {
-      try { this.crypto.decrypt(encryptedProfile); } catch { /* noop */ }
-    }
+    try { const u = localStorage.getItem('user'); if (u) this.crypto.decrypt(u); } catch {}
+    try { const p = localStorage.getItem('dw.auth.user'); if (p) this.crypto.decrypt(p); } catch {}
 
     this.locationsList();
   }
 
-  ngAfterViewInit(): void {
-    Promise.resolve().then(() => this.updateTransform());
-  }
+  ngAfterViewInit(): void { Promise.resolve().then(() => this.updateTransform()); }
+  ngOnDestroy(): void { window.removeEventListener('resize', this.resizeHandler); }
 
-  ngOnDestroy(): void {
-    window.removeEventListener('resize', this.resizeHandler);
-  }
-
-  /** Calls stored procedure crm_locations_list and normalizes data[0] */
+  /** Listado principal */
   locationsList(): void {
-    this.loading = true;
+    this._loading.set(true);
     this.errorMsg = null;
 
-    const driveWhipCoreAPI: IDriveWhipCoreAPI = {
+    const api: IDriveWhipCoreAPI = {
       commandName: DriveWhipAdminCommand.crm_locations_list,
       parameters: []
     };
 
     this.driveWhipCore
-      .executeCommand<DriveWhipCommandResponse>(driveWhipCoreAPI)
+      .executeCommand<DriveWhipCommandResponse<LocationsRecord>>(api)
       .subscribe({
         next: (response) => {
           if (response?.ok) {
-            const raw = response.data;
+            const raw = response.data as any;
             const rows = Array.isArray(raw)
               ? (Array.isArray(raw[0]) ? raw[0] : raw)
               : [];
-            this.locationsRows = rows ?? [];
+            this.locationsRows = (rows ?? []) as LocationsRecord[];
           } else {
             this.locationsRows = [];
-            //this.errorMsg = response?.error ?? 'Unknown error';
           }
-          this.loading = false;
+          this.applyFilter();
+          this._loading.set(false);
         },
         error: (err) => {
-          console.error('Error occurred:', err);
+          console.error('[LocationsComponent] list error', err);
           this.locationsRows = [];
+          this.rowsForGrid = [];
           this.errorMsg = 'Request failed';
-          this.loading = false;
+          this._loading.set(false);
         }
       });
   }
 
-  /** --------- Optional layout utilities --------- */
+  /** Filtrado con referencia estable */
+  applyFilter(): void {
+    if (!Array.isArray(this.locationsRows)) {
+      this.rowsForGrid = [];
+      return;
+    }
+    switch (this.filterMode) {
+      case 'active':
+        this.rowsForGrid = this.locationsRows.filter(r => Number((r as any)?.active ?? (r as any)?.is_active) === 1);
+        break;
+      case 'inactive':
+        this.rowsForGrid = this.locationsRows.filter(r => Number((r as any)?.active ?? (r as any)?.is_active) !== 1);
+        break;
+      default:
+        this.rowsForGrid = this.locationsRows;
+        break;
+    }
+  }
+
+  // ======== D I Á L O G O ========
+  openCreate(): void {
+    this._dialogMode.set('create');
+    this._editing.set(null);
+    this._dialogOpen.set(true);
+  }
+
+  openEdit(rec: LocationsRecord): void {
+    this._dialogMode.set('edit');
+    this._editing.set(rec);      // ⬅️ pasa el registro al dialog
+    this._dialogOpen.set(true);  // ⬅️ abre
+  }
+
+  closeDialog(): void {
+    if (this._saving()) return;
+    this._dialogOpen.set(false);
+  }
+
+  handleDialogSave(result: LocationDialogResult): void {
+    if (this._saving()) return;
+    const mode = this._dialogMode();
+    const action: 'C' | 'U' = mode === 'create' ? 'C' : 'U';
+    this._saving.set(true);
+
+    const idLoc = mode === 'edit' ? (this._editing()?.id_location ?? null) : null;
+
+    this.mutate(action, {
+      id_location: idLoc ?? undefined,
+      //id_market: result.id_market ?? undefined,
+      location_name: result.name,   // mapea a p_name
+      notes: result.notes,          // mapea a p_notes
+      is_active: result.active ? 1 : 0,
+      country_code: result.country_code?? undefined, // mapea a p_notes,
+      state_code: result.state_code?? undefined, // mapea a p_notes,
+      full_address: result.full_address?? undefined, // mapea a p_notes,
+      json_form: result.json_form?? undefined, // mapea a p_notes
+    });
+  }
+
+  delete(rec: LocationsRecord): void {
+  // if (!window.confirm(`Disable location "${(rec as any).location_name ?? (rec as any).name}"?`)) return;
+    this.mutate('D', { id_location: (rec as any).id_location });
+
+    //Activate or not 
+    //this.onChangeActive((rec as any).id_location);
+  }
+
+  // private onChangeActive(id_location: string): void {
+  //     this._loading.set(true);
+  
+  //     const api: IDriveWhipCoreAPI = {
+  //       commandName: DriveWhipAdminCommand.crm_locations_active,
+        
+  //       parameters: [id_location]
+  //     };
+  
+  //   this.driveWhipCore.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+  //     next: res => {
+
+  //       if (!res.ok) {
+  //         return;
+  //       }
+  //       this.locationsList();
+  //     },
+  //     error: err => {
+  //       console.error('[HomeComponent] error', err);
+  //     }
+  //   });
+  // }
+
+
+  /** CRUD → ajusta el orden si tu SP difiere
+   *  Ejemplo firma SP: (p_action, p_id_location, p_id_market, p_name, p_notes, p_is_active)
+   */
+  private mutate(action: 'C'|'U'|'D', rec: Partial<LocationsRecord> & {
+    location_name?: string; name?: string; notes?: string; is_active?: number;
+  }) {
+    this._loading.set(true);
+
+    const nameForSp = (rec as any).location_name ?? (rec as any).name ?? null;
+
+    const params: any[] = [
+      action,
+      (rec as any).id_location ?? null,
+      // (rec as any).id_market ?? null,
+      nameForSp,
+      (rec as any).notes ?? null,
+      action === 'D' ? null : ((rec as any).is_active ?? 1),
+      null,
+      null,
+       (rec as any).country_code ?? null, //county
+       (rec as any).state_code ?? null, //state
+       (rec as any).full_address ?? null, //full
+       null
+    ];
+
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_locations_crud,
+      parameters: params
+    };
+
+    this.driveWhipCore
+      .executeCommand<DriveWhipCommandResponse<LocationsRecord>>(api)
+      .subscribe({
+        next: (res) => {
+          if (!res.ok) {
+            console.error('[LocationsComponent] mutate error', res.error);
+            this._saving.set(false);
+            this._loading.set(false);
+            return;
+          }
+          this._saving.set(false);
+          this.closeDialog();
+          this.locationsList();
+        },
+        error: (err) => {
+          console.error('[LocationsComponent] mutate error', err);
+          this._saving.set(false);
+          this._loading.set(false);
+        }
+      });
+  }
+
+  /** ---- Layout utils ---- */
   private updatePerView() {
     const w = window.innerWidth;
     if (w < 576) this.perView = 2;
@@ -111,7 +259,6 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     else this.perView = 8;
     this.updateTransform();
   }
-
   private updateTransform() {
     const track = this.trackEl?.nativeElement;
     if (!track) return;
@@ -121,6 +268,4 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     const offset = (cardWidth + this.gapPx) * this.visibleStart * -1;
     this.trackTransform = `translateX(${offset}px)`;
   }
-
-
 }

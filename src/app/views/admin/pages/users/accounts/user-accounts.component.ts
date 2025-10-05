@@ -131,10 +131,10 @@ export class UserAccountsComponent implements OnInit {
             if (top.length > 0 && Array.isArray(top[0])) raw = top[0]; else raw = top;
         }
         const list: RoleRecord[] = Array.isArray(raw) ? raw : [];
-  const active = list.filter(r => r && r.role && r.isactive === 1).map(r => r.role.trim());
-  // Remove duplicates
+        const active = list.filter(r => r && r.role && r.isactive === 1).map(r => r.role.trim());
+        // Remove duplicates
         const uniq = Array.from(new Set(active.map(r => r.toLowerCase())));
-  // Keep original casing of the first occurrence
+        // Keep original casing of the first occurrence
         const finalRoles: string[] = [];
         uniq.forEach(lower => {
           const original = active.find(r => r.toLowerCase() === lower);

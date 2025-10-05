@@ -1,23 +1,44 @@
 <div class="d-flex align-items-center mb-3">
   <h5 class="mb-0">WorkFlows</h5>
   <div class="ms-auto d-flex align-items-center gap-2">
-    <button type="button" class="btn btn-sm btn-primary" aria-label="Post to job boards" >
+    <button
+      class="btn btn-sm btn-ghost"
+      (click)="workflowsList()"
+      [disabled]="loading()"
+    >
+      Refresh
+    </button>
+    <button type="button"
+            class="btn btn-sm btn-primary"
+            aria-label="Add workflow"
+            (click)="openCreate()"
+            [disabled]="loading()">
       <span>Add WorkFlow</span>
     </button>
   </div>
 </div>
 
 <!-- Mensajes de estado -->
-<div *ngIf="loading" class="alert alert-info py-2">
+<div *ngIf="loading()" class="alert alert-info py-2">
   <i class="feather icon-loader me-1"></i> Loading...
 </div>
-<div *ngIf="!loading && errorMsg" class="alert alert-danger py-2">
+<div *ngIf="!loading() && errorMsg" class="alert alert-danger py-2">
   <i class="feather icon-alert-triangle me-1"></i> {{ errorMsg }}
 </div>
 
-<!-- Grid -->
+<!-- Dialog -->
+<dw-workflow-dialog
+  *ngIf="showDialog()"
+  [mode]="dialogMode()"
+  [record]="editingRecord()"
+  [saving]="saving()"
+  (closed)="closeDialog()"
+  (saved)="handleDialogSave($event)">
+</dw-workflow-dialog>
+
+<!-- Grid (conecta eventos de acciones) -->
 <app-workflows-grid
-  [rowData]="workflowsRows" >
+  [rowData]="workflowsRows"
+  (editRow)="openEdit($event)"
+  (deleteRow)="delete($event)">
 </app-workflows-grid>
-
-

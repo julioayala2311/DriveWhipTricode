@@ -158,7 +158,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
       notes: result.notes,          // mapea a p_notes
       is_active: result.active ? 1 : 0,
       country_code: result.country_code?? undefined, // mapea a p_notes,
-      state_code: result.state_code?? undefined, // mapea a p_notes,
+      state_code: result.state?? undefined, // mapea a p_notes,
       full_address: result.full_address?? undefined, // mapea a p_notes,
       json_form: result.json_form?? undefined, // mapea a p_notes
     });
@@ -206,6 +206,14 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const nameForSp = (rec as any).location_name ?? (rec as any).name ?? null;
 
+    let profile: { user: any } | null = null;
+
+    const encryptedProfile = localStorage.getItem('dw.auth.user');
+    if (encryptedProfile) {
+      profile = this.crypto.decrypt(encryptedProfile) as { user: any };
+      //console.log(profile.user);
+    }
+
     const params: any[] = [
       action,
       (rec as any).id_location ?? null,
@@ -213,12 +221,12 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
       nameForSp,
       (rec as any).notes ?? null,
       action === 'D' ? null : ((rec as any).is_active ?? 1),
+      profile!.user,
       null,
-      null,
-       (rec as any).country_code ?? null, //county
-       (rec as any).state_code ?? null, //state
-       (rec as any).full_address ?? null, //full
-       null
+      (rec as any).country_code ?? null, //county
+      (rec as any).state_code ?? null, //state
+      (rec as any).full_address ?? null, //full
+      null
     ];
 
     const api: IDriveWhipCoreAPI = {

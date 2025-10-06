@@ -79,7 +79,19 @@ export class WorkflowsGridComponent implements OnChanges {
 
     {
       headerName: 'Workflow',
-      field: 'name',
+      field: 'workflow_name',
+      minWidth: 160,
+      flex: 1,
+      headerComponent: GridHeaderComponent,
+      headerComponentParams: { icon: 'icon-git-branch' },
+      cellRenderer: (p: any) => {
+        const value = (p.value ?? '').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
+      }
+    },
+        {
+      headerName: 'Location',
+      field: 'location_name',
       minWidth: 160,
       flex: 1,
       headerComponent: GridHeaderComponent,
@@ -137,13 +149,8 @@ export class WorkflowsGridComponent implements OnChanges {
         textFormatter: (val: string) => val
       },
       cellClass: 'text-center',
-      cellStyle: { pointerEvents: 'none' },
-      cellRenderer: (p: any) => {
-        const on = Number(p.value) === 1;
-        const label = on ? 'Active' : 'Inactive';
-        const cls = on ? 'badge-on' : 'badge-off';
-        return `<span class="status-badge ${cls}">${label}</span>`;
-      }
+      cellRenderer: (p: any) => this.activeBadge(p.value)
+    
     },
 
     {
@@ -194,6 +201,15 @@ export class WorkflowsGridComponent implements OnChanges {
       </div>`;
   }
 
+  private activeBadge(value: any): string {
+    const active = value === 1 || value === true;
+    const cls = active
+      ? 'badge text-bg-success bg-success-subtle text-success fw-medium px-2 py-1'
+      : 'badge text-bg-danger bg-danger-subtle text-danger fw-medium px-2 py-1';
+    const label = active ? 'Active' : 'Inactive';
+    return `<span class="${cls}" style="font-size:11px; letter-spacing:.5px;">${label}</span>`;
+  }
+
   onCellClicked(e: CellClickedEvent) {
     if (!e?.colDef || !e.event) return;
 
@@ -209,7 +225,7 @@ export class WorkflowsGridComponent implements OnChanges {
     }
 
     // 2) Click en el nombre → navegar
-    if (e.colDef.field === 'name') {
+    if (e.colDef.field === 'workflow_name') {
       const id = (e.data as any)?.id_workflow;
       if (id != null) {
         e.event?.preventDefault?.();

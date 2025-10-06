@@ -94,7 +94,8 @@ export class HomeGridComponent implements OnChanges {
       }
     },
 
-    { headerName: 'Address', field: 'market_address', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
+    { headerName: 'State', field: 'state_name', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
+    { headerName: 'Address', field: 'full_address', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
 
     {
       headerName: 'Applicants',
@@ -146,6 +147,8 @@ export class HomeGridComponent implements OnChanges {
       cellClass: 'dw-actions-cell'
     },
 
+    { headerName: 'Country ID', field: 'country_code', hide: true },
+    { headerName: 'State ID', field: 'state_code', hide: true },
     { headerName: 'Location ID', field: 'id_location', hide: true },
     { headerName: 'Market ID', field: 'id_market', hide: true },
     { headerName: 'Workflow ID', field: 'id_workflow', hide: true }

@@ -100,6 +100,7 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
+  
   /* ==================== D I Á L O G O ==================== */
   openCreate(): void {
     this._dialogMode.set('create');
@@ -146,15 +147,25 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
   private mutate(action: 'C'|'U'|'D', rec: Partial<WorkflowRecord> & { is_active?: number }) {
     this._loading.set(true);
 
+     let profile: { user: any } | null = null;
+
+    const encryptedProfile = localStorage.getItem('dw.auth.user');
+    if (encryptedProfile) {
+      profile = this.crypto.decrypt(encryptedProfile) as { user: any };
+      //console.log(profile.user);
+    }
+
     // Ejemplo de firma: (p_action, p_id_workflow, p_id_location, p_name, p_notes, p_sort_order, p_is_active)
     const params: any[] = [
       action,
       rec.id_workflow ?? null,
       rec.id_location ?? null,
       rec.name ?? null,
-      rec.notes ?? null,
-      rec.sort_order ?? null,
-      action === 'D' ? null : (rec.is_active ?? 1)
+      // rec.notes ?? null,
+      // rec.sort_order ?? null,
+      action === 'D' ? null : (rec.is_active ?? 1),
+      profile!.user,
+      profile!.user
     ];
 
     const api: IDriveWhipCoreAPI = {

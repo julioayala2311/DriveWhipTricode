@@ -97,12 +97,101 @@ export class WorkflowEditorComponent implements OnInit {
   readonly conditionTypes = signal<any[]>([]); // { id_condition_type, condition }
   readonly dataKeys = signal<any[]>([]); // { id_datakey, datakey }
   readonly operators = signal<any[]>([]); // { id_operator, operator }
+  // Dynamic list of rule conditions
+  private createEmptyRule(): RuleCondition {
+    return { condition_type_id: null, datakey_id: null, operator_id: null, value: '' };
+  }
+  readonly rulesConditions = signal<RuleCondition[]>([ this.createEmptyRule() ]);
+  // Dynamic list of rule actions
+  private createEmptyAction(): RuleAction {
+    return { action_type: 'Move applicant to stage', stage_id: null, reason: 'Not old enough' };
+  }
+  readonly rulesActions = signal<RuleAction[]>([ this.createEmptyAction() ]);
 
-  // Single rule form fields (Rule 1)
-  readonly rule_condition_type_id = signal<number | null>(null);
-  readonly rule_datakey_id = signal<number | null>(null);
-  readonly rule_operator_id = signal<number | null>(null);
-  readonly rule_value = signal<string>('');
+  addRuleCondition(): void {
+    const next = [...this.rulesConditions(), this.createEmptyRule()];
+    this.rulesConditions.set(next);
+  }
+
+  updateRuleCondition(index: number, field: keyof RuleCondition, value: any): void {
+    const list = [...this.rulesConditions()];
+    const target = { ...list[index], [field]: value };
+    list[index] = target;
+    this.rulesConditions.set(list);
+  }
+
+  addRuleAction(): void {
+    const next = [...this.rulesActions(), this.createEmptyAction()];
+    this.rulesActions.set(next);
+  }
+
+  updateRuleAction(index: number, field: keyof RuleAction, value: any): void {
+    const list = [...this.rulesActions()];
+    const target = { ...list[index], [field]: value };
+    list[index] = target;
+    this.rulesActions.set(list);
+  }
+
+  removeRuleAction(index: number): void {
+    const list = [...this.rulesActions()];
+    if (index < 0 || index >= list.length) return;
+    if (list.length === 1) {
+      list[0] = this.createEmptyAction();
+    } else {
+      list.splice(index, 1);
+    }
+    this.rulesActions.set(list);
+  }
+
+  trackRuleAction = (index: number, _item: RuleAction) => index;
+
+  removeRuleCondition(index: number): void {
+    const list = [...this.rulesConditions()];
+    if (index < 0 || index >= list.length) return;
+    if (list.length === 1) {
+      // Si sólo hay una, limpiamos sus campos en lugar de eliminarla
+      list[0] = this.createEmptyRule();
+    } else {
+      list.splice(index, 1);
+    }
+    this.rulesConditions.set(list);
+  }
+
+  trackRuleCondition = (index: number, _item: RuleCondition) => index;
+
+  // Placeholder action for Idle Move Rule button (future: open modal / add rule object)
+  onAddIdleMoveRule(): void {
+    Utilities.showToast('Idle Move Rule action coming soon', 'info');
+  }
+
+  // --- Initial Message (Data Collection) ---
+  readonly initialMessageDelayMins = signal<number>(0);
+  readonly initialMessageDisabled = signal<boolean>(false);
+
+  onInitialMessageDelayChange(raw: any): void {
+    const v = Number(raw);
+    if (!Number.isFinite(v) || v < 0) {
+      this.initialMessageDelayMins.set(0);
+    } else {
+      this.initialMessageDelayMins.set(Math.floor(v));
+    }
+  }
+
+  toggleInitialMessageDisabled(flag: boolean): void {
+    this.initialMessageDisabled.set(flag);
+  }
+
+  onAddInitialMessage(): void {
+    // Placeholder – future: persist inside json_form for the section
+    const payload = {
+      title: 'Complete your DriveWhip Applications Now!',
+      delivery: 'Text + Mail',
+      delayMinutes: this.initialMessageDelayMins(),
+      disabled: this.initialMessageDisabled()
+    };
+    console.log('[WorkflowEditor] Initial Message add clicked', payload);
+    Utilities.showToast('Initial Message action coming soon', 'info');
+  }
 
   private loadRulesCatalogs(): void {
     if (this.rulesLoading()) return;
@@ -529,4 +618,20 @@ export class WorkflowEditorComponent implements OnInit {
       }
     });
   }
+}
+
+// Local interface for rule condition editing state
+interface RuleCondition {
+  id?: number; // future persistence id
+  condition_type_id: number | null;
+  datakey_id: number | null;
+  operator_id: number | null;
+  value: string;
+}
+
+interface RuleAction {
+  id?: number; // future persistence id
+  action_type: string; // e.g. 'Move applicant to stage'
+  stage_id: number | null; // target stage
+  reason: string; // e.g. 'Not old enough'
 }

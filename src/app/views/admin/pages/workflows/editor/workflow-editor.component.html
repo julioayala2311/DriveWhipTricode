@@ -68,7 +68,7 @@
         <div *ngIf="!dataCollectionVisible() && !rulesVisible(); else stageSpecificTpl">
           <h6 class="fw-semibold mb-3">Workflow Details</h6>
           <p class="text-secondary small mb-0">
-            Select a stage to view configuration. Data Collection specific settings will appear when applicable.
+            Select a stage to view configuration.
           </p>
         </div>
         <ng-template #stageSpecificTpl>
@@ -106,42 +106,142 @@
               <div class="px-2 py-4 text-center small text-secondary">Loading settings…</div>
             </ng-template>
           </div>
+          <!-- Idle Move Rule Card -->
+          <div class="card shadow-sm border-0 mt-3 idle-move-card">
+            <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+              <h6 class="mb-0 fw-semibold">Idle Move Rule</h6>
+            </div>
+            <div class="card-body pt-3 pb-3 px-3">
+              <p class="small mb-3 text-secondary" style="line-height:1.3;">Automatically transfer idle applicants to a target stage</p>
+              <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" (click)="onAddIdleMoveRule()">
+                <i class="feather icon-plus" style="font-size:.85rem;"></i> Add Idle Move Rule
+              </button>
+            </div>
+          </div>
+          <!-- Initial Message Card -->
+          <div class="card shadow-sm border-0 mt-3 initial-message-card">
+            <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+              <h6 class="mb-0 fw-semibold">Initial Message</h6>
+            </div>
+            <div class="card-body pt-3 pb-3 px-3">
+              <p class="small mb-3 text-secondary" style="line-height:1.3;">Send a message when the applicant lands on this stage</p>
+              <div class="row g-3 initial-message-form">
+                <div class="col-12 col-md-6">
+                  <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Message Title</label>
+                  <input type="text" class="form-control form-control-sm" value="Complete your DriveWhip Applications Now!" readonly />
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Delivery Method</label>
+                  <input type="text" class="form-control form-control-sm" value="Text + Mail" readonly />
+                </div>
+                <div class="col-6 col-md-3 col-lg-2">
+                  <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Delay (mins)</label>
+                  <input type="number" min="0" class="form-control form-control-sm" [value]="initialMessageDelayMins()" (input)="onInitialMessageDelayChange($any($event.target).value)" />
+                </div>
+                <div class="col-6 col-md-3 col-lg-2 d-flex align-items-end">
+                  <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="im_disable" [checked]="initialMessageDisabled()" (change)="toggleInitialMessageDisabled($any($event.target).checked)" />
+                    <label class="form-check-label small" for="im_disable">Disable</label>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" (click)="onAddInitialMessage()">
+                  <i class="feather icon-plus" style="font-size:.85rem;"></i> Add Initial Message
+                </button>
+              </div>
+            </div>
+          </div>
           </ng-container>
           <!-- Rules Template -->
           <ng-template #rulesTpl>
             <div *ngIf="rulesVisible()" class="card shadow-sm border-0 rules-card">
               <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
-                <h6 class="mb-0 fw-semibold">Rule 1</h6>
+                <h6 class="mb-0 fw-semibold">Rules Conditions</h6>
                 <span *ngIf="rulesLoading()" class="small text-secondary">Loading…</span>
               </div>
               <div class="card-body pt-3 pb-3 px-3" *ngIf="!rulesLoading(); else loadingRulesTpl">
                 <div *ngIf="rulesError()" class="alert alert-danger py-2 px-3 small mb-3">{{ rulesError() }}</div>
-                <div class="mb-3 small fw-semibold text-uppercase text-secondary" style="letter-spacing:.75px;">Condition</div>
-                <div class="rules-grid">
-                  <div class="mb-3">
-                    <label class="form-label small fw-semibold text-secondary mb-1">Condition Type</label>
-                    <select class="form-select form-select-sm" [value]="rule_condition_type_id() ?? ''" (change)="rule_condition_type_id.set(+($any($event.target).value)||null)">
-                      <option value="">Select condition type</option>
-                      <option *ngFor="let c of conditionTypes()" [value]="c.id_condition_type">{{ c.condition }}</option>
-                    </select>
+                <div class="d-flex flex-column gap-4">
+                  <div *ngFor="let rc of rulesConditions(); let idx = index; trackBy: trackRuleCondition" class="rule-condition-block">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <div class="small fw-semibold text-uppercase text-secondary" style="letter-spacing:.75px;">Condition {{ idx + 1 }}</div>
+                      <button *ngIf="idx > 0" type="button" class="btn btn-xs btn-outline-danger" (click)="removeRuleCondition(idx)" title="Delete condition" style="--bs-btn-padding-y:.2rem; --bs-btn-padding-x:.4rem; font-size:.6rem;">
+                        <i class="feather icon-trash-2" style="font-size:.75rem; line-height:1;"></i>
+                      </button>
+                    </div>
+                    <div class="rules-grid">
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary mb-1">Condition Type</label>
+                        <select class="form-select form-select-sm" [value]="rc.condition_type_id ?? ''" (change)="updateRuleCondition(idx, 'condition_type_id', +($any($event.target).value)||null)">
+                          <option value="">Select condition type</option>
+                          <option *ngFor="let c of conditionTypes()" [value]="c.id_condition_type">{{ c.condition }}</option>
+                        </select>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary mb-1">Data Key</label>
+                        <select class="form-select form-select-sm" [value]="rc.datakey_id ?? ''" (change)="updateRuleCondition(idx, 'datakey_id', +($any($event.target).value)||null)">
+                          <option value="">Select data key</option>
+                          <option *ngFor="let d of dataKeys()" [value]="d.id_datakey">{{ d.datakey }}</option>
+                        </select>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary mb-1">Operator</label>
+                        <select class="form-select form-select-sm" [value]="rc.operator_id ?? ''" (change)="updateRuleCondition(idx, 'operator_id', +($any($event.target).value)||null)">
+                          <option value="">Select operator</option>
+                          <option *ngFor="let o of operators()" [value]="o.id_operator">{{ o.operator }}</option>
+                        </select>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary mb-1">Value</label>
+                        <input type="text" class="form-control form-control-sm" [value]="rc.value" (input)="updateRuleCondition(idx, 'value', $any($event.target).value)" placeholder="Enter value" />
+                      </div>
+                    </div>
+                    <hr class="mt-1 mb-0" *ngIf="idx < (rulesConditions().length - 1)">
                   </div>
-                  <div class="mb-3">
-                    <label class="form-label small fw-semibold text-secondary mb-1">Data Key</label>
-                    <select class="form-select form-select-sm" [value]="rule_datakey_id() ?? ''" (change)="rule_datakey_id.set(+($any($event.target).value)||null)">
-                      <option value="">Select data key</option>
-                      <option *ngFor="let d of dataKeys()" [value]="d.id_datakey">{{ d.datakey }}</option>
-                    </select>
+                  <div>
+                    <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" (click)="addRuleCondition()">
+                      <i class="feather icon-plus" style="font-size:.85rem;"></i> Add Condition
+                    </button>
                   </div>
-                  <div class="mb-3">
-                    <label class="form-label small fw-semibold text-secondary mb-1">Operator</label>
-                    <select class="form-select form-select-sm" [value]="rule_operator_id() ?? ''" (change)="rule_operator_id.set(+($any($event.target).value)||null)">
-                      <option value="">Select operator</option>
-                      <option *ngFor="let o of operators()" [value]="o.id_operator">{{ o.operator }}</option>
-                    </select>
-                  </div>
-                  <div class="mb-3">
-                    <label class="form-label small fw-semibold text-secondary mb-1">Value</label>
-                    <input type="text" class="form-control form-control-sm" [value]="rule_value()" (input)="rule_value.set($any($event.target).value)" placeholder="Enter value" />
+                  <!-- Actions Section -->
+                  <div class="mt-2">
+                    <div class="d-flex flex-column gap-4">
+                      <div *ngFor="let ac of rulesActions(); let aIdx = index; trackBy: trackRuleAction" class="rule-action-block">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                          <div  class="small fw-semibold text-uppercase text-secondary mb-2" style="letter-spacing:.75px;">Action {{ aIdx + 1 }}</div>
+                            <button *ngIf="aIdx > 0" type="button" class="btn btn-xs btn-outline-danger" (click)="removeRuleAction(aIdx)" title="Delete action" style="--bs-btn-padding-y:.2rem; --bs-btn-padding-x:.4rem; font-size:.6rem;">
+                              <i class="feather icon-trash-2" style="font-size:.75rem; line-height:1;"></i>
+                            </button>
+                        </div>
+                        <div class="rules-grid">
+                          <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary mb-1">Action Type</label>
+                            <select class="form-select form-select-sm" [value]="ac.action_type" (change)="updateRuleAction(aIdx, 'action_type', $any($event.target).value)">
+                              <option value="Move applicant to stage">Move applicant to stage</option>
+                            </select>
+                          </div>
+                          <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary mb-1">Stage</label>
+                            <select class="form-select form-select-sm" [value]="ac.stage_id ?? ''" (change)="updateRuleAction(aIdx, 'stage_id', +($any($event.target).value)||null)">
+                              <option value="">Select stage</option>
+                              <option *ngFor="let st of stages()" [value]="st.id_stage">{{ st.name }}</option>
+                            </select>
+                          </div>
+                          <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary mb-1">Reason</label>
+                            <select class="form-select form-select-sm" [value]="ac.reason" (change)="updateRuleAction(aIdx, 'reason', $any($event.target).value)">
+                              <option value="Not old enough">Not old enough</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" (click)="addRuleAction()">
+                          <i class="feather icon-plus" style="font-size:.85rem;"></i> Add Action
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

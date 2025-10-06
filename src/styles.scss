@@ -243,6 +243,8 @@ body.dark .dw-action-btn.danger:hover:not(:disabled) {
   .dw-grid-theme .ag-cell.dw-actions-cell { padding-right: 4px; }
 }
 
-// .horizontal-menu .bottom-navbar {
-//   height: 6vh!important;
-// }
+.btn-outline-primary, full-calendar.fc .fc-button-primary {
+    --bs-btn-hover-color: #ffffff!important;
+    --bs-btn-active-color: #ffffff!important;
+
+}

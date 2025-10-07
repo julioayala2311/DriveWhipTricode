@@ -7,7 +7,7 @@ import { FormsModule } from '@angular/forms';
 export interface WorkflowRecord {
   id_workflow: number;
   id_location: number | null;
-  name: string;
+  workflow_name: string;
   notes: string | null;
   is_active: number;
   sort_order?: number | null;
@@ -16,11 +16,11 @@ export interface WorkflowRecord {
 }
 
 export interface WorkflowDialogResult {
-  name: string;
+  workflow_name: string;
   id_location: number | null;
   notes: string;
   sort_order: number | null;
-  active: boolean; // visible solo en edit
+  active: boolean; // visible only in edit mode
 }
 
 @Component({
@@ -44,8 +44,8 @@ export interface WorkflowDialogResult {
               <label class="form-label small fw-semibold">
                 Workflow Name <span class="text-danger">*</span>
               </label>
-              <input type="text" class="form-control form-control-sm" name="name"
-                     [(ngModel)]="name" required />
+              <input type="text" class="form-control form-control-sm" name="workflow_name"
+                     [(ngModel)]="workflow_name" required />
               <div class="invalid-feedback d-block" *ngIf="nameError">{{ nameError }}</div>
             </div>
 
@@ -101,7 +101,7 @@ export class WorkflowsDialogComponent implements OnChanges {
   @Output() closed = new EventEmitter<void>();
   @Output() saved  = new EventEmitter<WorkflowDialogResult>();
 
-  name = '';
+  workflow_name = '';
   id_location: number | null = null;
   notes = '';
   sort_order: number | null = null;
@@ -112,15 +112,15 @@ export class WorkflowsDialogComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['record'] || changes['mode']) {
       if (this.mode === 'edit' && this.record) {
-        // ⬇️ pre-fill desde el registro
-        this.name = this.record.name ?? '';
+  // Pre-fill values from existing record
+        this.workflow_name = this.record.workflow_name ?? '';
         this.id_location = (this.record.id_location ?? null) as any;
         this.notes = this.record.notes ?? '';
         this.sort_order = (this.record.sort_order ?? null) as any;
         this.active = Number(this.record.is_active) === 1;
       } else {
-        // ⬇️ estado inicial para create
-        this.name = '';
+  // Reset to initial state for create mode
+        this.workflow_name = '';
         this.id_location = null;
         this.notes = '';
         this.sort_order = null;
@@ -131,11 +131,11 @@ export class WorkflowsDialogComponent implements OnChanges {
   }
 
   formValid(): boolean {
-    return !!this.name.trim();
+    return !!this.workflow_name.trim();
   }
 
   save(): void {
-    this.name = this.name.trim();
+    this.workflow_name = this.workflow_name.trim();
     if (!this.formValid()) {
       this.nameError = 'Workflow name is required.';
       return;
@@ -144,7 +144,7 @@ export class WorkflowsDialogComponent implements OnChanges {
     const order = this.sort_order;
 
     this.saved.emit({
-      name: this.name,
+      workflow_name: this.workflow_name,
       id_location: (loc === undefined || loc === null || (loc as any) === '') ? null : Number(loc),
       notes: this.notes?.trim() || '',
       sort_order: (order === undefined || order === null || (order as any) === '') ? null : Number(order),

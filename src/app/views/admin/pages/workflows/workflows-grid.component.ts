@@ -78,8 +78,8 @@ export class WorkflowsGridComponent implements OnChanges {
     { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
 
     {
-      headerName: 'Workflow',
-      field: 'name',
+  headerName: 'Workflow',
+  field: 'workflow_name',
       minWidth: 160,
       flex: 1,
       headerComponent: GridHeaderComponent,
@@ -209,7 +209,7 @@ export class WorkflowsGridComponent implements OnChanges {
     }
 
     // 2) Click en el nombre → navegar
-    if (e.colDef.field === 'name') {
+  if (e.colDef.field === 'workflow_name') {
       const id = (e.data as any)?.id_workflow;
       if (id != null) {
         e.event?.preventDefault?.();

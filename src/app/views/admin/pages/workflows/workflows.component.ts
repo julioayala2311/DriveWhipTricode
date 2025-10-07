@@ -66,7 +66,7 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit(): void { Promise.resolve().then(() => this.updateTransform()); }
   ngOnDestroy(): void { window.removeEventListener('resize', this.resizeHandler); }
 
-  /** Listado principal */
+  /** Main list load */
   workflowsList(): void {
     this._loading.set(true);
     this.errorMsg = null;
@@ -100,7 +100,7 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
-  /* ==================== D I Á L O G O ==================== */
+  /* ==================== D I A L O G  ==================== */
   openCreate(): void {
     this._dialogMode.set('create');
     this._editing.set(null);
@@ -108,7 +108,7 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openEdit(rec: WorkflowRecord): void {
-    // 🔑 pre-fill: pasamos el record al dialog
+    // Prefill: pass record to dialog
     this._dialogMode.set('edit');
     this._editing.set(rec);
     this._dialogOpen.set(true);
@@ -130,7 +130,7 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mutate(action, {
       id_workflow: idWf ?? undefined,
       id_location: result.id_location ?? undefined,
-      name: result.name,
+      workflow_name: result.workflow_name,
       notes: result.notes,
       sort_order: result.sort_order ?? undefined,
       is_active: result.active ? 1 : 0,
@@ -138,7 +138,7 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   delete(rec: WorkflowRecord): void {
-    if (!window.confirm(`Disable workflow "${rec.name}"?`)) return;
+    if (!window.confirm(`Disable workflow "${rec.workflow_name}"?`)) return;
     this.mutate('D', { id_workflow: rec.id_workflow });
   }
 
@@ -151,7 +151,7 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
       action,
       rec.id_workflow ?? null,
       rec.id_location ?? null,
-      rec.name ?? null,
+      rec.workflow_name ?? null,
       rec.notes ?? null,
       rec.sort_order ?? null,
       action === 'D' ? null : (rec.is_active ?? 1)

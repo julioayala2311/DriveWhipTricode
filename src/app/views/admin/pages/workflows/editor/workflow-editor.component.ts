@@ -9,6 +9,7 @@ import {
 } from "../../../../../core/models/entities.model";
 import { DriveWhipAdminCommand } from "../../../../../core/db/procedures";
 import { Utilities } from "../../../../../Utilities/Utilities";
+import { AuthSessionService } from '../../../../../core/services/auth/auth-session.service';
 import { finalize, forkJoin, of } from 'rxjs';
 
 /**
@@ -28,6 +29,7 @@ export class WorkflowEditorComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private core = inject(DriveWhipCoreService);
+  private authSession = inject(AuthSessionService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -198,7 +200,7 @@ export class WorkflowEditorComponent implements OnInit {
     this.rulesLoading.set(true);
     this.rulesError.set(null);
     const apiCondition: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_condition_type_crud, parameters: ['R', null, null, null, null, null] };
-    const apiDatakey: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_section_datakey_crud, parameters: ['R', null, null, null, null, null] };
+    const apiDatakey: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_datakey_crud, parameters: ['R', null, null, null, null, null] };
     const apiOperator: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_operator_crud, parameters: ['R', null, null, null, null, null] };
     forkJoin([
       this.core.executeCommand<DriveWhipCommandResponse>(apiCondition),
@@ -256,7 +258,7 @@ export class WorkflowEditorComponent implements OnInit {
         }
         const match = rows.find((r) => r.id_workflow === this.workflowId);
         if (match) {
-          this.workflowName.set(match.name || `Workflow #${this.workflowId}`);
+          this.workflowName.set(match.workflow_name || `Workflow #${this.workflowId}`);
         } else {
           this.workflowName.set(`Workflow #${this.workflowId}`);
         }
@@ -358,7 +360,7 @@ export class WorkflowEditorComponent implements OnInit {
     // Provide id_section_type if we can resolve it (helps backend filter if supported)
     const sectionTypeId = this.sectionTypeIdForStage(stageId); // expected 1 for Data Collection
     const params: any[] = [ 'R', null, stageId, sectionTypeId, null, null, null, null, null, null, null, null ];
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_section_crud, parameters: params };
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_crud, parameters: params };
     this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.dataSectionLoading.set(false))).subscribe({
       next: res => {
         if (!res.ok) { this.dataSectionError.set('Failed to load data collection settings'); return; }
@@ -431,12 +433,14 @@ export class WorkflowEditorComponent implements OnInit {
   private persistDataSection(stageId: number, key: 'show_stage_in_tracker' | 'auto_advance_stage' | 'notify_owner_on_submit' | 'show_one_question', prevValue: boolean, intendedValue: boolean) {
     const isCreate = this.dataSectionId() == null;
     const action = isCreate ? 'C' : 'U';
-    const currentUser = 'system'; // TODO: integrate with auth
+  const currentUser = this.authSession.user?.user || 'system';
     const sectionTypeId = this.sectionTypeIdForStage(stageId);
     if (sectionTypeId == null) {
       this.rollbackToggle(key, prevValue, 'Unknown section type for stage');
       return;
     }
+    // Helper inline to convert boolean flags to the INT (1/0) values expected by the SP
+    const b = (v: boolean) => v ? 1 : 0;
     const params: any[] = [
       action,
       isCreate ? null : this.dataSectionId(),
@@ -444,15 +448,15 @@ export class WorkflowEditorComponent implements OnInit {
       sectionTypeId, // id_section_type resolved from mapping (Data Collection=1, Rules=2)
       // json_form must not be NULL on UPDATE. Use existing or default placeholder '[]'.
       isCreate ? this.dataSectionJsonForm() : (this.dataSectionJsonForm() || '[]'),
-      this.dc_show_stage_in_tracker(),
-      this.dc_auto_advance_stage(),
-      this.dc_notify_owner_on_submit(),
-      this.dc_show_one_question(),
-      true,
+      b(this.dc_show_stage_in_tracker()),
+      b(this.dc_auto_advance_stage()),
+      b(this.dc_notify_owner_on_submit()),
+      b(this.dc_show_one_question()),
+      1, // is_active
       isCreate ? currentUser : null,
       isCreate ? null : currentUser
     ];
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_section_crud, parameters: params };
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_crud, parameters: params };
     this.dataSectionSaving.set(true);
     this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.dataSectionSaving.set(false))).subscribe({
       next: res => {
@@ -582,7 +586,7 @@ export class WorkflowEditorComponent implements OnInit {
       this.initialOrder = this.stages().map(s => s.id_stage);
       return;
     }
-    const currentUser = 'system'; // TODO: replace with real user from auth context
+  const currentUser = this.authSession.user?.user || 'system';
     const calls = changed.map(stage => {
       const params: any[] = [
         'U',                 // p_action

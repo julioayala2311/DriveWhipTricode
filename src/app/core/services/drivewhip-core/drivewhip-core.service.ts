@@ -9,6 +9,7 @@ import { Utilities } from '../../../Utilities/Utilities';
 
 export const AUTH_TOKEN_STORAGE_KEY = 'dw.auth.session';
 export const AUTH_USER_STORAGE_KEY = 'dw.auth.user';
+export const AUTH_USER_IMAGE_STORAGE_KEY = 'dw.auth.user_image';
 
 /**
  * DriveWhipCoreService
@@ -25,6 +26,7 @@ export class DriveWhipCoreService {
   private handlingUnauthorized = false;
 
   private get baseUrl() { return this.appConfig.apiBaseUrl; }
+  //private get baseUrlLogin() { return this.appConfig.apiBaseUrlLogin; }
 
   get serviceUser(): string { return this.appConfig.driveWhipCoreServiceUser; }
   get servicePassword(): string { return this.appConfig.driveWhipCoreServicePassword; }
@@ -38,6 +40,17 @@ export class DriveWhipCoreService {
   cacheToken(token: string): void {
     const encrypted = this.crypto.encrypt(token);
     this.writeToStorage(AUTH_TOKEN_STORAGE_KEY, encrypted);
+  }
+
+  cacheImageToken(token: string): void {
+    const encrypted = this.crypto.encrypt(token);
+    this.writeToStorage(AUTH_USER_IMAGE_STORAGE_KEY, encrypted);
+  }
+
+  getCachedImageToken(): string | null {
+    const encrypted = this.readFromStorage(AUTH_USER_IMAGE_STORAGE_KEY);
+    if (!encrypted) return null;
+    return this.crypto.decrypt<string>(encrypted);
   }
 
   cacheUserProfile(payload: unknown): void {
@@ -69,9 +82,9 @@ export class DriveWhipCoreService {
     );
   }
 
-  login(email: string, password: string): Observable<any> {
-    const url = this.baseUrl + 'auth/login';
-    const body = { email, password };
+  login(user: string, secret: string): Observable<any> {
+    const url = this.baseUrl + 'Auth/login';
+    const body = { user, secret };
     const headers = new HttpHeaders({
       'Accept': 'application/json',
       'Content-Type': 'application/json'

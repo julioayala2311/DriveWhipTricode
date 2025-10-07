@@ -77,18 +77,22 @@ export class WorkflowsGridComponent implements OnChanges {
   columnDefs: ColDef[] = [
     { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
 
-    {
+   {
       headerName: 'Workflow',
       field: 'workflow_name',
       minWidth: 160,
       flex: 1,
       headerComponent: GridHeaderComponent,
       headerComponentParams: { icon: 'icon-git-branch' },
-      cellRenderer: (p: any) => {
-        const value = (p.value ?? '').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
-      }
-    },
+
+      // 👇 hace que la celda se vea como vínculo (sin <a>)
+      cellClass: 'as-link',
+
+      // 👇 solo texto sanitizado
+      cellRenderer: (p: any) =>
+        String(p.value ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    }
+,
         {
       headerName: 'Location',
       field: 'location_name',
@@ -98,7 +102,7 @@ export class WorkflowsGridComponent implements OnChanges {
       headerComponentParams: { icon: 'icon-map-pin' },
       cellRenderer: (p: any) => {
         const value = (p.value ?? '').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
+        return `<span aria-label="Open workflow">${value}</span>`;
       }
     },
     {

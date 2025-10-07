@@ -169,3 +169,35 @@
 @media (prefers-reduced-motion: reduce) {
 	.carousel-track { transition:none; }
 }
+
+
+
+:host ::ng-deep .ag-center-header .ag-header-cell-label {
+  justify-content: center;
+}
+
+:host ::ng-deep .grid-link,
+:host ::ng-deep .as-link {
+  cursor: pointer;
+  color: var(--bs-primary, #0d6efd);
+  text-decoration: underline;
+}
+:host ::ng-deep .grid-link:hover,
+:host ::ng-deep .as-link:hover {
+  filter: brightness(0.9);
+}
+
+:host ::ng-deep .applicants-cell { text-align: center; }
+:host ::ng-deep .applicants-cell .applicants-cell-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .25rem;
+  width: 100%;
+}
+:host ::ng-deep .applicants-cell .feather {
+  width: 14px;
+  height: 14px;
+  line-height: 1;
+}
+

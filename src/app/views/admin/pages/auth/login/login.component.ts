@@ -114,6 +114,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
         return accessToken;
       }),
       switchMap(accessToken => {
+        console.log(googlePayload.firstName, googlePayload.lastName); 
         const driveWhipCoreAPI: IDriveWhipCoreAPI = {
           commandName: DriveWhipAdminCommand.auth_users_info,
           parameters: [

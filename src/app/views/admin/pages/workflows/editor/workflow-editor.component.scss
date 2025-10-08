@@ -139,10 +139,6 @@ body.dark .rules-card .card-header { border-color: rgba(255,255,255,.12); }
 .rules-card .rule-condition-block { position:relative; }
 .rules-card .rule-condition-block hr { border-color: var(--bs-border-color,rgba(0,0,0,.08)); }
 body.dark .rules-card .rule-condition-block hr { border-color: rgba(255,255,255,.12); }
-.idle-move-card, .initial-message-card { border-radius:.85rem; }
-.idle-move-card .card-header, .initial-message-card .card-header { border-bottom:1px solid var(--bs-border-color,rgba(0,0,0,.08)); background:transparent; }
-body.dark .idle-move-card .card-header, body.dark .initial-message-card .card-header { border-color: rgba(255,255,255,.12); }
-.initial-message-card .form-label { font-size:.6rem; letter-spacing:.25px; }
 .status-card.vertical .status-text { font-size:.85rem; }
 .status-card.vertical .sub-status { font-size:.70rem; margin-top:.1rem; letter-spacing:.3px; font-weight:500; color: var(--bs-secondary-color, rgba(0,0,0,.55)); }
 .status-card.vertical .meta { opacity:.85; }

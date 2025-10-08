@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal, computed } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { NonNegativeNumberDirective } from '../../../../../shared/non-negative-number.directive';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ActivatedRoute, Router } from "@angular/router";
 import { DriveWhipCoreService } from "../../../../../core/services/drivewhip-core/drivewhip-core.service";
@@ -21,7 +22,7 @@ import { finalize, forkJoin, of } from 'rxjs';
 @Component({
   selector: "dw-workflow-editor",
   standalone: true,
-  imports: [CommonModule, DragDropModule],
+  imports: [CommonModule, DragDropModule, NonNegativeNumberDirective],
   templateUrl: "./workflow-editor.component.html",
   styleUrl: "./workflow-editor.component.scss",
 })
@@ -162,13 +163,424 @@ export class WorkflowEditorComponent implements OnInit {
   trackRuleCondition = (index: number, _item: RuleCondition) => index;
 
   // Placeholder action for Idle Move Rule button (future: open modal / add rule object)
-  onAddIdleMoveRule(): void {
-    Utilities.showToast('Idle Move Rule action coming soon', 'info');
+  // Idle Move Rule state
+  readonly idleMoveDays = signal<number>(0);
+  readonly idleTargetStageId = signal<number | null>(null);
+  // Default was true causing the toggle to appear active when no record exists.
+  // Set to false so an empty (non-configured) rule shows all switches off.
+  readonly idleSendAutomatedMessages = signal<boolean>(false);
+  readonly idleIgnoreApplicantAction = signal<boolean>(false);
+  // Idle Move persistence signals
+  readonly idleMoveRecordId = signal<number | null>(null); // id_stage_section_idlemove
+  readonly idleMoveOriginal = signal<{ days: number; targetStageId: number | null; sendMsgs: boolean; ignoreAction: boolean } | null>(null);
+  readonly idleMoveSaving = signal<boolean>(false);
+  readonly idleMoveLoading = signal<boolean>(false);
+  readonly idleMoveError = signal<string | null>(null);
+  readonly idleMoveDirty = computed(() => {
+    const orig = this.idleMoveOriginal();
+    if (!orig) {
+      // Baseline for a non-existing rule: days=0, targetStageId=null, sendMsgs=false, ignoreAction=false
+      return this.idleMoveDays() !== 0 || this.idleTargetStageId() !== null || this.idleSendAutomatedMessages() !== false || this.idleIgnoreApplicantAction() !== false;
+    }
+    return orig.days !== this.idleMoveDays() ||
+      orig.targetStageId !== this.idleTargetStageId() ||
+      orig.sendMsgs !== this.idleSendAutomatedMessages() ||
+      orig.ignoreAction !== this.idleIgnoreApplicantAction();
+  });
+
+  resetIdleMoveState(): void {
+    this.idleMoveRecordId.set(null);
+    this.idleMoveDays.set(0);
+    this.idleTargetStageId.set(null);
+  this.idleSendAutomatedMessages.set(false);
+    this.idleIgnoreApplicantAction.set(false);
+    this.idleMoveOriginal.set(null);
+  }
+
+  private loadIdleMove(stageId: number, idSection: number | null): void {
+    if (!stageId) return;
+    // Need data section id to create new record; existing record read does not strictly require it but p_id_stage_section is stored
+    this.idleMoveLoading.set(true);
+    this.idleMoveError.set(null);
+    // READ all and filter client side (SP filters only by primary key when provided)
+    const params: any[] = ['R', null, null, null, null, null, null, null, null, null, null];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_idlemove_crud, parameters: params } as any;
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.idleMoveLoading.set(false))).subscribe({
+      next: res => {
+        if (!res.ok) { this.idleMoveError.set('Failed to load idle move rule'); return; }
+        let rows: any[] = [];
+        if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+        // normalize numeric fields
+        rows = rows.map(r => ({
+          ...r,
+          id_stage: r.id_stage != null ? Number(r.id_stage) : r.id_stage,
+          id_stage_section: r.id_stage_section != null ? Number(r.id_stage_section) : r.id_stage_section,
+          id_stage_section_idlemove: r.id_stage_section_idlemove != null ? Number(r.id_stage_section_idlemove) : r.id_stage_section_idlemove,
+          delay_days: r.delay_days != null ? Number(r.delay_days) : r.delay_days,
+          id_stage_target: r.id_stage_target != null ? Number(r.id_stage_target) : r.id_stage_target,
+          send_automathic_message: !!r.send_automathic_message,
+          ignore_applicant_action: !!r.ignore_applicant_action,
+          is_active: (r.is_active === 1 || r.is_active === '1' || r.is_active === true) ? 1 : 0
+        }));
+        let match = rows.find(r => r.id_stage === stageId && (idSection ? r.id_stage_section === idSection : true));
+        if (!match) match = rows.find(r => r.id_stage === stageId);
+        if (match) {
+          this.idleMoveRecordId.set(match.id_stage_section_idlemove);
+          this.idleMoveDays.set(match.delay_days ?? 0);
+            this.idleTargetStageId.set(match.id_stage_target ?? null);
+          this.idleSendAutomatedMessages.set(!!match.send_automathic_message);
+          this.idleIgnoreApplicantAction.set(!!match.ignore_applicant_action);
+          this.idleMoveOriginal.set({
+            days: this.idleMoveDays(),
+            targetStageId: this.idleTargetStageId(),
+            sendMsgs: this.idleSendAutomatedMessages(),
+            ignoreAction: this.idleIgnoreApplicantAction()
+          });
+        } else {
+          // keep reset state
+          this.resetIdleMoveState();
+        }
+      },
+      error: () => this.idleMoveError.set('Failed to load idle move rule')
+    });
+  }
+
+  saveIdleMove(): void {
+    const stageId = this.selectedStageId();
+    if (!stageId) { Utilities.showToast('Select a stage first', 'warning'); return; }
+    const idSection = this.dataSectionId();
+    if (!idSection) { Utilities.showToast('Data collection section required first', 'warning'); return; }
+    const isCreate = this.idleMoveRecordId() == null;
+    const action = isCreate ? 'C' : 'U';
+    const currentUser = this.authSession.user?.user || 'system';
+    // SP signature (provided):
+    // (p_action, p_id_stage_section_idlemove, p_id_stage_section, p_id_stage, p_delay_days,
+    //  p_id_stage_target, p_send_automathic_message, p_ignore_applicant_action, p_is_active,
+    //  p_created_by, p_updated_at)
+    // Nota: En el cuerpo del SP se usa p_updated_by pero NO existe en la firma -> inconsistencia.
+    // Para evitar el error de tipo datetime enviamos NULL (o una fecha válida) en el último parámetro.
+    const params: any[] = [
+      action,                                 // p_action
+      isCreate ? null : this.idleMoveRecordId(), // p_id_stage_section_idlemove
+      idSection,                              // p_id_stage_section
+      stageId,                                // p_id_stage
+      this.idleMoveDays(),                    // p_delay_days
+      this.idleTargetStageId(),               // p_id_stage_target
+      this.idleSendAutomatedMessages() ? 1 : 0, // p_send_automathic_message
+      this.idleIgnoreApplicantAction() ? 1 : 0, // p_ignore_applicant_action
+      1,                                      // p_is_active (hardcoded active for now)
+      isCreate ? currentUser : null,          // p_created_by (solo en create)
+      null                                    // p_updated_at (SP ya usa CURRENT_TIMESTAMP internamente)
+    ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_idlemove_crud, parameters: params } as any;
+    this.idleMoveSaving.set(true);
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.idleMoveSaving.set(false))).subscribe({
+      next: res => {
+        // Detect SP mismatch error pattern (throwMessageTricode nested with Unknown column 'p_updated_by')
+        if (res.data) {
+          try {
+            const serialized = JSON.stringify(res.data);
+            if (serialized.includes("Unknown column 'p_updated_by'")) {
+              Utilities.showToast('Idle Move SP needs parameter p_updated_by or remove its reference. See instructions.', 'error');
+              console.error('[IdleMoveRule] Stored procedure mismatch: add IN p_updated_by VARCHAR(250) to signature and use it in UPDATE/DELETE, or remove updated_by = p_updated_by line.');
+              return;
+            }
+          } catch { /* ignore */ }
+        }
+        if (!res.ok) { Utilities.showToast('Failed to save idle move rule', 'error'); return; }
+        Utilities.showToast(isCreate ? 'Idle move rule created' : 'Idle move rule updated', 'success');
+        // reload to capture id and baseline
+        this.loadIdleMove(stageId, idSection);
+      },
+      error: () => Utilities.showToast('Failed to save idle move rule', 'error')
+    });
+  }
+
+  onIdleDaysChange(raw: any): void {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      this.idleMoveDays.set(0);
+    } else {
+      this.idleMoveDays.set(Math.floor(n));
+    }
+  }
+
+  onIdleTargetStageChange(raw: any): void {
+    const v = Number(raw);
+    if (!Number.isFinite(v) || v <= 0) {
+      this.idleTargetStageId.set(null);
+    } else {
+      this.idleTargetStageId.set(v);
+    }
+  }
+
+  toggleIdleSendAutomatedMessages(flag: boolean): void {
+    this.idleSendAutomatedMessages.set(flag);
+  }
+
+  // =============================
+  // Follow-Up Messages Section
+  // =============================
+  interfaceFollowUpDummy?: any; // anchor comment to keep patch minimal
+  readonly followUps = signal<{
+    id: number | null; // id_stage_section_followup
+    templateId: number | null;
+    delivery: string | null;
+    delayDays: number; // we'll store in days, convert to minutes
+    isActive: boolean;
+    created_by?: string | null;
+    updated_by?: string | null;
+    saving?: boolean;
+    error?: string | null;
+    dirty?: boolean; // local dirty tracking
+  }[]>([]);
+  readonly followUpsLoading = signal<boolean>(false);
+  readonly followUpsError = signal<string | null>(null);
+  readonly followUpsDirty = computed(()=> this.followUps().some(f=>f.dirty));
+
+  private makeEmptyFollowUp(): any {
+    return { id: null, templateId: null, delivery: null, delayDays: 0, isActive: true, dirty: true };
+  }
+
+  addFollowUpForm(): void {
+    const list = [...this.followUps()];
+    list.push(this.makeEmptyFollowUp());
+    this.followUps.set(list);
+  }
+
+  trackFollowUp = (index: number, item: any) => item?.id ?? index;
+
+  removeFollowUpForm(index: number): void {
+    const list = [...this.followUps()];
+    if (index < 0 || index >= list.length) return;
+    const rec = list[index];
+    // If it's persisted (has id) we perform a soft delete via SP (action 'D')
+    if (rec.id) {
+      this.saveFollowUp(index, 'D');
+    } else {
+      list.splice(index,1);
+      this.followUps.set(list);
+    }
+  }
+
+  updateFollowUpField(index: number, field: 'templateId'|'delivery'|'delayDays'|'isActive', value: any): void {
+    const list = [...this.followUps()];
+    if (index < 0 || index >= list.length) return;
+    const rec = { ...list[index] };
+    (rec as any)[field] = field === 'delayDays' ? Number(value)||0 : value;
+    rec.dirty = true;
+    list[index] = rec;
+    this.followUps.set(list);
+  }
+
+  private minutesFromDays(days: number): number { return (Number(days)||0) * 24 * 60; }
+
+  loadFollowUps(stageId: number, idSection: number | null): void {
+    if (!stageId) return;
+    this.followUpsLoading.set(true);
+    this.followUpsError.set(null);
+    const params: any[] = ['R', null, null, null, null, null, null, null, null, null, null];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followup_crud as any, parameters: params };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.followUpsLoading.set(false))).subscribe({
+      next: res => {
+        if (!res.ok) { this.followUpsError.set('Failed to load follow-up messages'); return; }
+        let rows: any[] = [];
+        if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+        const filtered = rows.filter(r => Number(r.id_stage) === stageId && (!idSection || Number(r.id_stage_section) === idSection));
+        const mapped = filtered.map(r => ({
+          id: Number(r.id_stage_section_followup),
+          templateId: r.id_template != null ? Number(r.id_template) : null,
+          delivery: r.delivery_method || null,
+          delayDays: r.delay_minutes ? Math.round(Number(r.delay_minutes) / 60 / 24) : 0,
+          isActive: r.is_active === 1 || r.is_active === true || r.is_active === '1',
+          created_by: r.created_by,
+          updated_by: r.updated_by,
+          dirty: false
+        }));
+        this.followUps.set(mapped);
+      },
+      error: () => this.followUpsError.set('Failed to load follow-up messages')
+    });
+  }
+
+  saveFollowUp(index: number, forcedAction?: 'C'|'U'|'D'): void {
+    const list = [...this.followUps()];
+    if (index < 0 || index >= list.length) return;
+    const rec = { ...list[index] };
+    const stageId = this.selectedStageId();
+    if (!stageId) { Utilities.showToast('Select a stage first', 'warning'); return; }
+    const idSection = this.dataSectionId();
+    if (!idSection) { Utilities.showToast('Data collection section required first', 'warning'); return; }
+    const currentUser = this.authSession.user?.user || 'system';
+    const isCreate = rec.id == null;
+    const action = forcedAction ? forcedAction : (isCreate ? 'C' : 'U');
+    if (action !== 'D') {
+      if (!rec.templateId || !rec.delivery) { Utilities.showToast('Template and delivery required', 'warning'); return; }
+    }
+    rec.saving = true;
+    list[index] = rec; this.followUps.set(list);
+    const params: any[] = [
+      action,                   // p_action
+      rec.id,                   // p_id_stage_section_followup
+      null,                     // p_id_applicant (null for general / stage-level follow-up)
+      idSection,                // p_id_stage_section
+      stageId,                  // p_id_stage
+      rec.templateId,           // p_id_template
+      rec.delivery,             // p_delivery_method
+      this.minutesFromDays(rec.delayDays), // p_delay_minutes
+      rec.isActive ? 1 : 0,     // p_is_active
+      isCreate ? currentUser : null, // p_created_by only on create
+      !isCreate ? currentUser : null  // p_updated_by only on update/delete
+    ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followup_crud as any, parameters: params };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
+      next: res => {
+        rec.saving = false;
+        if (!res.ok) { rec.error = 'Save failed'; } else {
+          Utilities.showToast(action==='D' ? 'Follow-up disabled' : (isCreate ? 'Follow-up created' : 'Follow-up updated'),'success');
+          rec.dirty = false;
+          if (action === 'D') { rec.isActive = false; }
+          // Refresh to ensure ids and ordering
+          this.loadFollowUps(stageId, idSection);
+          return; // skip assigning local copy because reload will replace
+        }
+        list[index] = rec; this.followUps.set(list);
+      },
+      error: ()=> {
+        rec.saving = false; rec.error='Save failed'; list[index]=rec; this.followUps.set(list);
+      }
+    });
+  }
+
+  toggleFollowUpActive(index: number, active: boolean): void {
+    this.updateFollowUpField(index, 'isActive', active);
+  }
+
+  toggleIdleIgnoreApplicantAction(flag: boolean): void {
+    this.idleIgnoreApplicantAction.set(flag);
   }
 
   // --- Initial Message (Data Collection) ---
   readonly initialMessageDelayMins = signal<number>(0);
   readonly initialMessageDisabled = signal<boolean>(false);
+  readonly initialMessageExpanded = signal<boolean>(false); // controls showing the form
+  readonly notificationTemplates = signal<any[]>([]); // { id, description, type, subject, body, ... }
+  readonly deliveryMethods = signal<any[]>([]); // { description, value }
+  readonly selectedTemplateId = signal<number | null>(null);
+  readonly selectedDeliveryMethod = signal<string>('');
+  readonly initialMessageLoading = signal<boolean>(false);
+  readonly initialMessageError = signal<string | null>(null);
+  readonly initialMessageSaving = signal<boolean>(false);
+  readonly initialMessageRecordId = signal<number | null>(null); // id_stage_section_initialmessage
+  readonly initialMessageOriginal = signal<{ templateId: number | null; delivery: string; delay: number; disabled: boolean } | null>(null);
+  readonly currentTemplate = computed(() => this.notificationTemplates().find(t => t.id === this.selectedTemplateId()) || null);
+  readonly initialMessageDirty = computed(() => {
+    const orig = this.initialMessageOriginal();
+    if (!orig) return this.selectedTemplateId() !== null || !!this.selectedDeliveryMethod() || this.initialMessageDelayMins() !== 0 || this.initialMessageDisabled() !== false;
+    return orig.templateId !== this.selectedTemplateId() ||
+      orig.delivery !== this.selectedDeliveryMethod() ||
+      orig.delay !== this.initialMessageDelayMins() ||
+      orig.disabled !== this.initialMessageDisabled();
+  });
+
+  // Human readable status label (for potential badge usage in template)
+  readonly initialMessageStatusLabel = computed(() => {
+    if (!this.initialMessageRecordId()) {
+      return this.initialMessageDirty() ? 'NEW (Unsaved)' : 'Not configured';
+    }
+    if (this.initialMessageDisabled()) {
+      return this.initialMessageDirty() ? 'Disabled* (Unsaved changes)' : 'Disabled';
+    }
+    return this.initialMessageDirty() ? 'Active* (Unsaved changes)' : 'Active';
+  });
+
+  // Optional explanation text for why save/update is disabled (for tooltip)
+  readonly initialMessageSaveDisabledReason = computed(() => {
+    if (this.initialMessageSaving()) return 'Saving…';
+    if (!this.selectedTemplateId()) return 'Select a message template';
+    if (!this.selectedDeliveryMethod()) return 'Select a delivery method';
+    if (!this.initialMessageDirty()) return 'No changes to save';
+    return '';
+  });
+
+  resetInitialMessageState(): void {
+    this.initialMessageRecordId.set(null);
+    this.selectedTemplateId.set(null);
+    this.selectedDeliveryMethod.set('');
+    this.initialMessageDelayMins.set(0);
+    this.initialMessageDisabled.set(false);
+    this.initialMessageOriginal.set(null);
+  }
+
+  toggleInitialMessageExpanded(): void {
+    const next = !this.initialMessageExpanded();
+    this.initialMessageExpanded.set(next);
+    if (next) {
+      this.ensureInitialMessageCatalogs();
+    }
+  }
+
+  ensureInitialMessageCatalogs(): void {
+    if (this.initialMessageLoading()) return;
+    // If already loaded once, skip
+    if (this.notificationTemplates().length > 0 && this.deliveryMethods().length > 0) {
+      // Re-aplicar selección si ya había registro cargado pero select no reflejó (por timing)
+      if (this.initialMessageRecordId()) {
+        // Force trigger change detection by setting same values
+        const tpl = this.selectedTemplateId();
+        this.selectedTemplateId.set(tpl);
+        const del = this.selectedDeliveryMethod();
+        this.selectedDeliveryMethod.set(del);
+      } else if (this.selectedStageId() && this.dataSectionId() && !this.initialMessageRecordId()) {
+        // Intentar nuevamente cargar si antes no existía (posible carrera)
+        this.reloadInitialMessage(this.selectedStageId()!, this.dataSectionId()!);
+      }
+      return;
+    }
+    this.initialMessageLoading.set(true);
+    this.initialMessageError.set(null);
+    const apiTemplates: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.notification_templates_crud, parameters: ['R', null, null, null, null, null, null, null] };
+    const apiDelivery: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_deliveryMetod_options, parameters: [] };
+    forkJoin([
+      this.core.executeCommand<DriveWhipCommandResponse>(apiTemplates),
+      this.core.executeCommand<DriveWhipCommandResponse>(apiDelivery)
+    ]).pipe(finalize(()=> this.initialMessageLoading.set(false))).subscribe({
+      next: ([tplRes, delRes]) => {
+        if (!tplRes.ok || !delRes.ok) {
+          this.initialMessageError.set('Failed to load message catalogs');
+          return;
+        }
+        const parseRows = (res: any) => {
+          let rows: any[] = [];
+          if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+          return rows || [];
+        };
+        this.notificationTemplates.set(parseRows(tplRes));
+        this.deliveryMethods.set(parseRows(delRes));
+        // Después de cargar catálogos intentar poblar si había registro previo
+        if (this.selectedStageId() && this.dataSectionId() && !this.initialMessageRecordId()) {
+          this.reloadInitialMessage(this.selectedStageId()!, this.dataSectionId()!);
+        }
+        // Reforzar selección para que el select muestre valor cuando options llegan después
+        if (this.initialMessageRecordId()) {
+          const tpl = this.initialMessageOriginal()?.templateId ?? null;
+          if (tpl) this.selectedTemplateId.set(tpl);
+          const del = this.initialMessageOriginal()?.delivery ?? '';
+          if (del) this.selectedDeliveryMethod.set(del);
+        }
+      },
+      error: () => this.initialMessageError.set('Failed to load message catalogs')
+    });
+  }
+
+  onTemplateChange(raw: any): void {
+    const v = Number(raw);
+    this.selectedTemplateId.set(Number.isFinite(v) && v > 0 ? v : null);
+  }
+
+  onDeliveryMethodChange(raw: any): void {
+    this.selectedDeliveryMethod.set((raw ?? '').toString());
+  }
 
   onInitialMessageDelayChange(raw: any): void {
     const v = Number(raw);
@@ -184,15 +596,108 @@ export class WorkflowEditorComponent implements OnInit {
   }
 
   onAddInitialMessage(): void {
-    // Placeholder – future: persist inside json_form for the section
-    const payload = {
-      title: 'Complete your DriveWhip Applications Now!',
-      delivery: 'Text + Mail',
-      delayMinutes: this.initialMessageDelayMins(),
-      disabled: this.initialMessageDisabled()
+    this.saveInitialMessage();
+  }
+
+  private saveInitialMessage(): void {
+    const stageId = this.selectedStageId();
+    if (!stageId) { return; }
+    // Basic validation
+    if (!this.selectedTemplateId()) { Utilities.showToast('Select a message template', 'warning'); return; }
+    if (!this.selectedDeliveryMethod()) { Utilities.showToast('Select a delivery method', 'warning'); return; }
+    const idSection = this.dataSectionId();
+    if (!idSection) {
+      Utilities.showToast('Data collection section must exist before saving initial message', 'error');
+      return;
+    }
+    const isCreate = this.initialMessageRecordId() == null;
+    const action = isCreate ? 'C' : 'U';
+    const currentUser = this.authSession.user?.user || 'system';
+    // Nueva firma SP:
+    // (p_action, p_id_stage_section_initialmessage, p_id_stage_section, p_id_stage, p_id_template,
+    //  p_delivery_method, p_delay_minutes, p_is_active, p_created_by, p_updated_by)
+    const params: any[] = [
+      action,
+      isCreate ? null : this.initialMessageRecordId(),
+      idSection,
+      stageId,
+      this.selectedTemplateId(),
+      this.selectedDeliveryMethod(),
+      this.initialMessageDelayMins(),
+      this.initialMessageDisabled() ? 0 : 1,
+      isCreate ? currentUser : null,
+      isCreate ? null : currentUser
+    ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_initialmessage_crud, parameters: params };
+    this.initialMessageSaving.set(true);
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.initialMessageSaving.set(false))).subscribe({
+      next: res => {
+        if (!res.ok) { Utilities.showToast('Failed to save initial message', 'error'); return; }
+        Utilities.showToast(isCreate ? 'Initial message created' : 'Initial message updated', 'success');
+        // After create/update, attempt to reload to capture id (READ single filtered by stage?)
+        this.reloadInitialMessage(stageId, idSection);
+        // Set baseline to current state optimistically
+        this.initialMessageOriginal.set({
+          templateId: this.selectedTemplateId(),
+            delivery: this.selectedDeliveryMethod(),
+            delay: this.initialMessageDelayMins(),
+            disabled: this.initialMessageDisabled()
+        });
+      },
+      error: () => Utilities.showToast('Failed to save initial message', 'error')
+    });
+  }
+
+  reloadInitialMessage(stageId: number, idSection: number, forceResetOnNoMatch: boolean = false): void {
+    if (!stageId || !idSection) return;
+    const apply = (match: any | null) => {
+      if (match) {
+        const idTemplate = match.id_template != null ? Number(match.id_template) : null;
+        const delay = match.delay_minutes != null ? Number(match.delay_minutes) : 0;
+        const isActive = (match.is_active === 1 || match.is_active === '1' || match.is_active === true);
+        this.initialMessageRecordId.set(match.id_stage_section_initialmessage ? Number(match.id_stage_section_initialmessage) : null);
+        this.selectedTemplateId.set(idTemplate);
+        this.selectedDeliveryMethod.set(match.delivery_method || '');
+        this.initialMessageDelayMins.set(delay);
+        this.initialMessageDisabled.set(!isActive);
+        this.initialMessageOriginal.set({
+          templateId: idTemplate,
+          delivery: match.delivery_method || '',
+          delay: delay,
+          // Disabled = inverse of active
+          disabled: !isActive
+        });
+        if (this.notificationTemplates().length === 0 || this.deliveryMethods().length === 0) {
+          this.ensureInitialMessageCatalogs();
+        }
+      } else {
+        if (forceResetOnNoMatch || !this.initialMessageDirty()) this.resetInitialMessageState();
+        this.initialMessageRecordId.set(null);
+      }
     };
-    console.log('[WorkflowEditor] Initial Message add clicked', payload);
-    Utilities.showToast('Initial Message action coming soon', 'info');
+    // READ global (p_id_stage_section_initialmessage = NULL) usando nueva firma (10 params)
+    const readParams: any[] = ['R', null, null, null, null, null, null, null, null, null];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_initialmessage_crud, parameters: readParams };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
+      next: res => {
+        if (!res.ok) { apply(null); return; }
+        let rows: any[] = [];
+        if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+        rows = rows.map(r => ({
+          ...r,
+          id_stage: r.id_stage != null ? Number(r.id_stage) : r.id_stage,
+          id_stage_section: r.id_stage_section != null ? Number(r.id_stage_section) : r.id_stage_section,
+          id_stage_section_initialmessage: r.id_stage_section_initialmessage != null ? Number(r.id_stage_section_initialmessage) : r.id_stage_section_initialmessage,
+          id_template: r.id_template != null ? Number(r.id_template) : r.id_template,
+          delay_minutes: r.delay_minutes != null ? Number(r.delay_minutes) : r.delay_minutes,
+          is_active: (r.is_active === 1 || r.is_active === '1') ? 1 : 0
+        }));
+        let match = rows.find(r => r.id_stage === stageId && r.id_stage_section === idSection);
+        if (!match) match = rows.find(r => r.id_stage === stageId);
+        apply(match || null);
+      },
+      error: () => apply(null)
+    });
   }
 
   private loadRulesCatalogs(): void {
@@ -306,9 +811,15 @@ export class WorkflowEditorComponent implements OnInit {
 
   selectStage(id: number): void {
     this.selectedStageId.set(id);
-    // Attempt load of data-collection section if applicable
+    // Limpiar inmediatamente el estado del Initial Message para evitar valores residuales de otro stage
+    this.resetInitialMessageState();
     if (this.stages().find(s => s.id_stage === id)?.type === 'Data Collection') {
-      this.loadDataCollectionSection(id);
+      this.loadDataCollectionSection(id, true); // force reset si no existe registro
+      this.ensureInitialMessageCatalogs();
+      // Attempt loading idle move rule after section load (section id may not yet be known). We'll also call again after section resolves.
+      // First optimistic call with current (possibly null) section id
+      this.loadIdleMove(id, this.dataSectionId());
+      this.loadFollowUps(id, this.dataSectionId());
     }
     if (this.stages().find(s => s.id_stage === id)?.type === 'Rules') {
       this.loadRulesCatalogs();
@@ -352,7 +863,7 @@ export class WorkflowEditorComponent implements OnInit {
   }
 
   // --- Data Collection Section Logic ---
-  private loadDataCollectionSection(stageId: number): void {
+  private loadDataCollectionSection(stageId: number, forceResetInitialMsg: boolean = false): void {
     if (this.dataSectionLoading()) return;
     this.dataSectionLoading.set(true);
     this.dataSectionError.set(null);
@@ -376,6 +887,13 @@ export class WorkflowEditorComponent implements OnInit {
           this.dc_show_one_question.set(!!match.show_one_question);
           // Preserve existing json_form or fallback to default array string
           this.dataSectionJsonForm.set(match.json_form ?? '[]');
+          // After loading data section, try loading existing initial message configuration
+          if (this.selectedStageId()) {
+            this.reloadInitialMessage(this.selectedStageId()!, match.id_stage_section, forceResetInitialMsg);
+            // Load idle move rule now that we have section id
+            this.loadIdleMove(this.selectedStageId()!, match.id_stage_section);
+            this.loadFollowUps(this.selectedStageId()!, match.id_stage_section);
+          }
         } else {
           // No existing section: reset toggles
           this.dataSectionId.set(null);
@@ -384,6 +902,8 @@ export class WorkflowEditorComponent implements OnInit {
           this.dc_notify_owner_on_submit.set(false);
           this.dc_show_one_question.set(false);
           this.dataSectionJsonForm.set('[]');
+          // Also reset initial message state because section is absent
+          this.resetInitialMessageState();
         }
       },
       error: () => this.dataSectionError.set('Failed to load data collection settings')

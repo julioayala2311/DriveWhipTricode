@@ -8,6 +8,11 @@ export enum DriveWhipAdminCommand {
     crm_stages_sections_condition_type_crud = "crm_stages_sections_condition_type_crud", // Condition type catalog
     crm_stages_sections_datakey_crud = "crm_stages_sections_datakey_crud", // Data key catalog
     crm_stages_sections_operator_crud = "crm_stages_sections_operator_crud", // Operator catalog
+    notification_templates_crud = "notification_templates_crud", // Notification templates (R list)
+    crm_stages_deliveryMetod_options = "crm_stages_deliveryMetod_options", // Delivery method options
+    crm_stages_sections_initialmessage_crud = "crm_stages_sections_initialmessage_crud", // Initial message CRUD
+    crm_stages_sections_idlemove_crud = "crm_stages_sections_idlemove_crud", // Idle move rule CRUD
+    crm_stages_sections_followup_crud = "crm_stages_sections_followup_crud", // Follow-up messages CRUD (multiple)
     
     
     crm_locations_list = "crm_locations_list",

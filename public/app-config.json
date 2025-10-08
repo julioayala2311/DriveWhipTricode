@@ -5,7 +5,7 @@
       "apiBaseUrl": "http://localhost:3000/api/v1/",
       "driveWhipCoreServiceUser": "admin@drivewhip.com",
       "driveWhipCoreServicePassword": "Secret123!",
-      "googleClientId": "328839192035-jkus1253hvcma6evd9tpfnvfcfg4p37j.apps.googleusercontent.com"
+      "googleClientId": "294673509392-r28uave2kur9aah2l6kvlfbbs7tgra9n.apps.googleusercontent.com"
     },
     "QA": {
       "apiBaseUrl": "https://qa.api.drivewhip.com/api/v1/",

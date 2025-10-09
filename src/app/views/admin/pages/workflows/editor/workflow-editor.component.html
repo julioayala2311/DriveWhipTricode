@@ -217,7 +217,7 @@
                 <p class="small mb-3 text-secondary">Send a follow-up to remind idle applicants to take action. Follow up message will be skipped if there is no slot availability</p>
                 <div *ngIf="followUpsError()" class="alert alert-danger py-2 px-3 small mb-3">{{ followUpsError() }}</div>
                 <div class="d-flex flex-column gap-4">
-                  <div *ngFor="let fu of followUps(); let i = index; trackBy: trackFollowUp" class="followup-form-block border rounded p-2 position-relative" [class.bg-light]="fu.id == null">
+                  <div *ngFor="let fu of followUps(); let i = index; trackBy: trackFollowUp" class="followup-form-block border rounded p-2 position-relative">
                     <div class="position-absolute" style="top:4px; right:4px;">
                       <button type="button" class="btn btn-xs btn-outline-danger" (click)="removeFollowUpForm(i)" [disabled]="fu.saving" title="Delete / disable">
                         <i class="feather icon-trash-2" style="font-size:.65rem;"></i>

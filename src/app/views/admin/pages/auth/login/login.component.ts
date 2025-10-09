@@ -9,7 +9,6 @@ import { IDriveWhipCoreAPI, DriveWhipCommandResponse, IAuthResponseModel } from 
 import { DriveWhipAdminCommand } from '../../../../../core/db/procedures';
 import { CryptoService } from '../../../../../core/services/crypto/crypto.service';
 import { HttpErrorResponse } from '@angular/common/http';
-import { decodeJwt, getJwtRoles, isJwtExpired, JwtClaims } from '../../../../../Utilities/jwt.utils';
 
 interface GoogleAuthPayload {
   email: string;
@@ -95,8 +94,8 @@ export class LoginComponent implements OnInit, AfterViewInit {
   }
 
   private startDriveWhipWorkflow(googlePayload: GoogleAuthPayload): void {
-    const serviceUser = googlePayload.email;//this.driveWhipCore.serviceUser;
-    const servicePassword = googlePayload.jwt;// this.driveWhipCore.servicePassword;
+    const serviceUser = this.driveWhipCore.serviceUser;
+    const servicePassword = this.driveWhipCore.servicePassword;
 
     if (!serviceUser || !servicePassword) {
       Utilities.showToast('DriveWhip credentials are not configured.', 'error');
@@ -107,9 +106,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
 
     this.driveWhipCore.login(serviceUser, servicePassword).pipe(
       map(response => {
-       // const accessToken = response?.token ?? response?.token ?? response?.jwt;
-       const accessToken = response?.data?.token;
-
+        const accessToken = response?.accessToken ?? response?.token ?? response?.jwt;
         if (!accessToken) {
           throw new Error('DriveWhip login did not return a token.');
         }
@@ -166,13 +163,6 @@ export class LoginComponent implements OnInit, AfterViewInit {
           this.persistGoogleState();
           this.pendingGooglePayload = null;
         }
-
-        const claims = decodeJwt<JwtClaims>(googlePayload.jwt);
-        
-        if (claims) {
-          this.driveWhipCore.cacheImageToken(claims.picture);
-        }
-
         Utilities.showToast(`Welcome, ${profile.firstname} ${profile.lastname}!`, 'success');
         this.redirectAfterLogin();
       },

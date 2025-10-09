@@ -3,7 +3,6 @@ import { Injectable } from '@angular/core';
 // New simplified model (Option B): single environments map.
 export interface EnvironmentEntry {
   apiBaseUrl: string;
-  apiBaseUrlLogin: string;
   driveWhipCoreServiceUser: string;
   driveWhipCoreServicePassword: string;
   googleClientId: string;
@@ -62,12 +61,6 @@ export class AppConfigService {
     if (url && !url.endsWith('/')) url += '/';
     return url;
   }
-
-  // get apiBaseUrlLogin(): string {
-  //   let url = this.active.apiBaseUrlLogin || '';
-  //   if (url && !url.endsWith('/')) url += '/';
-  //   return url;
-  // }
 
   get driveWhipCoreServiceUser(): string { return this.active.driveWhipCoreServiceUser || ''; }
   get driveWhipCoreServicePassword(): string { return this.active.driveWhipCoreServicePassword || ''; }

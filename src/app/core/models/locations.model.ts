@@ -11,7 +11,6 @@ export interface LocationsRecord {
   state_code: string;  
   full_address: string;
   country_code: string;  
-  state_name: string;
   json_form: string;
 }
 

@@ -78,31 +78,15 @@ export class WorkflowsGridComponent implements OnChanges {
     { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
 
     {
-      headerName: 'Workflow',
-      field: 'workflow_name',
-      minWidth: 160,
-      flex: 1,
-      headerComponent: GridHeaderComponent,
-      headerComponentParams: { icon: 'icon-git-branch' },
-
-      // 👇 hace que la celda se vea como vínculo (sin <a>)
-      cellClass: 'as-link',
-
-      // 👇 solo texto sanitizado
-      cellRenderer: (p: any) =>
-        String(p.value ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    }
-,
-        {
-      headerName: 'Location',
-      field: 'location_name',
+  headerName: 'Workflow',
+  field: 'workflow_name',
       minWidth: 160,
       flex: 1,
       headerComponent: GridHeaderComponent,
       headerComponentParams: { icon: 'icon-map-pin' },
       cellRenderer: (p: any) => {
         const value = (p.value ?? '').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        return `<span aria-label="Open workflow">${value}</span>`;
+        return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
       }
     },
     {
@@ -153,8 +137,13 @@ export class WorkflowsGridComponent implements OnChanges {
         textFormatter: (val: string) => val
       },
       cellClass: 'text-center',
-      cellRenderer: (p: any) => this.activeBadge(p.value)
-    
+      cellStyle: { pointerEvents: 'none' },
+      cellRenderer: (p: any) => {
+        const on = Number(p.value) === 1;
+        const label = on ? 'Active' : 'Inactive';
+        const cls = on ? 'badge-on' : 'badge-off';
+        return `<span class="status-badge ${cls}">${label}</span>`;
+      }
     },
 
     {
@@ -203,15 +192,6 @@ export class WorkflowsGridComponent implements OnChanges {
         <button class="btn btn-xs btn-outline-secondary" type="button" data-action="edit">Edit</button>
         <button class="btn btn-xs btn-outline-danger" type="button" data-action="delete" ${disabled ? 'disabled' : ''}>Disable</button>
       </div>`;
-  }
-
-  private activeBadge(value: any): string {
-    const active = value === 1 || value === true;
-    const cls = active
-      ? 'badge text-bg-success bg-success-subtle text-success fw-medium px-2 py-1'
-      : 'badge text-bg-danger bg-danger-subtle text-danger fw-medium px-2 py-1';
-    const label = active ? 'Active' : 'Inactive';
-    return `<span class="${cls}" style="font-size:11px; letter-spacing:.5px;">${label}</span>`;
   }
 
   onCellClicked(e: CellClickedEvent) {

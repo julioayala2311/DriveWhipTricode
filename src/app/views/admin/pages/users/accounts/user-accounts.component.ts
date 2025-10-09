@@ -117,42 +117,34 @@ export class UserAccountsComponent implements OnInit {
     });
   }
 
-private loadRoles(): void {
-  const api: IDriveWhipCoreAPI = {
-    commandName: DriveWhipAdminCommand.auth_roles_crud,
-    parameters: ['R', null, null, null]
-  };
-  this.core.executeCommand<DriveWhipCommandResponse<RoleRecord>>(api).subscribe({
-    next: res => {
-      if (!res.ok) return;
-
-      // Acepta múltiples formas: role/name y active/isactive/is_active
-      const raw = Array.isArray(res.data)
-        ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
-        : [];
-
-      const activeNames = (raw as any[])
-        .map(r => ({
-          name: String((r.role ?? r.name ?? '')).trim(),
-          active: (r.isactive ?? r.is_active ?? r.active ?? 0)
-        }))
-        .filter(r => r.name && (r.active === 1 || r.active === true))
-        .map(r => r.name);
-
-      // dedup + orden
-      const uniq = Array.from(new Set(activeNames.map(n => n.toLowerCase())));
-      const finalRoles: string[] = [];
-      uniq.forEach(lower => {
-        const original = activeNames.find(n => n.toLowerCase() === lower);
-        if (original) finalRoles.push(original);
-      });
-
-      this._roles.set(finalRoles.sort((a, b) => a.localeCompare(b)));
-    },
-    error: () => { /* silencioso para no romper la UI */ }
-  });
-}
-
+  private loadRoles(): void {
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.auth_roles_crud,
+      parameters: ['R', null, null, null]
+    };
+    this.core.executeCommand<DriveWhipCommandResponse<RoleRecord>>(api).subscribe({
+      next: res => {
+        if (!res.ok) return; // silencioso
+        let raw: any = [];
+        if (Array.isArray(res.data)) {
+          const top = res.data as any[];
+            if (top.length > 0 && Array.isArray(top[0])) raw = top[0]; else raw = top;
+        }
+        const list: RoleRecord[] = Array.isArray(raw) ? raw : [];
+        const active = list.filter(r => r && r.role && r.isactive === 1).map(r => r.role.trim());
+        // Remove duplicates
+        const uniq = Array.from(new Set(active.map(r => r.toLowerCase())));
+        // Keep original casing of the first occurrence
+        const finalRoles: string[] = [];
+        uniq.forEach(lower => {
+          const original = active.find(r => r.toLowerCase() === lower);
+          if (original) finalRoles.push(original);
+        });
+        this._roles.set(finalRoles.sort((a,b)=> a.localeCompare(b)));
+      },
+  error: () => { /* ignore roles load error to avoid breaking accounts UI */ }
+    });
+  }
 
   // Dialog
   openCreate(): void {

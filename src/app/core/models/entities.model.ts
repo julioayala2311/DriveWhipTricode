@@ -22,20 +22,11 @@ export interface AuthResponse {
   };
 }
 
-// export interface IAuthResponseModel {
-//   username: string;
-//   token_google: string;
-//   firstname: string;
-//   lastname: string;
-//   role: string;
-//   is_active: number;
-// }
-
 export interface IAuthResponseModel {
-  user: string;
-  token: string;
+  username: string;
+  token_google: string;
   firstname: string;
   lastname: string;
   role: string;
-  active: boolean;
+  is_active: number;
 }

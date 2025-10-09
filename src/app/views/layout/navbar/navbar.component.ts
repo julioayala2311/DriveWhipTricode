@@ -8,7 +8,6 @@ import { MENU } from './menu';
 import { MenuItem } from './menu.model';
 import { FeatherIconDirective } from '../../../core/feather-icon/feather-icon.directive';
 import { Subscription } from 'rxjs';
-import { DriveWhipCoreService } from '../../../core/services/drivewhip-core/drivewhip-core.service';
 
 @Component({
   selector: 'app-navbar',
@@ -33,14 +32,11 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   currentlyOpenedNavItem: HTMLElement | undefined;
 
-  profileImgUrl: string | null; // = 'https://lh3.googleusercontent.com/a/ACg8ocILXyx56HybhfPFSX6p5lsiS97bp51IGCJWsSeIZxSp7RrJ=s96-c'; // o lo que recibas
-
   private routerSub: Subscription | undefined;
 
   constructor(
     private router: Router,
-    private themeModeService: ThemeModeService,
-    private driveWhipCore: DriveWhipCoreService
+    private themeModeService: ThemeModeService
   ) {}
 
   ngOnInit(): void {
@@ -60,10 +56,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
         this.closeMobileMenuIfOpen();
       }
     });
-
-const genericSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239aa4b2"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0116 0H4z"/></svg>';
-this.profileImgUrl = this.driveWhipCore.getCachedImageToken() || `data:image/svg+xml;utf8,${encodeURIComponent(genericSvg)}`;
-
   }
 
   ngOnDestroy(): void {

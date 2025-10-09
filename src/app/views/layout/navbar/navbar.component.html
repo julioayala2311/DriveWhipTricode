@@ -183,9 +183,15 @@
             </div>
           </li>
           <li class="nav-item nav-profile" ngbDropdown>
-            <a class="nav-link" ngbDropdownToggle id="profileDropdown">
+            <!-- <a class="nav-link" ngbDropdownToggle id="profileDropdown">
               <img class="w-30px ms-1 rounded-circle" src="../images/logo-mini-light.png" alt="profile">
+            </a> -->
+            <a class="nav-link" ngbDropdownToggle id="profileDropdown">
+              <img class="w-30px ms-1 rounded-circle"
+                  [src]="profileImgUrl || 'assets/images/logo-mini-light.png'"
+                  alt="profile">
             </a>
+
             <div ngbDropdownMenu class="px-0" aria-labelledby="profileDropdown">
               <div class="d-flex flex-column align-items-center border-bottom px-5 py-3">
                 <div class="mb-3">

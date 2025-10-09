@@ -59,7 +59,7 @@ type StateOption = { code: string; name: string };
             </div>
 
             <div class="col-md-4">
-              <label class="form-label small fw-semibold">State</label>
+              <label class="form-label small fw-semibold">State <span class="text-danger">*</span></label>
               <select class="form-select form-select-sm"
                       name="state"
                       [(ngModel)]="state"
@@ -81,12 +81,12 @@ type StateOption = { code: string; name: string };
             </div>
 
             <!-- Notes -->
-            <div class="col-12">
+            <!-- <div class="col-12">
               <div class="section-divider"></div>
               <label class="form-label small fw-semibold">Notes</label>
               <textarea class="form-control form-control-sm" name="notes"
                         [(ngModel)]="notes" rows="3"></textarea>
-            </div>
+            </div> -->
 
             <!-- Status (only edit) -->
             <div class="col-md-6 d-flex align-items-center" *ngIf="mode === 'edit'">
@@ -102,7 +102,7 @@ type StateOption = { code: string; name: string };
             <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancel()" [disabled]="saving">
               Cancel
             </button>
-            <button type="submit" class="btn btn-sm btn-primary" [disabled]="saving || !formValid()">
+            <button type="submit" class="btn btn-sm btn-primary" [disabled]="saving || !(nameValid() && stateValid())">
               {{ saving ? 'Saving...' : 'Save' }}
             </button>
           </div>
@@ -156,6 +156,7 @@ export class HomeDialogComponent implements OnInit, OnChanges {
         // Campos básicos
         this.name   = (this.record as any).location_name ?? (this.record as any).name ?? '';
         this.notes  = (this.record as any).notes ?? '';
+        this.state_code  = (this.record as any).state_code ?? '';
         this.active = Number((this.record as any).active ?? (this.record as any).is_active ?? 1) === 1;
 
         // Address / country / state desde el registro
@@ -259,26 +260,36 @@ export class HomeDialogComponent implements OnInit, OnChanges {
     return '';
   }
 
-  formValid(): boolean {
+  nameValid(): boolean {
     return !!this.name.trim();
+  }
+
+  stateValid(): boolean {
+    return !!this.state.trim();
   }
 
   save(): void {
     this.name = this.name.trim();
-    if (!this.formValid()) {
+    if (!this.nameValid()) {
       this.nameError = 'Location name is required.';
       return;
     }
 
+    if (!this.stateValid()) {
+      this.stateLoadError = 'State is required.';
+      return;
+    }
+
+
     // Asegura state_code explícito con lo seleccionado
-    this.state_code = this.state || '';
+   // this.state_code = this.state || '';
 
     this.saved.emit({
       name: this.name,
       id_market: null, // si ya no aplica en DB, déjalo en null o quítalo del contrato
       notes: this.notes?.trim() || '',
       active: this.active,
-      state: this.state || null,                         // 2-letter code (igual que state_code)
+      state: this.state,                         // 2-letter code (igual que state_code)
       full_address: this.full_address?.trim() || null,   // dirección completa
       country_code: this.country_code?.trim() || 'US',
       state_code: this.state_code?.trim() || null,

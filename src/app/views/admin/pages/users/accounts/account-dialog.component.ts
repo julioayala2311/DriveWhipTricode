@@ -67,22 +67,31 @@ export interface AccountDialogResult {
                 required
               />
             </div>
-            <div class="col-md-6">
-              <label class="form-label small fw-semibold"
-                >Username <span class="text-danger">*</span></label
-              >
-              <input
-                type="text"
-                class="form-control form-control-sm"
-                name="user"
-                [(ngModel)]="user"
-                required
-                [readonly]="mode === 'edit'"
-              />
-              <div class="invalid-feedback d-block" *ngIf="userError">
-                {{ userError }}
-              </div>
-            </div>
+<div class="col-md-6">
+  <label class="form-label small fw-semibold">
+    Email <span class="text-danger">*</span>
+  </label>
+
+  <input
+    type="email"                          
+    class="form-control form-control-sm"
+    name="user"
+    [(ngModel)]="user"
+    #userCtrl="ngModel"                  
+    required
+    pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" 
+    [readonly]="mode === 'edit'"
+    [class.is-invalid]="(userCtrl.invalid && (userCtrl.dirty || userCtrl.touched)) || userError"
+    autocomplete="username"
+  />
+
+  <div class="invalid-feedback d-block" *ngIf="(userCtrl.errors && (userCtrl.dirty || userCtrl.touched)) || userError">
+    <ng-container *ngIf="userCtrl.errors?.['required']">Email is required.</ng-container>
+    <ng-container *ngIf="userCtrl.errors?.['email'] || userCtrl.errors?.['pattern']">Enter a valid email address.</ng-container>
+    <ng-container *ngIf="userError">{{ userError }}</ng-container>
+  </div>
+</div>
+
             <div class="col-md-6">
               <label class="form-label small fw-semibold"
                 >Role <span class="text-danger">*</span></label

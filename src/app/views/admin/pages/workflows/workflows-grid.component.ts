@@ -48,16 +48,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
       (paginationChanged)="onPaginationChanged()"
       (cellClicked)="onCellClicked($event)">
     </ag-grid-angular>
-  `,
-  styles: [`
-    .ag-center-header .ag-header-cell-label { justify-content: center; }
-    .status-badge { display:inline-block; padding:.25rem .5rem; border-radius:.5rem; font-size:.75rem; line-height:1; white-space:nowrap; }
-    .badge-on{ background:#d1e7dd; color:#0f5132; }
-    .badge-off{ background:#f8d7da; color:#842029; }
-    .text-center{ text-align:center; }
-    .grid-link{ cursor:pointer; color: var(--bs-primary,#0d6efd); text-decoration: underline; }
-    .grid-link:hover{ filter:brightness(.9); }
-  `]
+  `
 })
 export class WorkflowsGridComponent implements OnChanges {
   @Input() rowData: WorkflowRecord[] = [];

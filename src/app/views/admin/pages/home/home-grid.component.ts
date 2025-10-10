@@ -49,15 +49,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
                      (cellClicked)="onCellClicked($event)"
                      (rowClicked)="onRowClicked($event)">
     </ag-grid-angular>
-  `,
-  styles: [`
-    .ag-center-header .ag-header-cell-label { justify-content: center; }
-    .grid-link { cursor: pointer; color: var(--bs-primary, #0d6efd); text-decoration: underline; }
-    .grid-link:hover { filter: brightness(0.9); }
-    .applicants-cell { text-align: center; }
-    .applicants-cell .applicants-cell-content { display:inline-flex; align-items:center; justify-content:center; gap:.25rem; width:100%; }
-    .applicants-cell .feather { width:14px; height:14px; line-height:1; }
-  `]
+  `
 })
 export class HomeGridComponent implements OnChanges {
   @Input() rowData: LocationsRecord[] = [];

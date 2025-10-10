@@ -10,8 +10,8 @@
       <div class="stages-toolbar px-2 pt-2 pb-1 d-flex flex-column gap-2">
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <div class="small fw-semibold text-uppercase text-secondary d-flex align-items-center gap-2" style="letter-spacing:.5px; font-size:.65rem;">
-            <button type="button" class="btn btn-xs btn-outline-primary" (click)="openAddStageModal()">Add Stage</button>
-            <button type="button" class="btn btn-xs btn-outline-primary" (click)="openAddRuleModal()">Add Rule</button>
+            <button type="button" class="btn btn-xs btn-outline-primary" (click)="openAddStageModal()"><i class="feather icon-git-commit me-1" style="font-size:.9rem; line-height:1;" aria-hidden="true"></i>Add Stage</button>
+            <button type="button" class="btn btn-xs btn-outline-primary" (click)="openAddRuleModal()"><i class="feather icon-git-branch me-1" style="font-size:.85rem;"></i>Add Rule</button>
           </div>
           <div class="d-flex align-items-center gap-1 ms-auto order-actions">
             <button type="button" class="btn btn-xs btn-outline-secondary" [disabled]="!orderDirty()" (click)="resetOrder()" [attr.title]="orderDirty() ? 'Reset order to original' : 'No changes'">
@@ -73,11 +73,25 @@
     <!-- Right column placeholder -->
     <section class="editor-main flex-grow-1">
       <div class="px-3 pb-3 pt-3 d-flex flex-column gap-3">
-        <div *ngIf="!dataCollectionVisible() && !rulesVisible(); else stageSpecificTpl">
-          <h6 class="fw-semibold mb-3">Workflow Details</h6>
-          <p class="text-secondary small mb-0">
-            Select a stage to view configuration.
-          </p>
+        <div *ngIf="!dataCollectionVisible() && !rulesVisible(); else stageSpecificTpl" class="empty-state text-center py-5 px-2">
+          <div class="empty-icon-wrapper mx-auto mb-3">
+            <div class="gradient-ring">
+              <i class="feather icon-layers empty-main-icon"></i>
+            </div>
+          </div>
+          <h5 class="empty-title mb-2">Workflow Configuration</h5>
+          <p class="empty-subtitle mb-4">Select a stage on the left to explore its settings and automation options.</p>
+          <div class="d-flex flex-wrap justify-content-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" (click)="openAddStageModal()">
+              <i class="feather icon-git-commit" style="font-size:.9rem; line-height:1;" aria-hidden="true"></i>
+              <span>Add Stage</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" (click)="openAddRuleModal()">
+              <i class="feather icon-git-branch" style="font-size:.85rem;"></i>
+              <span>Add Rule</span>
+            </button>
+          </div>
+          <div class="empty-hint mt-4 small text-secondary">Drag stages to refine their order at any time.</div>
         </div>
         <ng-template #stageSpecificTpl>
           <!-- Data Collection Template -->
@@ -422,8 +436,8 @@
             <label class="form-label small fw-semibold">Stage Placement</label>
             <select class="form-select form-select-sm" [value]="newStagePlacement()" (change)="newStagePlacement.set($any($event.target).value)" [disabled]="newStageSaving()">
               <option value="top">At the top of the workflow</option>
-              <option disabled>────────── AFTER STAGE ──────────</option>
-              <option *ngFor="let s of stages()" [value]="s.id_stage">{{ s.sort_order }}. {{ s.name }}</option>
+              <option disabled>AFTER STAGE...</option>
+              <option *ngFor="let s of stages()" [value]="s.id_stage">{{ s.name }}</option>
             </select>
             <div *ngIf="newStageSaving()" class="form-text small text-secondary d-flex align-items-center gap-1"><span class="spinner-border spinner-border-sm" style="width:14px; height:14px"></span> Creating…</div>
           </div>
@@ -459,17 +473,21 @@
           </div>
           <div class="col-12">
             <label class="form-label small fw-semibold">Rule Type <span class="text-danger">*</span></label>
-            <select class="form-select form-select-sm" [value]="newRuleTypeId() ?? ''" (change)="newRuleTypeId.set(+($any($event.target).value)||null)">
+            <select class="form-select form-select-sm" [value]="newRuleTypeId() ?? ''" (focus)="ensureRuleTypes()" (change)="newRuleTypeId.set(+($any($event.target).value)||null)" [disabled]="ruleTypesLoading()">
               <option value="">Select type…</option>
-              <option *ngFor="let rt of ruleTypeOptions" [value]="rt.id">{{ rt.label }}</option>
+              <option *ngFor="let rt of ruleTypeOptions()" [value]="rt.id">{{ rt.name }}</option>
             </select>
+            <div *ngIf="ruleTypesLoading()" class="form-text small text-secondary">Loading rule types…</div>
+            <div *ngIf="ruleTypesError()" class="form-text small text-danger">{{ ruleTypesError() }}</div>
           </div>
-          <div class="col-12">
+           <div class="col-12">
             <label class="form-label small fw-semibold">Stage Placement</label>
-            <select class="form-select form-select-sm" [value]="newRulePlacement()" (change)="newRulePlacement.set($any($event.target).value)">
-              <option value="start">At Start</option>
-              <option value="end">At End</option>
+            <select class="form-select form-select-sm" [value]="newStagePlacement()" (change)="newStagePlacement.set($any($event.target).value)" [disabled]="newStageSaving()">
+              <option value="top">At the top of the workflow</option>
+              <option disabled>AFTER STAGE...</option>
+              <option *ngFor="let s of stages()" [value]="s.id_stage">{{ s.name }}</option>
             </select>
+            <div *ngIf="newStageSaving()" class="form-text small text-secondary d-flex align-items-center gap-1"><span class="spinner-border spinner-border-sm" style="width:14px; height:14px"></span> Creating…</div>
           </div>
         </div>
         <div class="d-flex justify-content-end gap-2 mt-3">

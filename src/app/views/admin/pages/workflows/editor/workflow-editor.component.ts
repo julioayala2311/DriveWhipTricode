@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal, computed } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { FormsModule } from '@angular/forms';
 import { NonNegativeNumberDirective } from '../../../../../shared/non-negative-number.directive';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ActivatedRoute, Router } from "@angular/router";
@@ -22,7 +23,8 @@ import { finalize, forkJoin, of, switchMap } from 'rxjs';
 @Component({
   selector: "dw-workflow-editor",
   standalone: true,
-  imports: [CommonModule, DragDropModule, NonNegativeNumberDirective],
+  // Added FormsModule so (ngSubmit) works (prevents native form submission / page reload)
+  imports: [CommonModule, FormsModule, DragDropModule, NonNegativeNumberDirective],
   templateUrl: "./workflow-editor.component.html",
   styleUrl: "./workflow-editor.component.scss",
 })
@@ -114,11 +116,10 @@ export class WorkflowEditorComponent implements OnInit {
   readonly stageTypesError = signal<string | null>(null);
   readonly stageTypeOptions = signal<{ id: number; label: string; is_active: boolean }[]>([]);
   // Dynamic placement model replaced: use 'top' or select a stage id to insert AFTER that stage.
-  readonly ruleTypeOptions = [
-    { id: 1, label: 'Standard Rule' },
-    { id: 2, label: 'Escalation Rule' },
-    { id: 3, label: 'Notification Rule' }
-  ];
+  // Dynamic rule types catalog
+  readonly ruleTypesLoading = signal(false);
+  readonly ruleTypesError = signal<string | null>(null);
+  readonly ruleTypeOptions = signal<{ id: number; code: string; name: string; is_active: boolean }[]>([]);
   // Forms
   newStageName = signal('');
   newStageTypeId = signal<number | null>(null);
@@ -134,7 +135,7 @@ export class WorkflowEditorComponent implements OnInit {
   closeAddStageModal(): void { this.showAddStageModal.set(false); }
   closeAddRuleModal(): void { this.showAddRuleModal.set(false); }
   private resetStageForm(): void { this.newStageName.set(''); this.newStageTypeId.set(null); this.newStagePlacement.set('top'); this.ensureStageTypes(); }
-  private resetRuleForm(): void { this.newRuleValue.set(''); this.newRuleTypeId.set(null); this.newRulePlacement.set('end'); }
+  private resetRuleForm(): void { this.newRuleValue.set(''); this.newRuleTypeId.set(null); this.newRulePlacement.set('end'); this.ensureRuleTypes(); }
 
   readonly newStageSaving = signal(false);
 
@@ -239,6 +240,24 @@ export class WorkflowEditorComponent implements OnInit {
     this.ruleRows.set(rows);
     this.closeAddRuleModal();
     Utilities.showToast('Rule draft added','success');
+  }
+
+  ensureRuleTypes(): void {
+    if (this.ruleTypesLoading()) return;
+    if (this.ruleTypeOptions().length) return; // already loaded
+    this.ruleTypesLoading.set(true); this.ruleTypesError.set(null);
+    const params: any[] = ['R', null, null, null, null, null, null];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_rules_types_crud as any, parameters: params };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.ruleTypesLoading.set(false))).subscribe({
+      next: res => {
+        if (!res.ok) { this.ruleTypesError.set('Failed to load rule types'); return; }
+        let rows: any[] = [];
+        if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+        const mapped = rows.map(r => ({ id: r.id_rule_type, code: r.code, name: r.name, is_active: r.is_active !== 0 && r.is_active !== false }));
+        this.ruleTypeOptions.set(mapped.filter(r=>r.name));
+      },
+      error: () => this.ruleTypesError.set('Failed to load rule types')
+    });
   }
 
   private createEmptyRuleRow(): RuleRow {
@@ -617,7 +636,7 @@ export class WorkflowEditorComponent implements OnInit {
       this.ensureInitialMessageCatalogs();
     }
     const params: any[] = ['R', null, null, null, null, null, null, null, null, null];
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followsup_crud as any, parameters: params };
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followup_crud as any, parameters: params };
     console.log(api, "follow-ups API"); 
     this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.followUpsLoading.set(false))).subscribe({
       next: res => {
@@ -690,7 +709,7 @@ export class WorkflowEditorComponent implements OnInit {
       isCreate ? currentUser : null, // p_created_by only on create
       !isCreate ? currentUser : null  // p_updated_by only on update/delete
     ];
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followsup_crud as any, parameters: params };
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followup_crud as any, parameters: params };
     this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
       next: res => {
         rec.saving = false;

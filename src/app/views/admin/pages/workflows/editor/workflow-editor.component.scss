@@ -1,6 +1,7 @@
 .workflow-editor { min-height: 100%; display:flex; flex-direction: column; }
 .editor-header { position: sticky; top: 0; z-index: 10; }
 .editor-body { min-height: calc(100vh - 64px); }
+.editor-body { overflow-x: hidden; }
 
 .stages-panel { 
 	/* Use percentage layout for wide screens */
@@ -11,6 +12,7 @@
 	flex-direction: column; 
 	/* fallback min width to avoid collapse */
 	min-width: 240px; 
+	overflow: hidden; /* clip drag ring / preview expansion to avoid page scrollbars */
 }
 .editor-main {
 	flex: 0 0 75%;
@@ -45,8 +47,31 @@
 	/* Hide scrollbars always (still scrollable) */
 	scrollbar-width: none; /* Firefox */
 	-ms-overflow-style: none; /* IE/Edge */
+	/* Prevent layout shift / accidental horizontal scroll after drag */
+	contain: layout paint; /* isolate drag transforms */
+	overscroll-behavior: contain; /* prevent parent scrolling flicker */
 }
 .stages-scroll::-webkit-scrollbar { width:0; height:0; display:none; }
+
+/* Sticky bar when order changed */
+.order-dirty-bar {
+	position: sticky;
+	bottom: 0;
+	left:0;
+	width:100%;
+	background: var(--bs-body-bg);
+	border-top:1px solid var(--bs-border-color,rgba(0,0,0,.12));
+	display:flex;
+	align-items:center;
+	gap:.5rem;
+	padding:.4rem .55rem;
+	box-shadow:0 -2px 6px -3px rgba(0,0,0,.12);
+	z-index:5;
+}
+body.dark .order-dirty-bar { background:#252b32; border-color: rgba(255,255,255,.15); box-shadow:0 -2px 6px -3px rgba(0,0,0,.65); }
+
+/* Extra small button size for inline bar */
+.btn.btn-xxs { --bs-btn-padding-y: .15rem; --bs-btn-padding-x: .4rem; font-size:.6rem; line-height:1; }
 
 /* Vertical variant of status-card (mirrors locations but stacked) */
 .status-card.vertical {
@@ -60,52 +85,35 @@
 	flex-direction:column;
 	justify-content:flex-start;
 	transition: box-shadow .3s ease, background .3s ease;
-	cursor:pointer;
+	cursor:grab;
 }
+.status-card.vertical:active { cursor:grabbing; }
 .status-card.vertical:hover {
 	box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb,13,110,253), .35), 0 4px 16px -6px rgba(0,0,0,.18);
 }
 .status-card.vertical.active {
-	box-shadow: 0 0 0 1px var(--bs-primary,#0d6efd), 0 6px 20px -8px rgba(0,0,0,.35);
-	z-index:2;
+	/* Clean active state: stronger border + subtle glow inside bounds (no pseudo elements) */
+	box-shadow: 0 0 0 2px var(--bs-primary,#0d6efd), 0 4px 14px -4px rgba(0,0,0,.28);
+	background: linear-gradient(135deg, rgba(var(--bs-primary-rgb,13,110,253),.10) 0%, rgba(var(--bs-primary-rgb,13,110,253),.03) 100%);
+	position: relative;
+	z-index: 2;
 }
-.status-card.vertical.active::after {
-	content:'';
-	position:absolute;
-	inset:-4px;
-	border:2px solid rgba(var(--bs-primary-rgb,13,110,253), .55);
-	border-radius: calc(.75rem + 4px);
-	pointer-events:none;
-	box-shadow:0 0 0 3px rgba(var(--bs-primary-rgb,13,110,253), .18);
-	animation: ringFade .9s ease-out forwards;
-}
-.status-card.vertical.active::before {
-	content:'';
-	position:absolute;
-	inset:-12px;
-	border-radius:inherit;
-	background: radial-gradient(circle at center, rgba(var(--bs-primary-rgb,13,110,253),.35) 0%, rgba(var(--bs-primary-rgb,13,110,253),0) 70%);
-	opacity:.6;
-	transform: scale(.85);
-	filter: blur(2px);
-	animation: pulseHalo 1.05s cubic-bezier(.25,.65,.35,1) forwards;
-	pointer-events:none;
-	z-index:-1;
-}
+/* Remove old halo animations to avoid flicker / overflow */
+.status-card.vertical.active::before,
+.status-card.vertical.active::after { display:none !important; }
 .status-card.vertical .icon-box {
 	width:30px; height:30px; border-radius:.65rem;
 	background: linear-gradient(135deg, rgba(var(--bs-primary-rgb,13,110,253),.12) 0%, rgba(var(--bs-primary-rgb,13,110,253),.04) 100%);
 	display:flex; align-items:center; justify-content:center;
 	color: var(--bs-primary,#0d6efd); font-size:15px;
 }
-.status-card.vertical .drag-handle { width:26px; height:30px; display:flex; align-items:center; justify-content:center; color: var(--bs-secondary-color,rgba(0,0,0,.55)); cursor:grab; font-size:15px; }
-.status-card.vertical .drag-handle:active { cursor:grabbing; }
+.status-card.vertical .move-icon { width:26px; height:30px; display:flex; align-items:center; justify-content:center; color: var(--bs-secondary-color,rgba(0,0,0,.55)); font-size:15px; }
 .status-card.vertical.cdk-drag-preview { box-shadow:0 0 0 1px var(--bs-primary,#0d6efd), 0 6px 24px -4px rgba(0,0,0,.35); border-radius:.75rem; }
 .status-card.vertical.cdk-drag-placeholder { opacity:0; }
 .cdk-drop-list-dragging .status-card.vertical:not(.cdk-drag-placeholder) { transition: transform .18s cubic-bezier(.2,.65,.35,1); }
 .status-card.vertical .order-badge { min-width:24px; height:24px; font-size:.65rem; line-height:1; display:flex; align-items:center; justify-content:center; background: var(--bs-secondary-bg,rgba(0,0,0,.06)); color: var(--bs-secondary-color,rgba(0,0,0,.6)); border-radius: 1rem; padding:0 .35rem; font-weight:600; }
 body.dark .status-card.vertical .order-badge { background:#39424b; color:rgba(255,255,255,.65); }
-body.dark .status-card.vertical .drag-handle { color:rgba(255,255,255,.55); }
+body.dark .status-card.vertical .move-icon { color:rgba(255,255,255,.55); }
 
 /* Toolbar */
 .stages-toolbar { border-bottom:1px solid var(--bs-border-color,rgba(0,0,0,.12)); }
@@ -147,6 +155,16 @@ body.dark .status-card.vertical { background:#252b32; box-shadow:0 0 0 1px rgba(
 body.dark .status-card.vertical:hover { background:#2f3740; }
 body.dark .status-card.vertical.active { background:#2f3740; }
 body.dark .status-card.vertical .sub-status { color: rgba(255,255,255,.55); }
+
+/* Consistent dialog style (reuse pattern from workflows-dialog) */
+.dw-acc-stage-dialog, .dw-acc-rule-dialog { position:fixed; inset:0; z-index:1060; }
+.dw-acc-dialog-backdrop { position:absolute; inset:0; background:rgba(0,0,0,.35); backdrop-filter:blur(2px); }
+.dw-acc-dialog { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:460px; max-width:95%; }
+.dw-acc-dialog .card-header { background:transparent; border-bottom:1px solid var(--bs-border-color,rgba(0,0,0,.08)); }
+body.dark .dw-acc-dialog .card-header { border-color: rgba(255,255,255,.12); }
+.dw-acc-dialog h6 { font-size:.85rem; letter-spacing:.3px; }
+.dw-acc-dialog .form-label { font-size:.6rem; letter-spacing:.25px; text-transform:uppercase; }
+.dw-acc-dialog select.form-select, .dw-acc-dialog input.form-control { font-size:.7rem; }
 
 @keyframes pulseHalo {
 	0% { opacity:0; transform: scale(.6); }

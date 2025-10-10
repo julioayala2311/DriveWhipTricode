@@ -62,7 +62,6 @@ export class GridHeaderComponent implements IHeaderAngularComp {
 export class WorkflowsGridComponent implements OnChanges {
   @Input() rowData: WorkflowRecord[] = [];
 
-  // ⬇️ Eventos al padre
   @Output() editRow = new EventEmitter<WorkflowRecord>();
   @Output() deleteRow = new EventEmitter<WorkflowRecord>();
 

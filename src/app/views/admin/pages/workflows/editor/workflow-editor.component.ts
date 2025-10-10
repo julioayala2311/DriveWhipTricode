@@ -11,7 +11,7 @@ import {
 import { DriveWhipAdminCommand } from "../../../../../core/db/procedures";
 import { Utilities } from "../../../../../Utilities/Utilities";
 import { AuthSessionService } from '../../../../../core/services/auth/auth-session.service';
-import { finalize, forkJoin, of } from 'rxjs';
+import { finalize, forkJoin, of, switchMap } from 'rxjs';
 
 /**
  * WorkflowEditorComponent
@@ -96,71 +96,300 @@ export class WorkflowEditorComponent implements OnInit {
   // --- Rules Form State (initial single rule card) ---
   readonly rulesLoading = signal(false);
   readonly rulesError = signal<string | null>(null);
-  // Catalogs
+  // Catalogs for rules
   readonly conditionTypes = signal<any[]>([]); // { id_condition_type, condition }
   readonly dataKeys = signal<any[]>([]); // { id_datakey, datakey }
   readonly operators = signal<any[]>([]); // { id_operator, operator }
-  // Dynamic list of rule conditions
-  private createEmptyRule(): RuleCondition {
-    return { condition_type_id: null, datakey_id: null, operator_id: null, value: '' };
-  }
-  readonly rulesConditions = signal<RuleCondition[]>([ this.createEmptyRule() ]);
-  // Dynamic list of rule actions
-  private createEmptyAction(): RuleAction {
-    return { action_type: 'Move applicant to stage', stage_id: null, reason: 'Not old enough' };
-  }
-  readonly rulesActions = signal<RuleAction[]>([ this.createEmptyAction() ]);
+  readonly actionsCatalog = signal<any[]>([]); // { id_action, action, is_active }
+  readonly reasonsCatalog = signal<any[]>([]); // { id_reason, reason, is_active }
 
-  addRuleCondition(): void {
-    const next = [...this.rulesConditions(), this.createEmptyRule()];
-    this.rulesConditions.set(next);
-  }
+  // Unified rule rows (condition + action + meta)
+  readonly ruleRows = signal<RuleRow[]>([]);
+  readonly rulesDirty = computed(()=> this.ruleRows().some(r=>r.dirty));
 
-  updateRuleCondition(index: number, field: keyof RuleCondition, value: any): void {
-    const list = [...this.rulesConditions()];
-    const target = { ...list[index], [field]: value };
-    list[index] = target;
-    this.rulesConditions.set(list);
-  }
+  // --- Creation Modals (Stage & Rule) ---
+  readonly showAddStageModal = signal(false);
+  readonly showAddRuleModal = signal(false);
+  readonly stageTypesLoading = signal(false);
+  readonly stageTypesError = signal<string | null>(null);
+  readonly stageTypeOptions = signal<{ id: number; label: string; is_active: boolean }[]>([]);
+  // Dynamic placement model replaced: use 'top' or select a stage id to insert AFTER that stage.
+  readonly ruleTypeOptions = [
+    { id: 1, label: 'Standard Rule' },
+    { id: 2, label: 'Escalation Rule' },
+    { id: 3, label: 'Notification Rule' }
+  ];
+  // Forms
+  newStageName = signal('');
+  newStageTypeId = signal<number | null>(null);
+  // Placement: 'top' or stringified id_stage of the stage AFTER which to insert
+  newStagePlacement = signal('top');
+  newRuleValue = signal('');
+  newRuleTypeId = signal<number | null>(null);
+  newRulePlacement = signal('end');
+  private tempStageIdCounter = -1; // negative ids for newly added unsaved stages
 
-  addRuleAction(): void {
-    const next = [...this.rulesActions(), this.createEmptyAction()];
-    this.rulesActions.set(next);
-  }
+  openAddStageModal(): void { this.resetStageForm(); this.showAddStageModal.set(true); }
+  openAddRuleModal(): void { this.resetRuleForm(); this.showAddRuleModal.set(true); }
+  closeAddStageModal(): void { this.showAddStageModal.set(false); }
+  closeAddRuleModal(): void { this.showAddRuleModal.set(false); }
+  private resetStageForm(): void { this.newStageName.set(''); this.newStageTypeId.set(null); this.newStagePlacement.set('top'); this.ensureStageTypes(); }
+  private resetRuleForm(): void { this.newRuleValue.set(''); this.newRuleTypeId.set(null); this.newRulePlacement.set('end'); }
 
-  updateRuleAction(index: number, field: keyof RuleAction, value: any): void {
-    const list = [...this.rulesActions()];
-    const target = { ...list[index], [field]: value };
-    list[index] = target;
-    this.rulesActions.set(list);
-  }
+  readonly newStageSaving = signal(false);
 
-  removeRuleAction(index: number): void {
-    const list = [...this.rulesActions()];
-    if (index < 0 || index >= list.length) return;
-    if (list.length === 1) {
-      list[0] = this.createEmptyAction();
-    } else {
-      list.splice(index, 1);
+  confirmAddStage(): void {
+    if (!this.newStageName().trim() || !this.newStageTypeId()) { Utilities.showToast('Stage name & type required','warning'); return; }
+    if (this.workflowId == null) { Utilities.showToast('Workflow context missing','error'); return; }
+    if (this.newStageSaving()) return;
+
+    const placement = this.newStagePlacement(); // 'top' or stage id string
+    const stagesSnapshot = [...this.stages()].sort((a,b)=>(a.sort_order??0)-(b.sort_order??0));
+    // Determine pivot order (K). If 'top' => K = 0 (insert before first). Else find selected stage order.
+    let pivotOrder = 0;
+    if (placement !== 'top') {
+      const pivotStage = stagesSnapshot.find(s => String(s.id_stage) === placement);
+      if (!pivotStage) {
+        Utilities.showToast('Selected reference stage not found, inserting at end','warning');
+        pivotOrder = stagesSnapshot.length ? (stagesSnapshot[stagesSnapshot.length-1].sort_order || stagesSnapshot.length) : 0;
+      } else {
+        pivotOrder = pivotStage.sort_order || 0;
+      }
     }
-    this.rulesActions.set(list);
+
+    // Build update calls for stages with order > pivotOrder (shift +1). Process in descending order to avoid unique conflicts.
+    const toShift = stagesSnapshot.filter(s => (s.sort_order||0) > pivotOrder).sort((a,b)=>(b.sort_order||0)-(a.sort_order||0));
+    const currentUser = this.authSession.user?.user || 'system';
+    const shiftCalls = toShift.map(stage => {
+      const params: any[] = [
+        'U',
+        stage.id_stage,
+        this.workflowId,
+        stage.id_stage_type,
+        stage.name,
+        (stage.sort_order||0) + 1,
+        1,
+        null,
+        currentUser
+      ];
+      const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
+      return this.core.executeCommand<DriveWhipCommandResponse>(api);
+    });
+
+    // New stage order will be pivotOrder + 1
+    const newSortOrder = pivotOrder + 1;
+    const createParams: any[] = [
+      'C',
+      null,
+      this.workflowId,
+      this.newStageTypeId(),
+      this.newStageName().trim(),
+      newSortOrder,
+      1,
+      currentUser,
+      null
+    ];
+    const createApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: createParams };
+
+    this.newStageSaving.set(true);
+    (shiftCalls.length ? forkJoin(shiftCalls) : of([{ ok: true } as any])).pipe(
+      switchMap(shiftResults => {
+        const allShiftOk = shiftResults.every(r => r && r.ok);
+        if (!allShiftOk) {
+          Utilities.showToast('Failed shifting existing stages','error');
+          return of(null);
+        }
+        return this.core.executeCommand<DriveWhipCommandResponse>(createApi);
+      }),
+      finalize(()=> this.newStageSaving.set(false))
+    ).subscribe({
+      next: res => {
+        if (!res || !res.ok) {
+          Utilities.showToast('Failed to create stage','error');
+          return;
+        }
+        Utilities.showToast('Stage created','success');
+        this.closeAddStageModal();
+        this.loadStages(); // refresh list to reflect new ordering
+      },
+      error: err => {
+        console.error('[WorkflowEditor] create stage error', err);
+        Utilities.showToast('Error creating stage','error');
+      }
+    });
   }
 
-  trackRuleAction = (index: number, _item: RuleAction) => index;
+  confirmAddRule(): void {
+    if (!this.newRuleValue().trim() || !this.newRuleTypeId()) { Utilities.showToast('Rule value & type required','warning'); return; }
+    // Insert new blank rule row with value populated; position handling simplified: start / end only unless hooking into selection later
+    const placement = this.newRulePlacement();
+    const rows = [...this.ruleRows()];
+    const newRow: RuleRow = {
+      id: null,
+      condition_type_id: null,
+      datakey_id: null,
+      operator_id: null,
+      value: this.newRuleValue().trim(),
+      action_id: null,
+      reason_id: null,
+      isActive: true,
+      dirty: true
+    };
+    if (placement === 'start') rows.unshift(newRow); else rows.push(newRow);
+    this.ruleRows.set(rows);
+    this.closeAddRuleModal();
+    Utilities.showToast('Rule draft added','success');
+  }
 
-  removeRuleCondition(index: number): void {
-    const list = [...this.rulesConditions()];
+  private createEmptyRuleRow(): RuleRow {
+    return {
+      id: null,
+      condition_type_id: null,
+      datakey_id: null,
+      operator_id: null,
+      value: '',
+      action_id: null,
+      reason_id: null,
+      isActive: true,
+      dirty: true,
+      origin: undefined
+    };
+  }
+
+  addRuleRow(origin?: 'C' | 'A'): void {
+    const list = [...this.ruleRows()];
+    const row = this.createEmptyRuleRow();
+    row.origin = origin;
+    list.push(row);
+    this.ruleRows.set(list);
+  }
+
+  // Wrappers para semántica en UI
+  addConditionRow(): void { this.addRuleRow('C'); }
+  addActionRow(): void { this.addRuleRow('A'); }
+
+  updateRuleRow(index: number, field: keyof RuleRow, value: any): void {
+    const list = [...this.ruleRows()];
     if (index < 0 || index >= list.length) return;
-    if (list.length === 1) {
-      // Si sólo hay una, limpiamos sus campos en lugar de eliminarla
-      list[0] = this.createEmptyRule();
-    } else {
-      list.splice(index, 1);
-    }
-    this.rulesConditions.set(list);
+    const row = { ...list[index], [field]: value } as RuleRow;
+    row.dirty = true;
+    list[index] = row;
+    this.ruleRows.set(list);
   }
 
-  trackRuleCondition = (index: number, _item: RuleCondition) => index;
+  removeRuleRow(index: number): void {
+    const list = [...this.ruleRows()];
+    if (index < 0 || index >= list.length) return;
+    const row = list[index];
+    if (row.id) {
+      this.saveRuleRow(index, 'D'); // soft delete
+    } else {
+      list.splice(index,1);
+      this.ruleRows.set(list.length?list:[this.createEmptyRuleRow()]);
+    }
+  }
+
+  trackRuleRow = (i:number, item: RuleRow) => item.id ?? i;
+
+  loadRuleRows(stageId: number, idSection: number | null): void {
+    if (!stageId) return;
+    const params: any[] = ['R', null, null, null, null, null, null, null, null, null, null, null, null];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_rule_crud as any, parameters: params };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
+      next: res => {
+        if (!res.ok) { this.rulesError.set('Failed to load rules'); return; }
+        let rows: any[] = [];
+        if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+        const filtered = rows.filter(r => Number(r.id_stage) === stageId && (!idSection || Number(r.id_stage_section) === idSection));
+        const mapped: RuleRow[] = filtered.map(r => {
+          const rawActive = r.is_active;
+            const active = rawActive === 1 || rawActive === '1' || rawActive === true || (typeof rawActive === 'string' && rawActive.toLowerCase()==='true');
+          return {
+            id: Number(r.id_stage_section_rule),
+            condition_type_id: r.id_condition_type != null ? Number(r.id_condition_type) : null,
+            datakey_id: r.id_datakey != null ? Number(r.id_datakey) : null,
+            operator_id: r.id_operator != null ? Number(r.id_operator) : null,
+            value: r.value || '',
+            action_id: r.id_action != null ? Number(r.id_action) : null,
+            reason_id: r.id_reason != null ? Number(r.id_reason) : null,
+            isActive: active,
+            dirty: false
+          };
+        });
+        this.ruleRows.set(mapped.length?mapped:[this.createEmptyRuleRow()]);
+      },
+      error: () => this.rulesError.set('Failed to load rules')
+    });
+  }
+
+  saveRuleRow(index: number, forcedAction?: 'C'|'U'|'D'): void {
+    const list = [...this.ruleRows()];
+    if (index < 0 || index >= list.length) return;
+    const row = { ...list[index] };
+    const stageId = this.selectedStageId();
+    if (!stageId) { Utilities.showToast('Select a stage first','warning'); return; }
+    const sectionId = this.rulesSectionId();
+    if (!sectionId) { Utilities.showToast('Rules section missing','warning'); return; }
+    const isCreate = row.id == null;
+    const action = forcedAction ? forcedAction : (isCreate ? 'C' : 'U');
+    if (action !== 'D') {
+      if (!row.condition_type_id || !row.datakey_id || !row.operator_id) {
+        Utilities.showToast('Complete condition fields','warning'); return; }
+      if (!row.action_id) { Utilities.showToast('Select action type','warning'); return; }
+      if (!row.reason_id) { Utilities.showToast('Select reason','warning'); return; }
+    }
+    row.saving = true; row.error = undefined; list[index]=row; this.ruleRows.set(list);
+    const currentUser = this.authSession.user?.user || 'system';
+    const params: any[] = [
+      action,                 // p_action
+      row.id,                 // p_id_stage_section_rule
+      sectionId,              // p_id_stage_section
+      stageId,                // p_id_stage
+      row.condition_type_id,  // p_id_condition_type
+      row.reason_id,          // p_id_reason
+      row.datakey_id,         // p_id_datakey
+      row.operator_id,        // p_id_operator
+      row.action_id,          // p_id_action
+      row.isActive ? 1 : 0,   // p_is_active
+      row.value || null,      // p_value
+      isCreate ? currentUser : null, // p_created_by
+      isCreate ? null : currentUser  // p_updated_by
+    ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_rule_crud as any, parameters: params };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
+      next: res => {
+        row.saving = false;
+        if (!res.ok) { row.error='Save failed'; list[index]=row; this.ruleRows.set(list); return; }
+        Utilities.showToast(action==='D' ? 'Rule disabled' : (isCreate ? 'Rule created' : 'Rule updated'),'success');
+        // reload to refresh ids & baseline
+        this.loadRuleRows(stageId, sectionId);
+      },
+      error: ()=> { row.saving=false; row.error='Save failed'; list[index]=row; this.ruleRows.set(list); }
+    });
+  }
+
+  toggleRuleActive(index: number, active: boolean): void { this.updateRuleRow(index,'isActive', active); }
+
+  // Section id for rules
+  readonly rulesSectionId = signal<number | null>(null);
+  private loadRulesSection(stageId: number): void {
+    // Reuse crm_stages_sections_crud to obtain id_stage_section for Rules (section_type 2)
+    const sectionTypeId = this.sectionTypeIdForStage(stageId); // should be 2 for Rules
+    if (sectionTypeId !== 2) { this.rulesSectionId.set(null); return; }
+    const params: any[] = [ 'R', null, stageId, sectionTypeId, null, null, null, null, null, null, null, null ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_crud, parameters: params };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
+      next: res => {
+        if (!res.ok) { return; }
+        let rows: any[] = []; if (Array.isArray(res.data)) rows = Array.isArray(res.data[0])? res.data[0] : (res.data as any[]);
+        const match = rows.find(r => r.id_stage === stageId);
+        if (match) this.rulesSectionId.set(match.id_stage_section); else this.rulesSectionId.set(null);
+        // Load existing rule rows now that we know section id (or null for filtering by stage only)
+        this.loadRuleRows(stageId, this.rulesSectionId());
+      },
+      error: ()=> {}
+    });
+  }
 
   // Placeholder action for Idle Move Rule button (future: open modal / add rule object)
   // Idle Move Rule state
@@ -337,6 +566,7 @@ export class WorkflowEditorComponent implements OnInit {
   readonly followUpsLoading = signal<boolean>(false);
   readonly followUpsError = signal<string | null>(null);
   readonly followUpsDirty = computed(()=> this.followUps().some(f=>f.dirty));
+  private followUpsDeferredRebind = false; // marca si cargamos followUps antes de catálogos
 
   private makeEmptyFollowUp(): any {
     return { id: null, templateId: null, delivery: null, delayDays: 0, isActive: true, dirty: true };
@@ -373,31 +603,60 @@ export class WorkflowEditorComponent implements OnInit {
     this.followUps.set(list);
   }
 
-  private minutesFromDays(days: number): number { return (Number(days)||0) * 24 * 60; }
-
   loadFollowUps(stageId: number, idSection: number | null): void {
     if (!stageId) return;
     this.followUpsLoading.set(true);
     this.followUpsError.set(null);
-    const params: any[] = ['R', null, null, null, null, null, null, null, null, null, null];
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followup_crud as any, parameters: params };
+    // A menudo el problema de que no se ve el valor seleccionado NO es el nombre del campo,
+    // sino que los catálogos (templates / delivery) todavía no se han cargado cuando el <select>
+    // se pinta por primera vez. Se estaban cargando sólo al hacer focus. Aquí forzamos su carga
+    // temprana para que, cuando lleguen los rows, ya existan (o estén en curso) las opciones.
+    if (this.notificationTemplates().length === 0 || this.deliveryMethods().length === 0) {
+      // Marcamos rebind diferido y disparamos la carga de catálogos.
+      this.followUpsDeferredRebind = true;
+      this.ensureInitialMessageCatalogs();
+    }
+    const params: any[] = ['R', null, null, null, null, null, null, null, null, null];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followsup_crud as any, parameters: params };
+    console.log(api, "follow-ups API"); 
     this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.followUpsLoading.set(false))).subscribe({
       next: res => {
+        console.log(res, "follow-ups raw data");
         if (!res.ok) { this.followUpsError.set('Failed to load follow-up messages'); return; }
         let rows: any[] = [];
         if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
         const filtered = rows.filter(r => Number(r.id_stage) === stageId && (!idSection || Number(r.id_stage_section) === idSection));
-        const mapped = filtered.map(r => ({
-          id: Number(r.id_stage_section_followup),
-          templateId: r.id_template != null ? Number(r.id_template) : null,
-          delivery: r.delivery_method || null,
-          delayDays: r.delay_minutes ? Math.round(Number(r.delay_minutes) / 60 / 24) : 0,
-          isActive: r.is_active === 1 || r.is_active === true || r.is_active === '1',
-          created_by: r.created_by,
-          updated_by: r.updated_by,
-          dirty: false
-        }));
-        this.followUps.set(mapped);
+        const mapped = filtered.map(r => {
+          const rawActive = r.is_active;
+          const isActive = (
+            rawActive === 1 || rawActive === '1' || rawActive === true ||
+            (typeof rawActive === 'string' && rawActive.toLowerCase() === 'true')
+          );
+          return {
+            id: Number(r.id_stage_section_followup),
+            templateId: r.id_template != null ? Number(r.id_template) : null,
+            delivery: r.delivery_method || null,
+            // Backend field is delay_days (adjusted); keep backward compatibility with delay_minutes just in case
+            delayDays: (r.delay_days ?? r.delay_minutes ?? 0),
+            isActive: isActive,
+            created_by: r.created_by,
+            updated_by: r.updated_by,
+            dirty: false
+          };
+        }).sort((a,b)=> a.delayDays - b.delayDays || (a.id ?? 0) - (b.id ?? 0));
+        if (filtered.length && !mapped.length) {
+          console.warn('[FollowUps] Rows filtered but mapping empty. Check field names.', filtered[0]);
+        }
+        if (mapped.length === 0) {
+          // Provide an empty slot by default for quicker creation
+          this.followUps.set([ this.makeEmptyFollowUp() ]);
+        } else {
+          this.followUps.set(mapped);
+        }
+        // Intentar re-vincular selects si los catálogos ya están cargados
+        this.tryRebindFollowUps();
+        // Sincronizar valor en el DOM (caso raro donde el browser no selecciona tras insertar options)
+        setTimeout(()=> this.forceFollowUpsDomSync(), 0);
       },
       error: () => this.followUpsError.set('Failed to load follow-up messages')
     });
@@ -422,17 +681,16 @@ export class WorkflowEditorComponent implements OnInit {
     const params: any[] = [
       action,                   // p_action
       rec.id,                   // p_id_stage_section_followup
-      null,                     // p_id_applicant (null for general / stage-level follow-up)
       idSection,                // p_id_stage_section
       stageId,                  // p_id_stage
       rec.templateId,           // p_id_template
       rec.delivery,             // p_delivery_method
-      this.minutesFromDays(rec.delayDays), // p_delay_minutes
-      rec.isActive ? 1 : 0,     // p_is_active
+      rec.delayDays,            // p_delay_days
+      rec.isActive ? 1 : 0,     // p_is_active (normalize to numeric)
       isCreate ? currentUser : null, // p_created_by only on create
       !isCreate ? currentUser : null  // p_updated_by only on update/delete
     ];
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followup_crud as any, parameters: params };
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followsup_crud as any, parameters: params };
     this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
       next: res => {
         rec.saving = false;
@@ -535,12 +793,31 @@ export class WorkflowEditorComponent implements OnInit {
         // Intentar nuevamente cargar si antes no existía (posible carrera)
         this.reloadInitialMessage(this.selectedStageId()!, this.dataSectionId()!);
       }
+      // Fuerza re-render de selects de Follow-Ups si opciones llegaron después del mapeo
+      if (this.followUps().length) {
+        const fuList = this.followUps();
+        // Verificamos si algún followUp tiene templateId/delivery que SI existe en catálogos pero no se ve seleccionado
+        const templateIds = new Set(this.notificationTemplates().map(t=> t.id));
+        const deliveryVals = new Set(this.deliveryMethods().map(d=> d.value));
+        let needsRefresh = false;
+        for (const f of fuList) {
+          if ((f.templateId && templateIds.has(f.templateId)) || (f.delivery && deliveryVals.has(f.delivery))) { needsRefresh = true; break; }
+        }
+        if (needsRefresh) {
+          // Clonar para que Angular detecte nuevo array y re-aplique [value]
+          this.followUps.set(fuList.map(f=> ({ ...f })));
+        }
+      }
       return;
     }
     this.initialMessageLoading.set(true);
     this.initialMessageError.set(null);
     const apiTemplates: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.notification_templates_crud, parameters: ['R', null, null, null, null, null, null, null] };
     const apiDelivery: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_deliveryMetod_options, parameters: [] };
+    // Si los followUps ya se cargaron pero catálogos no, marcamos rebind diferido
+    if (this.followUps().length && (this.notificationTemplates().length === 0 || this.deliveryMethods().length === 0)) {
+      this.followUpsDeferredRebind = true;
+    }
     forkJoin([
       this.core.executeCommand<DriveWhipCommandResponse>(apiTemplates),
       this.core.executeCommand<DriveWhipCommandResponse>(apiDelivery)
@@ -555,8 +832,32 @@ export class WorkflowEditorComponent implements OnInit {
           if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
           return rows || [];
         };
-        this.notificationTemplates.set(parseRows(tplRes));
-        this.deliveryMethods.set(parseRows(delRes));
+        // Normalización de catálogos para asegurar propiedades id / value / description consistentes
+        const rawTpl = parseRows(tplRes).map((r:any)=> {
+          const id = r.id ?? r.id_template ?? r.template_id ?? r.idNotificationTemplate;
+          const description = r.description ?? r.template_description ?? r.subject ?? r.name ?? (`Template #${id}`);
+          return { ...r, id, description };
+        });
+        const rawDel = parseRows(delRes).map((r:any)=> {
+          const value = r.value ?? r.delivery_method ?? r.method ?? r.code ?? r.key;
+          const description = r.description ?? r.label ?? r.delivery_method ?? r.name ?? value ?? 'Unknown';
+          return { ...r, value, description };
+        });
+        this.notificationTemplates.set(rawTpl);
+        this.deliveryMethods.set(rawDel);
+        // Diagnóstico: verificar si algún followUp no encuentra su template/delivery
+        if (this.followUps().length) {
+          const tplIds = new Set(rawTpl.map(t=> String(t.id)));
+            const delVals = new Set(rawDel.map(d=> String(d.value).toLowerCase()));
+          const missing: any[] = [];
+          this.followUps().forEach(f=> {
+            if (f.templateId && !tplIds.has(String(f.templateId))) missing.push({ type:'template', templateId: f.templateId });
+            if (f.delivery && !delVals.has(String(f.delivery).toLowerCase())) missing.push({ type:'delivery', delivery: f.delivery });
+          });
+          if (missing.length) {
+            console.warn('[FollowUps][CatalogMismatch]', missing);
+          }
+        }
         // Después de cargar catálogos intentar poblar si había registro previo
         if (this.selectedStageId() && this.dataSectionId() && !this.initialMessageRecordId()) {
           this.reloadInitialMessage(this.selectedStageId()!, this.dataSectionId()!);
@@ -568,9 +869,75 @@ export class WorkflowEditorComponent implements OnInit {
           const del = this.initialMessageOriginal()?.delivery ?? '';
           if (del) this.selectedDeliveryMethod.set(del);
         }
+        if (this.followUps().length) {
+          const fuList = this.followUps();
+          // Forzamos SIEMPRE un clon para obligar al select a reevaluar el valor una vez que ya existen las <option>
+          // (en algunos navegadores si el value se asignó antes de que hubiera coincidencia de option no se pinta selección).
+          this.followUps.set(fuList.map(f=> ({ ...f })));
+        }
+        // Normalización adicional case-insensitive
+        this.tryRebindFollowUps();
+        // Si había un rebind diferido, intentar nuevamente (por seguridad en siguiente tick)
+        if (this.followUpsDeferredRebind) {
+          this.followUpsDeferredRebind = false;
+          setTimeout(()=> this.tryRebindFollowUps(), 0);
+        }
+        // Forzar sincronización manual del value después de que el DOM ya tenga las options
+        setTimeout(()=> this.forceFollowUpsDomSync(), 0);
       },
       error: () => this.initialMessageError.set('Failed to load message catalogs')
     });
+  }
+
+  // Re-normaliza templateId y delivery de followUps frente a los catálogos para asegurar que los selects muestren la opción correcta
+  private tryRebindFollowUps(): void {
+    const templates = this.notificationTemplates();
+    const deliveries = this.deliveryMethods();
+    if (!templates.length || !deliveries.length) return; // catálogos incompletos aún
+    const list = this.followUps();
+    if (!list.length) return;
+    const tplIds = new Set(templates.map(t => Number(t.id)));
+    let changed = false;
+    const normalized = list.map(f => {
+      let templateId = f.templateId;
+      if (templateId != null && !tplIds.has(templateId)) {
+        const matchTpl = templates.find(t => String(t.id) === String(templateId));
+        if (matchTpl) { templateId = Number(matchTpl.id); changed = true; }
+      }
+      let delivery = f.delivery;
+      if (delivery) {
+        const matchDel = deliveries.find(d => String(d.value).toLowerCase() === String(delivery).toLowerCase());
+        if (matchDel && matchDel.value !== delivery) { delivery = matchDel.value; changed = true; }
+      }
+      return (templateId !== f.templateId || delivery !== f.delivery) ? { ...f, templateId, delivery } : f;
+    });
+    if (changed) {
+      console.log('[FollowUps] Rebinder applied', normalized);
+      this.followUps.set(normalized);
+      // re-sincronizar DOM tras cambio
+      setTimeout(()=> this.forceFollowUpsDomSync(), 0);
+    }
+  }
+
+  // En ciertos escenarios (value seteado antes de que existan las <option>) algunos navegadores no marcan la selección.
+  // Esta función fuerza el value en el elemento <select> ya poblado.
+  private forceFollowUpsDomSync(): void {
+    try {
+      const list = this.followUps();
+      if (!list.length) return;
+      list.forEach((f, i) => {
+        const tplEl = document.getElementById('fu_tpl_'+i) as HTMLSelectElement | null;
+        if (tplEl && String(tplEl.value) !== String(f.templateId ?? '')) {
+          tplEl.value = f.templateId != null ? String(f.templateId) : '';
+        }
+        const delEl = document.getElementById('fu_del_'+i) as HTMLSelectElement | null;
+        if (delEl && String(delEl.value) !== String(f.delivery ?? '')) {
+          delEl.value = f.delivery ?? '';
+        }
+      });
+    } catch (e) {
+      console.warn('forceFollowUpsDomSync error', e);
+    }
   }
 
   onTemplateChange(raw: any): void {
@@ -654,7 +1021,14 @@ export class WorkflowEditorComponent implements OnInit {
       if (match) {
         const idTemplate = match.id_template != null ? Number(match.id_template) : null;
         const delay = match.delay_minutes != null ? Number(match.delay_minutes) : 0;
-        const isActive = (match.is_active === 1 || match.is_active === '1' || match.is_active === true);
+        // Normalizamos is_active aceptando 1, '1', true, 'true' (case-insensitive)
+        const isActiveRaw = match.is_active;
+        const isActive = (
+          isActiveRaw === 1 ||
+          isActiveRaw === '1' ||
+          isActiveRaw === true ||
+          (typeof isActiveRaw === 'string' && isActiveRaw.toLowerCase() === 'true')
+        );
         this.initialMessageRecordId.set(match.id_stage_section_initialmessage ? Number(match.id_stage_section_initialmessage) : null);
         this.selectedTemplateId.set(idTemplate);
         this.selectedDeliveryMethod.set(match.delivery_method || '');
@@ -690,7 +1064,13 @@ export class WorkflowEditorComponent implements OnInit {
           id_stage_section_initialmessage: r.id_stage_section_initialmessage != null ? Number(r.id_stage_section_initialmessage) : r.id_stage_section_initialmessage,
           id_template: r.id_template != null ? Number(r.id_template) : r.id_template,
           delay_minutes: r.delay_minutes != null ? Number(r.delay_minutes) : r.delay_minutes,
-          is_active: (r.is_active === 1 || r.is_active === '1') ? 1 : 0
+          // Preserve active flag for numeric 1, string '1', boolean true, or string 'true' (case-insensitive)
+          is_active: (
+            r.is_active === 1 ||
+            r.is_active === '1' ||
+            r.is_active === true ||
+            (typeof r.is_active === 'string' && r.is_active.toLowerCase() === 'true')
+          ) ? 1 : 0
         }));
         let match = rows.find(r => r.id_stage === stageId && r.id_stage_section === idSection);
         if (!match) match = rows.find(r => r.id_stage === stageId);
@@ -707,13 +1087,17 @@ export class WorkflowEditorComponent implements OnInit {
     const apiCondition: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_condition_type_crud, parameters: ['R', null, null, null, null, null] };
     const apiDatakey: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_datakey_crud, parameters: ['R', null, null, null, null, null] };
     const apiOperator: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_operator_crud, parameters: ['R', null, null, null, null, null] };
+    const apiAction: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_action_crud as any, parameters: ['R', null, null, null, null, null] };
+    const apiReason: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_reason_crud as any, parameters: ['R', null, null, null, null, null] };
     forkJoin([
       this.core.executeCommand<DriveWhipCommandResponse>(apiCondition),
       this.core.executeCommand<DriveWhipCommandResponse>(apiDatakey),
-      this.core.executeCommand<DriveWhipCommandResponse>(apiOperator)
+      this.core.executeCommand<DriveWhipCommandResponse>(apiOperator),
+      this.core.executeCommand<DriveWhipCommandResponse>(apiAction),
+      this.core.executeCommand<DriveWhipCommandResponse>(apiReason)
     ]).pipe(finalize(()=> this.rulesLoading.set(false))).subscribe({
-      next: ([condRes, dataRes, opRes]) => {
-        if (!condRes.ok || !dataRes.ok || !opRes.ok) {
+      next: ([condRes, dataRes, opRes, actRes, reaRes]) => {
+        if (!condRes.ok || !dataRes.ok || !opRes.ok || !actRes.ok || !reaRes.ok) {
           this.rulesError.set('Failed to load catalogs');
           return;
         }
@@ -725,12 +1109,32 @@ export class WorkflowEditorComponent implements OnInit {
         this.conditionTypes.set(extract(condRes));
         this.dataKeys.set(extract(dataRes));
         this.operators.set(extract(opRes));
+        this.actionsCatalog.set(extract(actRes));
+        this.reasonsCatalog.set(extract(reaRes));
       },
       error: () => this.rulesError.set('Failed to load catalogs')
     });
   }
 
+  ensureStageTypes(): void {
+    if (this.stageTypesLoading() || this.stageTypeOptions().length > 0) return;
+    this.stageTypesLoading.set(true);
+    this.stageTypesError.set(null);
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_type_crud as any, parameters: ['R', null, null, null, null, null] };
+    this.core.executeCommand<any>(api).pipe(finalize(()=> this.stageTypesLoading.set(false))).subscribe({
+      next: res => {
+        let rows: any[] = [];
+        if (Array.isArray(res)) rows = res;
+        else if (Array.isArray(res?.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : res.data;
+        const mapped = rows.map(r => ({ id: r.id_stage_type, label: r.type, is_active: r.is_active !== 0 }));
+        this.stageTypeOptions.set(mapped.filter(m => m.is_active));
+      },
+      error: () => this.stageTypesError.set('Failed to load stage types')
+    });
+  }
+
   ngOnInit(): void {
+    this.ensureStageTypes();
     this.route.paramMap.subscribe((p) => {
       const raw = p.get("id");
       this.workflowId = raw ? Number(raw) : null;
@@ -823,6 +1227,7 @@ export class WorkflowEditorComponent implements OnInit {
     }
     if (this.stages().find(s => s.id_stage === id)?.type === 'Rules') {
       this.loadRulesCatalogs();
+      this.loadRulesSection(id); // will chain load of rule rows
     }
   }
 
@@ -1145,17 +1550,19 @@ export class WorkflowEditorComponent implements OnInit {
 }
 
 // Local interface for rule condition editing state
-interface RuleCondition {
-  id?: number; // future persistence id
+// Unified rule row interface replacing separate condition and action arrays
+interface RuleRow {
+  id: number | null;
   condition_type_id: number | null;
   datakey_id: number | null;
   operator_id: number | null;
   value: string;
-}
-
-interface RuleAction {
-  id?: number; // future persistence id
-  action_type: string; // e.g. 'Move applicant to stage'
-  stage_id: number | null; // target stage
-  reason: string; // e.g. 'Not old enough'
+  action_id: number | null;
+  reason_id: number | null;
+  isActive: boolean;
+  dirty: boolean;
+  saving?: boolean;
+  error?: string;
+  // origin: 'C' si se creó desde "Add Condition"; 'A' si se creó desde "Add Action"; undefined si genérico
+  origin?: 'C' | 'A';
 }

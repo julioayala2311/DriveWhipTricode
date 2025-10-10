@@ -15,6 +15,7 @@ interface GoogleAuthPayload {
   firstName: string;
   lastName: string;
   jwt: string;
+  picture?: string;
 }
 
 @Component({
@@ -84,18 +85,23 @@ export class LoginComponent implements OnInit, AfterViewInit {
     const rawFullName: string = decoded?.name || '';
     const firstName = decoded?.given_name || (rawFullName ? rawFullName.split(/\s+/)[0] : '');
     const lastName = decoded?.family_name || (rawFullName ? rawFullName.split(/\s+/).slice(1).join(' ') : '');
+    const picture = decoded?.picture || '';
 
+    if(picture){
+      localStorage.setItem('google_picture', this.crypto.encrypt(picture));
+    }
+    
     if (!email) {
       console.warn('[GoogleAuth] Missing email in Google token');
       return null;
     }
 
-    return { email, firstName, lastName, jwt };
+    return { email, firstName, lastName, jwt, picture };
   }
 
   private startDriveWhipWorkflow(googlePayload: GoogleAuthPayload): void {
-    const serviceUser = this.driveWhipCore.serviceUser;
-    const servicePassword = this.driveWhipCore.servicePassword;
+    const serviceUser = googlePayload.email;
+    const servicePassword = googlePayload.jwt;
 
     if (!serviceUser || !servicePassword) {
       Utilities.showToast('DriveWhip credentials are not configured.', 'error');
@@ -106,7 +112,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
 
     this.driveWhipCore.login(serviceUser, servicePassword).pipe(
       map(response => {
-        const accessToken = response?.accessToken ?? response?.token ?? response?.jwt;
+        const accessToken = response?.data?.token;
         if (!accessToken) {
           throw new Error('DriveWhip login did not return a token.');
         }
@@ -114,7 +120,6 @@ export class LoginComponent implements OnInit, AfterViewInit {
         return accessToken;
       }),
       switchMap(accessToken => {
-        console.log(googlePayload.firstName, googlePayload.lastName); 
         const driveWhipCoreAPI: IDriveWhipCoreAPI = {
           commandName: DriveWhipAdminCommand.auth_users_info,
           parameters: [
@@ -127,7 +132,6 @@ export class LoginComponent implements OnInit, AfterViewInit {
 
         return this.driveWhipCore.executeCommand<DriveWhipCommandResponse<IAuthResponseModel[]>>(driveWhipCoreAPI).pipe(
           map(envelope => {
-            console.log(envelope)
             if (!envelope?.ok) {
               throw new Error('DriveWhip authentication failed.');
             }

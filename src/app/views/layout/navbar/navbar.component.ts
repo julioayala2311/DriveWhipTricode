@@ -8,6 +8,8 @@ import { MENU } from './menu';
 import { MenuItem } from './menu.model';
 import { FeatherIconDirective } from '../../../core/feather-icon/feather-icon.directive';
 import { Subscription } from 'rxjs';
+import { CryptoService } from '../../../core/services/crypto/crypto.service';
+import { AUTH_USER_STORAGE_KEY } from '../../../core/services/drivewhip-core/drivewhip-core.service';
 
 @Component({
   selector: 'app-navbar',
@@ -36,7 +38,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   constructor(
     private router: Router,
-    private themeModeService: ThemeModeService
+    private themeModeService: ThemeModeService,
+    private crypto: CryptoService
   ) {}
 
   ngOnInit(): void {
@@ -46,6 +49,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
     });
 
     this.menuItems = MENU;
+
+  // Load profile info from storage
+  this.loadProfileFromStorage();
 
     /**
      * Close the header menu after a route change on tablet and mobile devices
@@ -170,6 +176,47 @@ export class NavbarComponent implements OnInit, OnDestroy {
         this.currentlyOpenedNavItem = navItem;
       }
     }
+  }
+
+  // ==========================
+  // Profile (Google / Local)
+  // ==========================
+  profileImageUrl: string | null = null; // decrypted url
+  profileEmail: string | null = null;
+  profileName: string | null = null;
+
+  private loadProfileFromStorage(): void {
+    try {
+      const encPic = localStorage.getItem('google_picture');
+      if (encPic) {
+        const pic = this.crypto.decrypt<string>(encPic);
+        if (pic && typeof pic === 'string') {
+          this.profileImageUrl = pic;
+          console.log("Profile image URL:", this.profileImageUrl);
+        }
+      }
+    } catch { /* ignore */ }
+
+    try {
+      const encUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+      if (encUser) {
+        const user: any = this.crypto.decrypt(encUser);
+        if (user) {
+          console.log(user);
+          this.profileEmail = user.user;
+          this.profileName = `${user.firstname} ${user.lastname}`.trim();
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  get profileInitials(): string {
+    if (this.profileName) {
+      const parts = this.profileName.split(/\s+/).filter(p=>p);
+      return parts.slice(0,2).map(p=>p[0]?.toUpperCase()).join('');
+    }
+    if (this.profileEmail) return this.profileEmail[0].toUpperCase();
+    return 'U';
   }
 
 }

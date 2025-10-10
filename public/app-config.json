@@ -2,7 +2,7 @@
   "env": "DEV",
   "environments": {
     "DEV": {
-      "apiBaseUrl": "http://localhost:3000/api/v1/",
+      "apiBaseUrl": "https://qa-whipbridge.drivewhip.com/api/",
       "driveWhipCoreServiceUser": "admin@drivewhip.com",
       "driveWhipCoreServicePassword": "Secret123!",
       "googleClientId": "294673509392-r28uave2kur9aah2l6kvlfbbs7tgra9n.apps.googleusercontent.com"

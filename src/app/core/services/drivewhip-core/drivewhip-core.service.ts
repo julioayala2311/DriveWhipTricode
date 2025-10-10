@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 import { AppConfigService } from '../app-config/app-config.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { Utilities } from '../../../Utilities/Utilities';
@@ -23,6 +23,8 @@ export class DriveWhipCoreService {
 
   // Flag to avoid multiple parallel logout redirects
   private handlingUnauthorized = false;
+  // Simple dedupe for repeated error toasts
+  private lastErrorToast: { message: string | null; ts: number } = { message: null, ts: 0 };
 
   private get baseUrl() { return this.appConfig.apiBaseUrl; }
 
@@ -65,13 +67,31 @@ export class DriveWhipCoreService {
   executeCommand<T = any>(object: any): Observable<T> {
     const url = this.baseUrl + 'execute';
     return this.http.post<T>(url, object, { headers: this.buildHeaders() }).pipe(
+      map(res => {
+        // Detect wrapped stored procedure error pattern: any nested object containing throwMessageTricode
+        let toastShown = false;
+        const msg = this.extractTricodeError(res as any);
+        if (msg) {
+          const clean = msg.replace(/^Error:\s*/i, '').trim();
+          this.safeShowErrorToast(clean || 'Unexpected error');
+          toastShown = true;
+          try { (res as any).ok = false; (res as any).error = clean || msg; } catch { /* ignore */ }
+        }
+        // If backend already flags ok=false with an error string, surface it.
+        const r: any = res as any;
+        if (!toastShown && r && r.ok === false && typeof r.error === 'string' && r.error.trim()) {
+          this.safeShowErrorToast(r.error.trim());
+          toastShown = true;
+        }
+        return res;
+      }),
       catchError(err => this.handleError(err))
     );
   }
 
-  login(email: string, password: string): Observable<any> {
+  login(user: string, secret: string): Observable<any> {
     const url = this.baseUrl + 'auth/login';
-    const body = { email, password };
+    const body = { user, secret };
     const headers = new HttpHeaders({
       'Accept': 'application/json',
       'Content-Type': 'application/json'
@@ -108,6 +128,42 @@ export class DriveWhipCoreService {
     }
 
     return throwError(() => ({ message, status, raw: error }));
+  }
+
+  /** Recursively search response payload for throwMessageTricode field */
+  private extractTricodeError(payload: any): string | null {
+    if (!payload) return null;
+    const visited = new Set<any>();
+    const stack: any[] = [payload];
+    while (stack.length) {
+      const current = stack.pop();
+      if (!current || typeof current !== 'object') continue;
+      if (visited.has(current)) continue;
+      visited.add(current);
+      if (Object.prototype.hasOwnProperty.call(current, 'throwMessageTricode')) {
+        const val = current['throwMessageTricode'];
+        if (typeof val === 'string' && val.trim()) return val;
+      }
+      // Traverse arrays & plain objects
+      if (Array.isArray(current)) {
+        for (const item of current) stack.push(item);
+      } else {
+        for (const key of Object.keys(current)) {
+          stack.push(current[key]);
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Show error toast with basic throttling to prevent spam of the same message */
+  private safeShowErrorToast(message: string) {
+    const now = Date.now();
+    if (this.lastErrorToast.message === message && (now - this.lastErrorToast.ts) < 1500) {
+      return; // skip duplicate within 1.5s
+    }
+    this.lastErrorToast = { message, ts: now };
+    Utilities.showToast(message, 'error');
   }
 
   private readFromStorage(key: string): string | null {

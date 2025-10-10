@@ -128,12 +128,7 @@ export class WorkflowsGridComponent implements OnChanges {
       },
       cellClass: 'text-center',
       cellStyle: { pointerEvents: 'none' },
-      cellRenderer: (p: any) => {
-        const on = Number(p.value) === 1;
-        const label = on ? 'Active' : 'Inactive';
-        const cls = on ? 'badge-on' : 'badge-off';
-        return `<span class="status-badge ${cls}">${label}</span>`;
-      }
+      cellRenderer: (p: any) => this.activeBadge(p.value)
     },
 
     {
@@ -182,6 +177,15 @@ export class WorkflowsGridComponent implements OnChanges {
         <button class="btn btn-xs btn-outline-secondary" type="button" data-action="edit">Edit</button>
         <button class="btn btn-xs btn-outline-danger" type="button" data-action="delete" ${disabled ? 'disabled' : ''}>Disable</button>
       </div>`;
+  }
+
+  private activeBadge(value: any): string {
+    const active = value === 1 || value === true;
+    const cls = active
+      ? 'badge text-bg-success bg-success-subtle text-success fw-medium px-2 py-1'
+      : 'badge text-bg-danger bg-danger-subtle text-danger fw-medium px-2 py-1';
+    const label = active ? 'Active' : 'Inactive';
+    return `<span class="${cls}" style="font-size:11px; letter-spacing:.5px;">${label}</span>`;
   }
 
   onCellClicked(e: CellClickedEvent) {

@@ -210,9 +210,9 @@
                   <input type="number" min="0" dwNonNegative class="form-control form-control-sm" [value]="initialMessageDelayMins()" (input)="onInitialMessageDelayChange($any($event.target).value)" />
                 </div>
                 <div class="col-12 d-flex align-items-center gap-3 flex-wrap">
-                  <div class="form-check form-switch m-0" title="Toggle active/disabled">
+                  <div class="form-check form-switch m-0" title="Toggle active/disable">
                     <input class="form-check-input" type="checkbox" id="im_disable" [checked]="!initialMessageDisabled()" (change)="toggleInitialMessageDisabled(!$any($event.target).checked)" />
-                    <label class="form-check-label small" for="im_disable">{{ initialMessageDisabled() ? 'Disabled' : 'Active' }}</label>
+                    <label class="form-check-label small" for="im_disable">{{ initialMessageDisabled() ? 'Disable' : 'Active' }}</label>
                   </div>
                   <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" (click)="onAddInitialMessage()" [disabled]="initialMessageSaving() || !selectedTemplateId() || !selectedDeliveryMethod() || !initialMessageDirty()" [attr.title]="initialMessageSaveDisabledReason() || null">
                     <ng-container *ngIf="!initialMessageSaving(); else savingIM">
@@ -265,9 +265,9 @@
                         <input type="number" min="0" dwNonNegative class="form-control form-control-sm" [value]="fu.delayDays" (input)="updateFollowUpField(i,'delayDays',$any($event.target).value)" />
                       </div>
                       <div class="col-12 d-flex align-items-center gap-3 flex-wrap pt-1">
-                        <div class="form-check form-switch m-0" title="Toggle active/disabled">
+                        <div class="form-check form-switch m-0" title="Toggle active/disable">
                           <input class="form-check-input" type="checkbox" [id]="'fu_active_'+i" [checked]="fu.isActive" (change)="updateFollowUpField(i,'isActive',$any($event.target).checked)" />
-                          <label class="form-check-label small" [for]="'fu_active_'+i">{{ fu.isActive ? 'Active' : 'Disabled' }}</label>
+                          <label class="form-check-label small" [for]="'fu_active_'+i">{{ fu.isActive ? 'Active' : 'Disable' }}</label>
                         </div>
                         <button type="button" class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1" (click)="saveFollowUp(i)" [disabled]="fu.saving || !fu.dirty || !fu.templateId || !fu.delivery" [attr.title]="!fu.dirty ? 'No changes' : (!fu.templateId || !fu.delivery ? 'Template & delivery required' : null)">
                           <ng-container *ngIf="!fu.saving; else savingFU"><i class="feather" [ngClass]="fu.id ? 'icon-save' : 'icon-check'" style="font-size:.75rem;"></i> {{ fu.id ? 'Update' : 'Save' }}</ng-container>
@@ -337,7 +337,7 @@
                           <input type="text" class="form-control form-control-sm" [value]="r.value" (input)="updateRuleRow(i,'value',$any($event.target).value)" />
                         </div>
                         <div class="col-12 col-md-2 d-flex align-items-center pt-3">
-                          <div class="form-check form-switch m-0" title="Toggle active/disabled">
+                          <div class="form-check form-switch m-0" title="Toggle active/disable">
                             <input class="form-check-input" type="checkbox" [id]="'rule_active_c_'+i" [checked]="r.isActive" (change)="updateRuleRow(i,'isActive',$any($event.target).checked)" />
                             <label class="form-check-label small" [for]="'rule_active_c_'+i">{{ r.isActive ? 'Active' : 'Disable' }}</label>
                           </div>
@@ -378,7 +378,7 @@
                           </select>
                         </div>
                         <div class="col-6 col-md-2 d-flex align-items-center pt-3">
-                          <div class="form-check form-switch m-0" title="Toggle active/disabled">
+                          <div class="form-check form-switch m-0" title="Toggle active/disable">
                             <input class="form-check-input" type="checkbox" [id]="'rule_active_a_'+i" [checked]="r.isActive" (change)="updateRuleRow(i,'isActive',$any($event.target).checked)" />
                             <label class="form-check-label small" [for]="'rule_active_a_'+i">{{ r.isActive ? 'Active' : 'Disable' }}</label>
                           </div>

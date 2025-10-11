@@ -4,28 +4,48 @@
   <div class="flex-grow-1 d-flex align-items-center gap-2 flex-wrap">
     <div class="d-flex align-items-center gap-1" *ngIf="!locationsError">
       <div
-        class="dw-location-select"
+        class="dw-location-picker"
+        ngbDropdown
+        #locationDropdown="ngbDropdown"
         [class.is-loading]="loadingLocations"
         [class.is-disabled]="loadingLocations || locations.length === 0"
+        [class.open]="locationDropdown.isOpen()"
       >
-        <i class="feather icon-map-pin select-leading-icon"></i>
-        <select
-          class="form-select form-select-sm fancy-select"
-          name="location"
-          [(ngModel)]="selectedLocationId"
-          (ngModelChange)="onLocationChange()"
+        <div
+          class="dw-location-display"
+          aria-live="polite"
+          [attr.aria-busy]="loadingLocations"
+        >
+          <i class="feather icon-map-pin dw-location-display__icon" aria-hidden="true"></i>
+          <span
+            class="dw-status-dot"
+            [class.is-active]="!loadingLocations && (selectedLocationOption ? selectedLocationOption.isActive !== false : false)"
+            aria-hidden="true"
+          ></span>
+          <div class="dw-location-display__text">
+            <span class="dw-location-display__title" *ngIf="!loadingLocations">{{ selectedLocationOption?.name || 'Select location' }}</span>
+            <span class="dw-location-display__title" *ngIf="loadingLocations">Loading locations...</span>
+            <span
+              class="dw-location-display__meta"
+              *ngIf="!loadingLocations && (selectedLocationOption?.groupLabel || selectedLocationOption?.locationLine)"
+            >
+              <ng-container *ngIf="selectedLocationOption?.groupLabel">{{ selectedLocationOption?.groupLabel }}</ng-container>
+              <ng-container *ngIf="selectedLocationOption?.groupLabel && selectedLocationOption?.locationLine"> - </ng-container>
+              <ng-container *ngIf="selectedLocationOption?.locationLine">{{ selectedLocationOption?.locationLine }}</ng-container>
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="dw-location-trigger"
+          ngbDropdownToggle
           [disabled]="loadingLocations || locations.length === 0"
           aria-label="Select location"
+          aria-haspopup="listbox"
+          [attr.aria-expanded]="locationDropdown.isOpen()"
         >
-          <option *ngFor="let loc of locations" [ngValue]="loc.id">
-            {{ loc.name }}
-          </option>
-        </select>
-        <i
-          *ngIf="!loadingLocations"
-          class="feather icon-chevron-down select-caret"
-          aria-hidden="true"
-        ></i>
+          <!-- <i class="feather icon-chevron-down" aria-hidden="true"></i> -->
+        </button>
         <div
           *ngIf="loadingLocations"
           class="spinner-border spinner-border-sm text-primary position-absolute loading-indicator"
@@ -33,6 +53,34 @@
           aria-label="Loading locations"
         >
           <span class="visually-hidden">Loading...</span>
+        </div>
+
+        <div ngbDropdownMenu class="dw-location-menu">
+          <div class="dw-location-menu__hint" *ngIf="locationsLimited">
+            Only showing up to {{ locationResultsCap }} results...
+          </div>
+          <ng-container *ngFor="let group of locationGroups; trackBy: trackLocationGroup">
+            <div class="dw-location-group" role="group">
+              <div class="dw-location-group__label">
+                {{ group.label }}
+              </div>
+              <button
+                type="button"
+                class="dw-location-option"
+                ngbDropdownItem
+                *ngFor="let option of group.items; trackBy: trackLocationOption"
+                (click)="chooseLocation(option, locationDropdown)"
+                [class.is-active]="selectedLocationId === option.id"
+              >
+                <span class="dw-status-dot" [class.is-active]="option.isActive !== false"></span>
+                <div class="dw-location-option__body">
+                  <span class="option-title">{{ option.name }}</span>
+                  <span class="option-subtitle" *ngIf="option.locationLine">{{ option.locationLine }}</span>
+                </div>
+                <span class="option-meta" *ngIf="option.applicantsLabel">{{ option.applicantsLabel }}</span>
+              </button>
+            </div>
+          </ng-container>
         </div>
       </div>
     </div>
@@ -69,70 +117,88 @@
   </div> -->
 </div>
 
-<div class="carousel-wrapper p-3 mb-2">
-  <div class="carousel-viewport">
-    <div
-      class="carousel-track d-flex"
-      #track
-      [style.transform]="trackTransform"
-      [style.transition]="trackTransitionStyle"
-    >
+<ng-container *ngIf="stages.length > 0; else noStagesTpl">
+  <div class="carousel-wrapper p-3 mb-2">
+    <div class="carousel-viewport">
       <div
-        class="status-card"
-        *ngFor="let s of stages; trackBy: trackCard"
-        (click)="onCardClick(s)"
-        (keydown.enter)="onCardClick(s)"
-        (keydown.space)="onCardClick(s); $event.preventDefault()"
-        tabindex="0"
-        role="button"
-        [attr.aria-pressed]="selectedCardId === s.id_stage"
-        [class.active]="selectedCardId === s.id_stage"
+        class="carousel-track d-flex"
+        #track
+        [style.transform]="trackTransform"
+        [style.transition]="trackTransitionStyle"
       >
-        <div class="d-flex align-items-start mb-2 gap-2">
-          <div class="icon-box">
-            <!-- Dynamic icon based on id_stage_type -->
-            <i
-              class="feather"
-              [ngClass]="stageIcon(s.id_stage_type)"
-              aria-hidden="true"
-            ></i>
+        <div
+          class="status-card"
+          *ngFor="let s of stages; trackBy: trackCard"
+          (click)="onCardClick(s)"
+          (keydown.enter)="onCardClick(s)"
+          (keydown.space)="onCardClick(s); $event.preventDefault()"
+          tabindex="0"
+          role="button"
+          [attr.aria-pressed]="selectedCardId === s.id_stage"
+          [class.active]="selectedCardId === s.id_stage"
+        >
+          <div class="d-flex align-items-start mb-2 gap-2">
+            <div class="icon-box">
+              <!-- Dynamic icon based on id_stage_type -->
+              <i
+                class="feather"
+                [ngClass]="stageIcon(s.id_stage_type)"
+                aria-hidden="true"
+              ></i>
+            </div>
+            <div class="status-block ms-2">
+              <div class="fw-semibold status-text">{{ s.name }}</div>
+              <div class="sub-status small text-secondary">{{ s.type }}</div>
+            </div>
           </div>
-          <div class="status-block ms-2">
-            <div class="fw-semibold status-text">{{ s.name }}</div>
-            <div class="sub-status small text-secondary">{{ s.type }}</div>
-          </div>
-        </div>
 
-        <div class="d-flex align-items-center text-secondary gap-1 meta small">
-          <i class="feather icon-user"></i>
-          <span>{{ s.applicants_count }}</span>
+          <div class="d-flex align-items-center text-secondary gap-1 meta small">
+            <i class="feather icon-user"></i>
+            <span>{{ s.applicants_count }}</span>
+          </div>
         </div>
       </div>
     </div>
+    <button
+      type="button"
+      class="carousel-nav prev"
+      aria-label="Previous"
+      [disabled]="!canPrev()"
+      (click)="prev()"
+    >
+      <i class="feather icon-chevron-left"></i>
+    </button>
+    <button
+      type="button"
+      class="carousel-nav next"
+      aria-label="Next"
+      [disabled]="!canNext()"
+      (click)="next()"
+    >
+      <i class="feather icon-chevron-right"></i>
+    </button>
   </div>
-  <button
-    type="button"
-    class="carousel-nav prev"
-    aria-label="Previous"
-    [disabled]="!canPrev()"
-    (click)="prev()"
+</ng-container>
+
+<ng-template #noStagesTpl>
+  <div
+    class="locations-empty-state empty-state text-center py-5 px-3 mx-auto"
+    *ngIf="stagesRequested && !stagesLoading && !locationsError"
   >
-    <i class="feather icon-chevron-left"></i>
-  </button>
-  <button
-    type="button"
-    class="carousel-nav next"
-    aria-label="Next"
-    [disabled]="!canNext()"
-    (click)="next()"
-  >
-    <i class="feather icon-chevron-right"></i>
-  </button>
-  <!-- <div class="mt-2 text-end small text-secondary">
-    Showing {{ stages.length === 0 ? 0 : visibleStart + 1 }}–{{ endIndex }} of
-    {{ stages.length }}
-  </div> -->
-</div>
+    <div class="empty-icon-wrapper mx-auto mb-3">
+      <div class="gradient-ring">
+        <i class="feather icon-map-pin empty-main-icon"></i>
+      </div>
+    </div>
+    <h5 class="empty-title mb-2">No workflow stages found</h5>
+    <p class="empty-subtitle mb-3">
+      The selected location does not have workflow stages configured yet.
+    </p>
+    <div class="empty-hint text-secondary">
+      Pick another location or configure stages from the Workflows section.
+    </div>
+  </div>
+</ng-template>
 
 <div class="p-3" *ngIf="showGrid">
   <app-applicants-grid
@@ -140,3 +206,5 @@
     [applicantsCount]="selectedStageApplicantsCount"
   ></app-applicants-grid>
 </div>
+
+

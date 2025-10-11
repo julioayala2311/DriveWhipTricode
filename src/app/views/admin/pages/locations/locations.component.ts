@@ -2,13 +2,27 @@ import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, OnDestroy } fr
 import Swal from 'sweetalert2';
 import { ApplicantsGridComponent } from './applicants-grid.component';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
+import { NgbDropdownModule, NgbDropdown } from '@ng-bootstrap/ng-bootstrap';
 import { CryptoService } from '../../../../core/services/crypto/crypto.service';
 import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
 import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/models/entities.model';
 import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
 import { ActivatedRoute } from '@angular/router';
+
+interface LocationOption {
+  id: number;
+  name: string;
+  groupLabel: string;
+  locationLine?: string;
+  applicants?: number | null;
+  applicantsLabel?: string;
+  isActive?: boolean;
+}
+
+interface LocationGroup {
+  label: string;
+  items: LocationOption[];
+}
 
 @Component({
   selector: 'app-home',
@@ -16,7 +30,6 @@ import { ActivatedRoute } from '@angular/router';
   imports: [
     CommonModule,
     NgbDropdownModule,
-    FormsModule,
     ApplicantsGridComponent
   ],
   templateUrl: './locations.component.html',
@@ -49,10 +62,17 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
   private resizeHandler = () => this.updatePerView();
 
   // Locations dropdown (crm_locations_dropdown)
-  locations: { id: number; name: string }[] = [];
+  locations: LocationOption[] = [];
+  locationGroups: LocationGroup[] = [];
   selectedLocationId: number | null = null;
   loadingLocations = false;
   locationsError: string | null = null;
+  readonly locationResultsCap = 100;
+  locationsLimited = false;
+  selectedLocationOption: LocationOption | null = null;
+  stagesRequested = false;
+  stagesLoading = false;
+  private readonly numberFormatter = new Intl.NumberFormat('en-US');
 
   get totalStages() { return this.stages.length; }
   get visibleCards() { return this.stages.slice(this.visibleStart, this.visibleStart + this.perView); }
@@ -148,6 +168,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadLocations(): void {
     this.loadingLocations = true;
     this.locationsError = null;
+    this.locationsLimited = false;
 
     const api: IDriveWhipCoreAPI = {
       commandName: DriveWhipAdminCommand.crm_locations_dropdown,
@@ -160,6 +181,8 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
       next: res => {
         if (!res.ok) {
           this.locations = [];
+          this.locationGroups = [];
+          this.selectedLocationOption = null;
           this.locationsError = String(res.error || 'Failed to load locations');
           return;
         }
@@ -171,21 +194,63 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
           raw = (top.length > 0 && Array.isArray(top[0])) ? top[0] : top;
         }
         const list = Array.isArray(raw) ? raw : [];
+        this.locationsLimited = list.length >= this.locationResultsCap;
 
-        // Mapea EXCLUSIVAMENTE id_location -> id (number) y name -> name
-        const mapped: { id: number; name: string }[] = [];
+        const mapped: LocationOption[] = [];
         for (const r of list) {
-          const idRaw = r?.id_location ?? r?.ID_LOCATION ?? r?.id; // fallback suave
-          const name  = (r?.name ?? r?.NAME ?? '').toString().trim();
+          const idRaw = r?.id_location ?? r?.ID_LOCATION ?? r?.id ?? r?.ID ?? r?.value ?? r?.val;
+          const nameRaw = r?.name ?? r?.NAME ?? r?.label ?? r?.LABEL ?? '';
+          const name = this.parseString(nameRaw);
           if (idRaw === undefined || idRaw === null || !name) continue;
 
           const idNum = typeof idRaw === 'number' ? idRaw : Number(String(idRaw));
           if (!Number.isFinite(idNum)) continue;
 
-          mapped.push({ id: idNum, name });
+          const city = this.parseString(r?.city ?? r?.CITY ?? r?.city_name ?? r?.CITY_NAME);
+          const state = this.parseString(r?.state ?? r?.STATE ?? r?.state_code ?? r?.STATE_CODE);
+          const country = this.parseString(r?.country ?? r?.COUNTRY ?? r?.country_name ?? r?.COUNTRY_NAME);
+          const locationParts = [city, state, country].filter(Boolean) as string[];
+          const locationLine = locationParts.length > 0 ? locationParts.join(', ') : undefined;
+
+          const groupSource = this.parseString(
+            r?.market ?? r?.MARKET ??
+            r?.region ?? r?.REGION ??
+            r?.division ?? r?.DIVISION ??
+            r?.group ?? r?.GROUP ??
+            r?.territory ?? r?.TERRITORY ??
+            city
+          );
+          const groupLabel = groupSource || 'Other locations';
+
+          const applicantsRaw = this.toNumberStrict(
+            r?.applicants_count ?? r?.APPLICANTS_COUNT ??
+            r?.applicants ?? r?.APPLICANTS ??
+            r?.total_applicants ?? r?.TOTAL_APPLICANTS ??
+            r?.candidate_count ?? r?.CANDIDATE_COUNT
+          );
+          const applicantsLabel = this.formatApplicants(applicantsRaw);
+
+          const isActive = this.normalizeBoolean(r?.is_active ?? r?.IS_ACTIVE ?? r?.active ?? r?.ACTIVE ?? true);
+
+          mapped.push({
+            id: idNum,
+            name,
+            groupLabel,
+            locationLine,
+            applicants: applicantsRaw ?? undefined,
+            applicantsLabel: applicantsLabel ?? undefined,
+            isActive
+          });
         }
 
         this.locations = mapped;
+        this.buildLocationGroups();
+
+        if (this.locations.length === 0) {
+          this.selectedLocationId = null;
+          this.selectedLocationOption = null;
+          return;
+        }
 
         if (this.locations.length > 0) {
           // Preselection based on query param ?id_location=...
@@ -198,6 +263,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
           }
 
           this.selectedLocationId = preselect ?? this.locations[0].id;
+          this.syncSelectedLocationOption();
 
           // Dependent load
           this.loadStagesForWorkflow();
@@ -206,6 +272,8 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
       error: err => {
         console.error('[Locations] loadLocations error', err);
         this.locations = [];
+        this.locationGroups = [];
+        this.selectedLocationOption = null;
         this.locationsError = 'Failed to load locations';
       },
       complete: () => this.loadingLocations = false
@@ -218,18 +286,23 @@ onLocationChange(): void {
   }
 
   private loadStagesForWorkflow(): void {
-  // Abort only if null or undefined; allow 0 as a valid id
+    this.stagesLoading = true;
+    this.stagesRequested = false;
+    // Abort only if null or undefined; allow 0 as a valid id
     if (this.selectedLocationId === null || this.selectedLocationId === undefined) {
       this.stages = [];
+      this.stagesLoading = false;
       return;
     }
-  // Ensure number (should already be number if using [ngValue])
+    // Ensure number (should already be number if using [ngValue])
     const workflowId = this.toNumberStrict(this.selectedLocationId);
     if (workflowId === null || Number.isNaN(workflowId)) {
-  console.warn('[HomeComponent] Invalid workflowId', this.selectedLocationId);
+      console.warn('[HomeComponent] Invalid workflowId', this.selectedLocationId);
       this.stages = [];
+      this.stagesLoading = false;
       return;
     }
+    this.stagesRequested = true;
     const api: IDriveWhipCoreAPI = {
       commandName: DriveWhipAdminCommand.crm_stages_list,
       parameters: [ workflowId ]
@@ -240,6 +313,7 @@ onLocationChange(): void {
 
         if (!res.ok) {
           this.stages = [];
+          this.stagesLoading = false;
           return;
         }
         let raw: any = [];
@@ -264,10 +338,15 @@ onLocationChange(): void {
 
         //Hide Grid
         this.showGrid = false;
+        this.stagesLoading = false;
       },
       error: err => {
         console.error('[HomeComponent] loadStagesForWorkflow error', err);
         this.stages = [];
+        this.stagesLoading = false;
+      },
+      complete: () => {
+        this.stagesLoading = false;
       }
     });
   }
@@ -303,6 +382,9 @@ onLocationChange(): void {
 
   trackCard = (_: number, item: any) => item.id_stage ?? item.id;
 
+  trackLocationGroup = (_: number, group: LocationGroup) => group.label;
+  trackLocationOption = (_: number, option: LocationOption) => option.id;
+
   private slideTo(startIndex: number) {
     const distanceItems = Math.abs(startIndex - this.visibleStart);
     const base = 0.45;
@@ -317,6 +399,68 @@ onLocationChange(): void {
     setTimeout(() => {
       this.animating = false;
     }, timeout);
+  }
+
+  chooseLocation(option: LocationOption, dropdown: NgbDropdown): void {
+    if (this.selectedLocationId === option.id) {
+      dropdown.close();
+      return;
+    }
+    this.selectedLocationId = option.id;
+    this.syncSelectedLocationOption();
+    dropdown.close();
+    this.onLocationChange();
+  }
+
+  private buildLocationGroups(): void {
+    const groups = new Map<string, LocationOption[]>();
+    for (const option of this.locations) {
+      const key = option.groupLabel || 'Other locations';
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(option);
+    }
+    this.locationGroups = Array.from(groups.entries()).map(([label, items]) => ({
+      label,
+      items: items.sort((a, b) => a.name.localeCompare(b.name))
+    }));
+  }
+
+  private syncSelectedLocationOption(): void {
+    if (this.selectedLocationId === null) {
+      this.selectedLocationOption = null;
+      return;
+    }
+    this.selectedLocationOption = this.locations.find(loc => loc.id === this.selectedLocationId) ?? null;
+  }
+
+  private parseString(value: unknown): string | undefined {
+    if (value === null || value === undefined) return undefined;
+    const str = String(value).trim();
+    return str ? str : undefined;
+  }
+
+  private formatApplicants(value: number | null | undefined): string | undefined {
+    if (value === null || value === undefined || !Number.isFinite(value)) {
+      return undefined;
+    }
+    const formatted = this.numberFormatter.format(value);
+    return `${formatted} applicant${value === 1 ? '' : 's'}`;
+  }
+
+  private normalizeBoolean(value: unknown): boolean {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return value !== 0;
+    }
+    if (typeof value === 'string') {
+      const lower = value.trim().toLowerCase();
+      return ['true', '1', 'yes', 'y', 'active'].includes(lower);
+    }
+    return Boolean(value);
   }
 
   private updateTransform() {

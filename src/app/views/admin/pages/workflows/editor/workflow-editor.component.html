@@ -1,7 +1,8 @@
 <div class="workflow-editor">
   <!-- Header bar -->
-  <div class="editor-header text-center text-white bg-primary py-2 px-3">
-    <h5 class="mb-0 fw-semibold">{{ workflowName() }}</h5>
+  <div class="editor-header d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-primary shadow-sm" style="min-height:56px;">
+    <h2 class="mb-0 fw-semibold text-truncate text-white" style="font-size:1rem;letter-spacing:.01em;">{{ workflowName() }}</h2>
+    <div style="width:40px;"></div>
   </div>
 
   <div class="editor-body d-flex flex-column flex-lg-row">
@@ -9,20 +10,32 @@
     <aside class="stages-panel border-end" *ngIf="!loading(); else loadingTpl">
       <div class="stages-toolbar px-2 pt-2 pb-1 d-flex flex-column gap-2">
         <div class="d-flex align-items-center gap-2 flex-wrap">
-          <div class="small fw-semibold text-uppercase text-secondary d-flex align-items-center gap-2" style="letter-spacing:.5px; font-size:.65rem;">
-            <button type="button" class="btn btn-xs btn-outline-primary" (click)="openAddStageModal()"><i class="feather icon-git-commit me-1" style="font-size:.9rem; line-height:1;" aria-hidden="true"></i>Add Stage</button>
-            <button type="button" class="btn btn-xs btn-outline-primary" (click)="openAddRuleModal()"><i class="feather icon-git-branch me-1" style="font-size:.85rem;"></i>Add Rule</button>
+          <div class="row">
+            <div class="small fw-semibold text-secondary d-flex align-items-center gap-2" style="letter-spacing:.5px; font-size:.65rem;">
+              <a class="btn btn-xs btn-outline-primary d-inline-flex align-items-center justify-content-center gap-1" [routerLink]="['/workflows']" title="Back to workflows" style="height:28px; min-width:80px; border-radius:6px;">
+                <i class="feather icon-arrow-left" ></i>
+                <span class="d-none d-md-inline ms-1">Back</span>
+              </a>
+              <button type="button" class="btn btn-xs btn-outline-primary d-inline-flex align-items-center justify-content-center gap-1" (click)="openAddStageModal()" style="height:28px; min-width:80px; border-radius:6px;">
+                <i class="feather icon-git-commit" style="font-size:.9rem; line-height:1;" aria-hidden="true"></i>
+                <span class="d-none d-md-inline ms-1">Add Stage</span>
+              </button>
+              <button type="button" class="btn btn-xs btn-outline-primary d-inline-flex align-items-center justify-content-center gap-1" (click)="openAddRuleModal()" style="height:28px; min-width:80px; border-radius:6px;">
+                <i class="feather icon-git-branch" style="font-size:.85rem;"></i>
+                <span class="d-none d-md-inline ms-1">Add Rule</span>
+              </button>
+            </div>
           </div>
-          <div class="d-flex align-items-center gap-1 ms-auto order-actions">
-            <button type="button" class="btn btn-xs btn-outline-secondary" [disabled]="!orderDirty()" (click)="resetOrder()" [attr.title]="orderDirty() ? 'Reset order to original' : 'No changes'">
+          <!-- <div class="d-flex align-items-center gap-2 ms-auto order-actions flex-wrap">
+            <button type="button" class="btn btn-xs btn-outline-secondary px-2" [disabled]="!orderDirty()" (click)="resetOrder()" [attr.title]="orderDirty() ? 'Reset order to original' : 'No changes'">
               <i class="feather icon-rotate-ccw"></i>
-              <span class="d-none d-sm-inline ms-1" *ngIf="orderDirty()">Restore order</span>
+              <span class="d-none d-md-inline ms-1" *ngIf="orderDirty()">Restore order</span>
             </button>
-            <button type="button" class="btn btn-xs btn-primary d-inline-flex align-items-center" [disabled]="!orderDirty()" (click)="saveOrder()" [attr.title]="orderDirty() ? 'Save new order' : 'No changes'">
+            <button type="button" class="btn btn-xs btn-primary d-inline-flex align-items-center px-2" [disabled]="!orderDirty()" (click)="saveOrder()" [attr.title]="orderDirty() ? 'Save new order' : 'No changes'">
               <i class="feather icon-save"></i>
-              <span class="d-none d-sm-inline ms-1" *ngIf="orderDirty()">Save changes</span>
+              <span class="d-none d-md-inline ms-1" *ngIf="orderDirty()">Save changes</span>
             </button>
-          </div>
+          </div> -->
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <div class="flex-grow-1 position-relative">
@@ -30,7 +43,7 @@
             <i class="feather icon-search position-absolute" style="left:10px; top:50%; transform:translateY(-50%); font-size:.8rem; opacity:.6;"></i>
           </div>
           <div class="small text-secondary d-flex align-items-center gap-2">
-            <span *ngIf="changedCount() > 0" class="badge bg-info-subtle text-info-emphasis border border-info-subtle" style="font-weight:500;">{{ changedCount() }} changed</span>
+            <!-- <span *ngIf="changedCount() > 0" class="badge bg-info-subtle text-info-emphasis border border-info-subtle" style="font-weight:500;">{{ changedCount() }} changed</span> -->
             <span *ngIf="filterText()" class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle" style="font-weight:500;">Filtered</span>
           </div>
         </div>
@@ -417,7 +430,7 @@
       <button type="button" class="btn btn-sm btn-link text-secondary" (click)="closeAddStageModal()">×</button>
     </div>
     <div class="card-body py-3">
-      <form (ngSubmit)="confirmAddStage()" autocomplete="off" novalidate>
+  <form (ngSubmit)="confirmAddStage()" autocomplete="off" novalidate>
         <div class="row g-3">
           <div class="col-12">
             <label class="form-label small fw-semibold">Name <span class="text-danger">*</span></label>
@@ -427,7 +440,9 @@
             <label class="form-label small fw-semibold">Stage Type <span class="text-danger">*</span></label>
             <select class="form-select form-select-sm" [value]="newStageTypeId() ?? ''" (focus)="ensureStageTypes()" (change)="newStageTypeId.set(+($any($event.target).value)||null)" [disabled]="stageTypesLoading()">
               <option value="">Select type…</option>
-              <option *ngFor="let st of stageTypeOptions()" [value]="st.id">{{ st.label }}</option>
+              <ng-container *ngFor="let st of stageTypeOptions()">
+                <option *ngIf="st.label !== 'Rules'" [value]="st.id">{{ st.label }}</option>
+              </ng-container>
             </select>
             <div *ngIf="stageTypesLoading()" class="form-text small text-secondary">Loading types…</div>
             <div *ngIf="stageTypesError()" class="form-text small text-danger">{{ stageTypesError() }}</div>
@@ -465,7 +480,7 @@
       <button type="button" class="btn btn-sm btn-link text-secondary" (click)="closeAddRuleModal()">×</button>
     </div>
     <div class="card-body py-3">
-      <form (ngSubmit)="confirmAddRule()" autocomplete="off" novalidate>
+  <form (ngSubmit)="confirmAddRule()" autocomplete="off" novalidate>
         <div class="row g-3">
           <div class="col-12">
             <label class="form-label small fw-semibold">Title</label>

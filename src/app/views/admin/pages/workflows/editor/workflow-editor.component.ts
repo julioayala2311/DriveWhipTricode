@@ -3,7 +3,7 @@ import { CommonModule } from "@angular/common";
 import { FormsModule } from '@angular/forms';
 import { NonNegativeNumberDirective } from '../../../../../shared/non-negative-number.directive';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute, Router, RouterModule } from "@angular/router";
 import { DriveWhipCoreService } from "../../../../../core/services/drivewhip-core/drivewhip-core.service";
 import {
   IDriveWhipCoreAPI,
@@ -24,7 +24,7 @@ import { finalize, forkJoin, of, switchMap } from 'rxjs';
   selector: "dw-workflow-editor",
   standalone: true,
   // Added FormsModule so (ngSubmit) works (prevents native form submission / page reload)
-  imports: [CommonModule, FormsModule, DragDropModule, NonNegativeNumberDirective],
+  imports: [CommonModule, FormsModule, DragDropModule, NonNegativeNumberDirective, RouterModule],
   templateUrl: "./workflow-editor.component.html",
   styleUrl: "./workflow-editor.component.scss",
 })
@@ -222,24 +222,83 @@ export class WorkflowEditorComponent implements OnInit {
 
   confirmAddRule(): void {
     if (!this.newRuleValue().trim() || !this.newRuleTypeId()) { Utilities.showToast('Rule value & type required','warning'); return; }
-    // Insert new blank rule row with value populated; position handling simplified: start / end only unless hooking into selection later
-    const placement = this.newRulePlacement();
-    const rows = [...this.ruleRows()];
-    const newRow: RuleRow = {
-      id: null,
-      condition_type_id: null,
-      datakey_id: null,
-      operator_id: null,
-      value: this.newRuleValue().trim(),
-      action_id: null,
-      reason_id: null,
-      isActive: true,
-      dirty: true
-    };
-    if (placement === 'start') rows.unshift(newRow); else rows.push(newRow);
-    this.ruleRows.set(rows);
-    this.closeAddRuleModal();
-    Utilities.showToast('Rule draft added','success');
+    if (this.workflowId == null) { Utilities.showToast('Workflow context missing','error'); return; }
+    if (this.newStageSaving()) return;
+
+    // Find id_stage_type for label 'Rules'
+    const rulesType = this.stageTypeOptions().find(st => st.label === 'Rules');
+    if (!rulesType) { Utilities.showToast('No stage type "Rules" found','error'); return; }
+
+    const placement = this.newStagePlacement(); // 'top' or stage id string
+    const stagesSnapshot = [...this.stages()].sort((a,b)=>(a.sort_order??0)-(b.sort_order??0));
+    let pivotOrder = 0;
+    if (placement !== 'top') {
+      const pivotStage = stagesSnapshot.find(s => String(s.id_stage) === placement);
+      if (!pivotStage) {
+        Utilities.showToast('Selected reference stage not found, inserting at end','warning');
+        pivotOrder = stagesSnapshot.length ? (stagesSnapshot[stagesSnapshot.length-1].sort_order || stagesSnapshot.length) : 0;
+      } else {
+        pivotOrder = pivotStage.sort_order || 0;
+      }
+    }
+    // Shift stages after pivot
+    const toShift = stagesSnapshot.filter(s => (s.sort_order||0) > pivotOrder).sort((a,b)=>(b.sort_order||0)-(a.sort_order||0));
+    const currentUser = this.authSession.user?.user || 'system';
+    const shiftCalls = toShift.map(stage => {
+      const params: any[] = [
+        'U',
+        stage.id_stage,
+        this.workflowId,
+        stage.id_stage_type,
+        stage.name,
+        (stage.sort_order||0) + 1,
+        1,
+        null,
+        currentUser
+      ];
+      const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
+      return this.core.executeCommand<DriveWhipCommandResponse>(api);
+    });
+    // New stage order will be pivotOrder + 1
+    const newSortOrder = pivotOrder + 1;
+    const createParams: any[] = [
+      'C',
+      null,
+      this.workflowId,
+      rulesType.id,
+      this.newRuleValue().trim(),
+      newSortOrder,
+      1,
+      currentUser,
+      null
+    ];
+    const createApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: createParams };
+    this.newStageSaving.set(true);
+    (shiftCalls.length ? forkJoin(shiftCalls) : of([{ ok: true } as any])).pipe(
+      switchMap(shiftResults => {
+        const allShiftOk = shiftResults.every(r => r && r.ok);
+        if (!allShiftOk) {
+          Utilities.showToast('Failed shifting existing stages','error');
+          return of(null);
+        }
+        return this.core.executeCommand<DriveWhipCommandResponse>(createApi);
+      }),
+      finalize(()=> this.newStageSaving.set(false))
+    ).subscribe({
+      next: res => {
+        if (!res || !res.ok) {
+          Utilities.showToast('Failed to create Rules stage','error');
+          return;
+        }
+        Utilities.showToast('Rules stage created','success');
+        this.closeAddRuleModal();
+        this.loadStages();
+      },
+      error: err => {
+        console.error('[WorkflowEditor] create Rules stage error', err);
+        Utilities.showToast('Error creating Rules stage','error');
+      }
+    });
   }
 
   ensureRuleTypes(): void {
@@ -1463,6 +1522,8 @@ export class WorkflowEditorComponent implements OnInit {
     // Normalize sort_order sequentially
     full.forEach((s, i) => s.sort_order = i + 1);
     this.stages.set(full);
+    // Persist order automatically
+    this.saveOrder();
   }
 
   // Build payload for save (id_stage + sort_order) – used in saveOrder()

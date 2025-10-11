@@ -16,7 +16,7 @@
           aria-live="polite"
           [attr.aria-busy]="loadingLocations"
         >
-          <i class="feather icon-map-pin dw-location-display__icon" aria-hidden="true"></i>
+          <!-- <i class="feather icon-map-pin dw-location-display__icon" aria-hidden="true"></i> -->
           <span
             class="dw-status-dot"
             [class.is-active]="!loadingLocations && (selectedLocationOption ? selectedLocationOption.isActive !== false : false)"
@@ -29,9 +29,6 @@
               class="dw-location-display__meta"
               *ngIf="!loadingLocations && (selectedLocationOption?.groupLabel || selectedLocationOption?.locationLine)"
             >
-              <ng-container *ngIf="selectedLocationOption?.groupLabel">{{ selectedLocationOption?.groupLabel }}</ng-container>
-              <ng-container *ngIf="selectedLocationOption?.groupLabel && selectedLocationOption?.locationLine"> - </ng-container>
-              <ng-container *ngIf="selectedLocationOption?.locationLine">{{ selectedLocationOption?.locationLine }}</ng-container>
             </span>
           </div>
         </div>
@@ -194,9 +191,17 @@
     <p class="empty-subtitle mb-3">
       The selected location does not have workflow stages configured yet.
     </p>
-    <div class="empty-hint text-secondary">
+    <div class="empty-hint text-secondary mb-3">
       Pick another location or configure stages from the Workflows section.
     </div>
+    <a
+      class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+      [routerLink]="['/workflows']"
+      style="margin-top:8px;"
+    >
+      <i class="feather icon-git-commit me-1" style="font-size:.9rem; line-height:1;"></i>
+      Go to Workflows to create stages
+    </a>
   </div>
 </ng-template>
 

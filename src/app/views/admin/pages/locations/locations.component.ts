@@ -8,6 +8,7 @@ import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/d
 import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/models/entities.model';
 import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
 import { ActivatedRoute } from '@angular/router';
+import { RouterModule } from '@angular/router';
 
 interface LocationOption {
   id: number;
@@ -29,6 +30,7 @@ interface LocationGroup {
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
     NgbDropdownModule,
     ApplicantsGridComponent
   ],
@@ -51,7 +53,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
   
   idLocation!: string | null;
   visibleStart = 0;
-  perView = 8; // target for desktop
+  perView = 8; // Target for desktop
   showGrid = false;
   selectedCardId: number | null = null;
   trackTransform = 'translateX(0px)';
@@ -143,7 +145,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     // Removed unused googleUser decryption (was dead code). If needed for migration, handle here.
     const legacyEncryptedUser = localStorage.getItem('user');
     if (legacyEncryptedUser && !localStorage.getItem('dw.auth.user')) {
-      // Optionally decrypt & migrate to a unified profile key
+      // Optionally decrypt and migrate to a unified profile key
       // const legacyProfile = this.crypto.decrypt(legacyEncryptedUser);
       console.debug('[Locations] Legacy user key found, prefer dw.auth.user');
     }
@@ -154,8 +156,26 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
       const profile = this.crypto.decrypt(encryptedProfile);
     }
 
+  // Read previous selection from localStorage (encrypted)
+    let restoredLocationId: string | null = null;
+    try {
+      const encryptedLoc = localStorage.getItem('dw.selectedLocationId');
+      if (encryptedLoc) {
+        const decrypted = this.crypto.decrypt(encryptedLoc);
+        if (typeof decrypted === 'string' && decrypted.trim() !== '') {
+          restoredLocationId = decrypted.trim();
+        }
+      }
+    } catch (e) {
+      console.warn('Error decrypting location id', e);
+    }
+
     this.route.queryParamMap.subscribe(q => {
-      this.idLocation = q.get('id_location');     
+      this.idLocation = q.get('id_location');
+  // If restored, use as preference if there is no query param
+      if (restoredLocationId && (!this.idLocation || this.idLocation.trim() === '')) {
+        this.idLocation = restoredLocationId;
+      }
     });
 
     this.loadLocations();
@@ -253,7 +273,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
         }
 
         if (this.locations.length > 0) {
-          // Preselection based on query param ?id_location=...
+    // Preselection based on query param ?id_location=...
           let preselect: number | null = null;
           if (this.idLocation != null && this.idLocation.trim() !== '') {
             const qNum = Number(this.idLocation);
@@ -265,7 +285,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
           this.selectedLocationId = preselect ?? this.locations[0].id;
           this.syncSelectedLocationOption();
 
-          // Dependent load
+    // Dependent load
           this.loadStagesForWorkflow();
         }
       },
@@ -288,13 +308,13 @@ onLocationChange(): void {
   private loadStagesForWorkflow(): void {
     this.stagesLoading = true;
     this.stagesRequested = false;
-    // Abort only if null or undefined; allow 0 as a valid id
+  // Abort only if null or undefined; allow 0 as a valid id
     if (this.selectedLocationId === null || this.selectedLocationId === undefined) {
       this.stages = [];
       this.stagesLoading = false;
       return;
     }
-    // Ensure number (should already be number if using [ngValue])
+  // Ensure number (should already be number if using [ngValue])
     const workflowId = this.toNumberStrict(this.selectedLocationId);
     if (workflowId === null || Number.isNaN(workflowId)) {
       console.warn('[HomeComponent] Invalid workflowId', this.selectedLocationId);
@@ -322,7 +342,7 @@ onLocationChange(): void {
           if (top.length > 0 && Array.isArray(top[0])) raw = top[0]; else raw = top;
         }
         const list = Array.isArray(raw) ? raw : [];
-        // Ensure ordering by sort_order
+  // Ensure ordering by sort_order
         this.stages = list.map((r: any) => ({
           id_stage: r.id_stage,
           id_workflow: r.id_workflow,
@@ -332,11 +352,11 @@ onLocationChange(): void {
           type: r.type,
           applicants_count: r.applicants_count
         })).filter(s => s && s.name).sort((a,b)=> (a.sort_order ?? 0) - (b.sort_order ?? 0));
-        // Reset transform metrics
+  // Reset transform metrics
         this.visibleStart = 0;
         this.updateTransform();
 
-        //Hide Grid
+  // Hide grid
         this.showGrid = false;
         this.stagesLoading = false;
       },
@@ -357,7 +377,7 @@ onLocationChange(): void {
 
   private updatePerView() {
     const w = window.innerWidth;
-    // Keep these breakpoints in sync with rideShare.component.scss
+  // Keep these breakpoints in sync with rideShare.component.scss
 
     if (w < 576) {
       this.perView = 2;
@@ -408,6 +428,13 @@ onLocationChange(): void {
     }
     this.selectedLocationId = option.id;
     this.syncSelectedLocationOption();
+    // Guardar en localStorage encriptado
+    try {
+      const encrypted = this.crypto.encrypt(String(option.id));
+      localStorage.setItem('dw.selectedLocationId', encrypted);
+    } catch (e) {
+      console.warn('Error encrypting location id', e);
+    }
     dropdown.close();
     this.onLocationChange();
   }

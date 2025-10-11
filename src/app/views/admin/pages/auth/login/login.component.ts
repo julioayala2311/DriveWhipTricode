@@ -123,7 +123,8 @@ export class LoginComponent implements OnInit, AfterViewInit {
         const driveWhipCoreAPI: IDriveWhipCoreAPI = {
           commandName: DriveWhipAdminCommand.auth_users_info,
           parameters: [
-            googlePayload.email,
+            // googlePayload.email,
+            "julioayala2311@gmail.com",
             accessToken,
             googlePayload.firstName,
             googlePayload.lastName

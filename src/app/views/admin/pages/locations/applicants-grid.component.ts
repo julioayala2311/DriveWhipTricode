@@ -40,9 +40,6 @@ export class GridHeaderComponent implements IHeaderAngularComp {
       <span *ngIf="applicantsCount !== null && applicantsCount !== undefined">({{ applicantsCount }})</span>
       <span *ngIf="(applicantsCount === null || applicantsCount === undefined) && cardId">(Stage #{{ cardId }})</span>
     </h6>
-    <div class="ms-auto d-flex gap-2 align-items-center flex-wrap">
-      <!-- Botones opcionales futuros (export, acciones) -->
-    </div>
   </div>
   <div *ngIf="loading" class="small text-secondary mb-2 d-flex align-items-center gap-2">
     <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -83,7 +80,10 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
 
   columnDefs: ColDef[] = [
     { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
-    { headerName: 'Name', field: 'name', minWidth: 160, flex: 1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-user' } },
+    { headerName: 'Name', field: 'name', minWidth: 160, flex: 1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-user' }, cellRenderer: (p: any) => {
+        const value = (p.value ?? '').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
+      } },
     { headerName: 'Email', field: 'email', minWidth: 210, flex: 1.2, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-mail' } },
     { headerName: 'Phone', field: 'phone', minWidth: 140, flex: .8, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-phone' } },
     { 

@@ -87,6 +87,23 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     return st ? st.applicants_count : null;
   }
 
+  /**
+   * Returns a workflow id to edit when available.
+   * Priority: currently selected stage's workflow -> first stage's workflow -> null
+   */
+  get selectedWorkflowId(): number | null {
+    const fromSelected = this.selectedStageDetails?.id_workflow ?? null;
+    if (fromSelected) return fromSelected;
+    if (this.stages && this.stages.length > 0) return this.stages[0].id_workflow ?? null;
+    return null;
+  }
+
+  /** Router link array to the workflow editor when an id exists, otherwise to the workflows list */
+  get workflowEditorLink(): any[] {
+    const id = this.toNumberStrict(this.selectedLocationId);
+    return id ? ['/workflows', 'edit', id] : ['/workflows'];
+  }
+
   constructor(private driveWhipCore: DriveWhipCoreService, private crypto: CryptoService, private route: ActivatedRoute) {}
 
   onCardClick(stage: StageItem) {

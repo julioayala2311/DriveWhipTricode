@@ -131,7 +131,9 @@ export class UserAccountsComponent implements OnInit {
             if (top.length > 0 && Array.isArray(top[0])) raw = top[0]; else raw = top;
         }
         const list: RoleRecord[] = Array.isArray(raw) ? raw : [];
-        const active = list.filter(r => r && r.role && r.isactive === 1).map(r => r.role.trim());
+        const active = list
+          .filter(r => r && r.role && ((r as any).isactive === 1 || (r as any).isactive === true || String((r as any).isactive).toLowerCase() === 'true'))
+          .map(r => r.role.trim());
         // Remove duplicates
         const uniq = Array.from(new Set(active.map(r => r.toLowerCase())));
         // Keep original casing of the first occurrence
@@ -210,7 +212,8 @@ export class UserAccountsComponent implements OnInit {
     const params: any[] = [
       action,
       rec.user,
-      sessionToken || null,
+      // sessionToken || null,
+      "", // token
       rec.firstname,
       rec.lastname,
       rec.role,

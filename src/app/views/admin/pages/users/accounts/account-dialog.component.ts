@@ -192,7 +192,9 @@ export class AccountDialogComponent implements OnChanges {
         this.firstname = this.record.firstname;
         this.lastname = this.record.lastname;
         this.role = this.record.role;
-        this.active = this.record.active === 1;
+        // Accept numeric 1, boolean true, or string 'true'
+        const a: any = (this.record as any).active;
+        this.active = (a === 1 || a === true || String(a).toLowerCase() === 'true');
       } else if (this.mode === "create") {
         this.user = "";
         this.firstname = "";

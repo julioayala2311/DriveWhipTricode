@@ -24,6 +24,9 @@ export enum DriveWhipAdminCommand {
     crm_markets_list = "crm_markets_list",
     crm_locations_dropdown = "crm_locations_dropdown",
     crm_stages_list = "crm_stages_list", // List of stages for workflow (p_id_workflow)
+    crm_applicants_notes_crud = "crm_applicants_notes_crud",
+    crm_applicants_stages_history_crud = "crm_applicants_stages_history_crud",
+    app_applicants_crud = "app_applicants_crud",
     crm_applicants_X_crm_stages = "crm_applicants_X_crm_stages", // Applicants for stage
     crm_workflows_list = "crm_workflows_list",
     auth_roles_routes = "auth_roles_routes",

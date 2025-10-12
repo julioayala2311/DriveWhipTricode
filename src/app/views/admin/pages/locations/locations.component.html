@@ -212,6 +212,9 @@
     [locationName]="selectedLocationOption?.name || ''"
     [selectedStage]="selectedStageDetails"
     [stageIconClass]="selectedStageDetails ? stageIcon(selectedStageDetails.id_stage_type) : 'icon-layers'"
+    [stageOptions]="stages"
+    #applicantsGrid
+    (stageMoved)="onApplicantStageMoved($event)"
   ></app-applicants-grid>
 </div>
 

@@ -53,6 +53,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedStageDetails: StageItem | null = null;
 
   @ViewChild('track') trackEl?: ElementRef<HTMLElement>;
+  @ViewChild('applicantsGrid') applicantsGrid?: any; // typed later via component selector
   
   idLocation!: string | null;
   visibleStart = 0;
@@ -110,6 +111,18 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedCardId = stage.id_stage;
     this.showGrid = true;
     this.selectedStageDetails = stage;
+  }
+
+  /** Called when an applicant has been moved; refresh stages (counts) and ensure current view updates */
+  onApplicantStageMoved(evt: { idApplicant: string; toStageId: number }) {
+    // Reload stages to refresh applicants_count badges
+    this.loadStagesForWorkflow();
+    // If grid exists, call its public refresh API to avoid re-creating the component
+    try {
+      if (this.applicantsGrid && typeof (this.applicantsGrid.refresh) === 'function') {
+        this.applicantsGrid.refresh();
+      }
+    } catch (e) { /* best effort */ }
   }
 
   onPostToJobBoards(): void {

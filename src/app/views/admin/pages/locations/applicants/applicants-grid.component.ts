@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApplicantPanelComponent } from './applicants-panel.component';
@@ -83,6 +83,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
     (goToNext)="goToNextApplicant()"
     (setTab)="setTab($event)"
     (sendMessage)="onSendMessage($event)"
+    (stageMoved)="onStageMoved($event)"
   ></app-applicant-panel>
   `,
   styles: [`
@@ -93,6 +94,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
   `]
 })
 export class ApplicantsGridComponent implements OnInit, OnChanges {
+  @Output() stageMoved = new EventEmitter<{ idApplicant: string; toStageId: number }>();
   @Input() cardId!: number | null; // stage id
   @Input() applicantsCount: number | null | undefined = null; // total applicants (stage.applicants_count)
   @Input() locationName = '';
@@ -167,6 +169,16 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     }
   }
 
+  /** Handler invoked when an applicant was moved to another stage. Refresh applicants list and try to keep the panel open on the same applicant if still present. */
+  onStageMoved(evt: { idApplicant: string; toStageId: number }) {
+    // Reload the applicants for the current card/stage. This will also refresh counts shown in parent.
+    this.loadApplicants();
+    // If the active applicant still exists in the refreshed list, keep it; otherwise close panel.
+    // loadApplicants already attempts to reconcile activeApplicant, so no extra work required here.
+    // Forward typed event to parent component
+    try { this.stageMoved.emit(evt); } catch (e) { /* best-effort forward */ }
+  }
+
   private loadApplicants() {
     if (!this.cardId) return;
     this.loading = true;
@@ -192,7 +204,10 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
         const list = Array.isArray(raw) ? raw : [];
         const mapped = list.map((r: any) => {
           const statusObj = this.parseStatusDetails(r.Status);
+          // Extract applicant id from any known property that may contain it
+          const applicantId = (r?.id_applicant ?? r?.ID_APPLICANT ?? r?.id ?? r?.ID ?? r?.Id ?? r?.uuid ?? r?.guid ?? r?.applicant_id) ?? null;
           return {
+            id: applicantId != null ? String(applicantId) : null,
             name: r.Name ?? r.name ?? '',
             email: r.Email ?? r.email ?? '',
             phone: r.Phone ?? r.phone ?? '',
@@ -232,6 +247,11 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
       },
       complete: () => { this.loading = false; }
     });
+  }
+
+  /** Public refresh API so parents can request a reload without recreating the component */
+  public refresh(): void {
+    this.loadApplicants();
   }
 
   private parseStatusDetails(rawStatusJson: any): { stage: string; statusName: string; isComplete: boolean } | null {
@@ -440,6 +460,7 @@ interface ApplicantRow {
   questionnaireLink?: string | null;
   details: { label: string; value: string }[];
   locationName?: string;
+  id?: string | null;
   stageIcon?: string;
   raw: any;
 }

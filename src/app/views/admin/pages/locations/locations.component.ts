@@ -25,6 +25,16 @@ interface LocationGroup {
   items: LocationOption[];
 }
 
+interface StageItem {
+  id_stage: number;
+  id_workflow: number;
+  name: string;
+  sort_order: number;
+  id_stage_type: number;
+  type: string;
+  applicants_count: number;
+}
+
 @Component({
   selector: 'app-home',
   standalone: true,
@@ -39,15 +49,8 @@ interface LocationGroup {
 })
 export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
   // Stages (carousel data) loaded from crm_stages_list
-  stages: {
-    id_stage: number;
-    id_workflow: number;
-    name: string;
-    sort_order: number;
-    id_stage_type: number;
-    type: string;
-    applicants_count: number;
-  }[] = [];
+  stages: StageItem[] = [];
+  selectedStageDetails: StageItem | null = null;
 
   @ViewChild('track') trackEl?: ElementRef<HTMLElement>;
   
@@ -86,9 +89,10 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   constructor(private driveWhipCore: DriveWhipCoreService, private crypto: CryptoService, private route: ActivatedRoute) {}
 
-  onCardClick(stage: any) {
-    this.selectedCardId = stage.id_stage ?? stage.id;
+  onCardClick(stage: StageItem) {
+    this.selectedCardId = stage.id_stage;
     this.showGrid = true;
+    this.selectedStageDetails = stage;
   }
 
   onPostToJobBoards(): void {
@@ -300,8 +304,11 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 }
 
-onLocationChange(): void {
+  onLocationChange(): void {
     this.visibleStart = 0;
+    this.selectedCardId = null;
+    this.selectedStageDetails = null;
+    this.showGrid = false;
     this.loadStagesForWorkflow();
   }
 
@@ -352,11 +359,16 @@ onLocationChange(): void {
           type: r.type,
           applicants_count: r.applicants_count
         })).filter(s => s && s.name).sort((a,b)=> (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  // Reset transform metrics
+// Reset transform metrics
         this.visibleStart = 0;
         this.updateTransform();
+        if (this.selectedCardId) {
+          this.selectedStageDetails = this.stages.find(s => s.id_stage === this.selectedCardId) ?? null;
+        } else {
+          this.selectedStageDetails = null;
+        }
 
-  // Hide grid
+// Hide grid
         this.showGrid = false;
         this.stagesLoading = false;
       },

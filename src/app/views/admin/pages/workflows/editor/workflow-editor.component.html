@@ -1,8 +1,17 @@
-<div class="workflow-editor">
+<div class="workflow-editor" style="margin-top: -30px;">
   <!-- Header bar -->
-  <div class="editor-header d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-primary shadow-sm" style="min-height:56px;">
-    <h2 class="mb-0 fw-semibold text-truncate text-white" style="font-size:1rem;letter-spacing:.01em;">{{ workflowName() }}</h2>
-    <div style="width:40px;"></div>
+  <div class="editor-header text-white rounded bg-primary py-2 px-3 d-flex flex-column align-items-center justify-content-center">
+    <div class="d-flex align-items-center gap-3 justify-content-center w-100 position-relative">
+      <h4 class="mb-0 fw-semibold" *ngIf="!editingWorkflowName">{{ workflowName() }}</h4>
+      <form *ngIf="editingWorkflowName" class="d-inline-flex align-items-center gap-2" (ngSubmit)="confirmWorkflowNameEdit()">
+        <input type="text" class="form-control form-control-sm bg-transparent text-white border-white fw-semibold" autocomplete="off" [(ngModel)]="workflowNameEditValue" name="workflowNameEditValue" style="max-width:220px; border-width:1px;" />
+        <button type="submit" class="btn btn-sm bg-transparent border-white" title="Save"><i class="feather icon-check text-white"></i></button>
+        <button type="button" class="btn btn-sm bg-transparent border-white" (click)="cancelWorkflowNameEdit()" title="Cancel"><i class="feather icon-x text-white"></i></button>
+      </form>
+      <button type="button" class="btn btn-xs btn-link text-white position-absolute end-0 top-50 translate-middle-y" (click)="startWorkflowNameEdit()" title="Actions">
+        <i class="feather icon-more-horizontal"></i>
+      </button>
+    </div>
   </div>
 
   <div class="editor-body d-flex flex-column flex-lg-row">

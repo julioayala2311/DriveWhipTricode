@@ -209,7 +209,9 @@
   <app-applicants-grid
     [cardId]="selectedCardId"
     [applicantsCount]="selectedStageApplicantsCount"
+    [locationName]="selectedLocationOption?.name || ''"
+    [selectedStage]="selectedStageDetails"
+    [stageIconClass]="selectedStageDetails ? stageIcon(selectedStageDetails.id_stage_type) : 'icon-layers'"
   ></app-applicants-grid>
 </div>
-
 

@@ -29,6 +29,91 @@ import { finalize, forkJoin, of, switchMap } from 'rxjs';
   styleUrl: "./workflow-editor.component.scss",
 })
 export class WorkflowEditorComponent implements OnInit {
+  workflowLocationId: number | null = null;
+  workflowStatus: number = 1;
+  ngOnInit(): void {
+    // ...existing code...
+    this.ensureStageTypes();
+    this.route.paramMap.subscribe((p) => {
+      const raw = p.get("id");
+      this.workflowId = raw ? Number(raw) : null;
+      if (this.workflowId != null && !Number.isNaN(this.workflowId)) {
+        // Load workflow details
+        const params: any[] = ['R', this.workflowId, null, null, null, null, null];
+        const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_workflows_crud, parameters: params };
+        this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
+          next: res => {
+            if (res.ok && res.data) {
+              const wf = res.data[0][0];
+
+              this.workflowLocationId = wf.id_location;
+              this.workflowStatus = wf.is_active;
+              this.workflowName.set(wf.name ?? ''); 
+            }
+          },
+          error: err => {
+            Utilities.showToast('Failed to load workflow details', 'error');
+          }
+        });
+        this.loadWorkflow();
+        this.loadStages();
+      } else {
+        this.error.set("Invalid workflow id");
+      }
+    });
+  }
+  // --- Workflow name editing state ---
+  editingWorkflowName = false;
+  workflowNameEditValue = '';
+
+  startWorkflowNameEdit(): void {
+    this.workflowNameEditValue = this.workflowName();
+    this.editingWorkflowName = true;
+  }
+
+  cancelWorkflowNameEdit(): void {
+    this.editingWorkflowName = false;
+    this.workflowNameEditValue = '';
+  }
+
+  confirmWorkflowNameEdit(): void {
+    const newName = this.workflowNameEditValue.trim();
+    if (!newName || newName === this.workflowName()) {
+      this.cancelWorkflowNameEdit();
+      return;
+    }
+    if (!this.workflowId) {
+      Utilities.showToast('Workflow ID missing', 'error');
+      return;
+    }
+    const currentUser = this.authSession.user?.user || 'system';
+    const params: any[] = [
+      'U',
+      this.workflowId,
+      this.workflowLocationId,
+      newName,
+      this.workflowStatus ? 1 : 0,
+      null, // created_by
+      currentUser // updated_by
+    ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_workflows_crud, parameters: params };
+    this.loading.set(true);
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(() => this.loading.set(false))).subscribe({
+      next: res => {
+        if (!res.ok) {
+          Utilities.showToast('Failed to update workflow name', 'error');
+          return;
+        }
+        this.workflowName.set(newName);
+        Utilities.showToast('Workflow name updated', 'success');
+        this.cancelWorkflowNameEdit();
+      },
+      error: err => {
+        console.error('[WorkflowEditor] update workflow name error', err);
+        Utilities.showToast('Error updating workflow name', 'error');
+      }
+    });
+  }
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private core = inject(DriveWhipCoreService);
@@ -1211,19 +1296,7 @@ export class WorkflowEditorComponent implements OnInit {
     });
   }
 
-  ngOnInit(): void {
-    this.ensureStageTypes();
-    this.route.paramMap.subscribe((p) => {
-      const raw = p.get("id");
-      this.workflowId = raw ? Number(raw) : null;
-      if (this.workflowId != null && !Number.isNaN(this.workflowId)) {
-        this.loadWorkflow();
-        this.loadStages();
-      } else {
-        this.error.set("Invalid workflow id");
-      }
-    });
-  }
+  // (Removed duplicate ngOnInit)
 
   private loadWorkflow(): void {
     if (this.workflowId == null) return;

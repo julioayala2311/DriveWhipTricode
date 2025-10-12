@@ -1,8 +1,9 @@
 import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ApplicantPanelComponent } from './applicant-panel.component';
 import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, GridApi, GridReadyEvent, IHeaderParams } from 'ag-grid-community';
+import { ColDef, GridApi, GridReadyEvent, IHeaderParams, CellClickedEvent } from 'ag-grid-community';
 import { IHeaderAngularComp } from 'ag-grid-angular';
 import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
 import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
@@ -33,7 +34,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
 @Component({
   selector: 'app-applicants-grid',
   standalone: true,
-  imports: [CommonModule, FormsModule, AgGridAngular],
+  imports: [CommonModule, FormsModule, AgGridAngular, ApplicantPanelComponent],
   template: `
   <div class="d-flex flex-wrap gap-2 align-items-center mb-4">
     <h6 class="mb-0 fw-semibold">Applicants
@@ -59,15 +60,42 @@ export class GridHeaderComponent implements IHeaderAngularComp {
                    [paginationPageSize]="pageSize"
                    [paginationPageSizeSelector]="pageSizeOptions"
                    (gridReady)="onGridReady($event)"
+                   (cellClicked)="onCellClicked($event)"
                    (selectionChanged)="onSelectionChanged()"
                    (firstDataRendered)="onFirstDataRendered()"
                    (paginationChanged)="onPaginationChanged()">
   </ag-grid-angular>
-  `
+
+  <app-applicant-panel
+    *ngIf="panelOpen"
+    [applicant]="activeApplicant"
+    [activeTab]="activeTab"
+    [hasPrevious]="hasPreviousApplicant()"
+    [hasNext]="hasNextApplicant()"
+    [(draftMessage)]="draftMessage"
+    [locationName]="locationName"
+    [stageName]="selectedStage?.name || activeApplicant?.stageName || ''"
+    [stageIcon]="stageIconClass"
+    (closePanel)="closePanel()"
+    (goToPrevious)="goToPreviousApplicant()"
+    (goToNext)="goToNextApplicant()"
+    (setTab)="setTab($event)"
+    (sendMessage)="onSendMessage($event)"
+  ></app-applicant-panel>
+  `,
+  styles: [`
+    :host { position: relative; display:block; }
+    .grid-link { color: var(--bs-primary,#0d6efd); cursor:pointer; font-weight:600; text-decoration:none; }
+    .grid-link:hover { text-decoration: underline; }
+    .selection-badge { border-radius: 999px; padding:.35rem .65rem; }
+  `]
 })
 export class ApplicantsGridComponent implements OnInit, OnChanges {
   @Input() cardId!: number | null; // stage id
   @Input() applicantsCount: number | null | undefined = null; // total applicants (stage.applicants_count)
+  @Input() locationName = '';
+  @Input() selectedStage: StageMeta | null = null;
+  @Input() stageIconClass = 'icon-layers';
 
   // Pagination
   pageSize = 10;
@@ -81,7 +109,7 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
   columnDefs: ColDef[] = [
     { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
     { headerName: 'Name', field: 'name', minWidth: 160, flex: 1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-user' }, cellRenderer: (p: any) => {
-        const value = (p.value ?? '').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const value = (p.value ?? '').toString().replace(/</g,'<').replace(/>/g,'>');
         return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
       } },
     { headerName: 'Email', field: 'email', minWidth: 210, flex: 1.2, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-mail' } },
@@ -111,6 +139,11 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
   error: string | null = null;
   gridApi?: GridApi; // public for template access (*ngIf="gridApi")
   selectedCount = 0;
+  panelOpen = false;
+  activeApplicant: ApplicantRow | null = null;
+  activeTab: PanelTab = 'messages';
+  draftMessage = '';
+  private recentApplicants: ApplicantRow[] = [];
 
   constructor(private core: DriveWhipCoreService) {}
 
@@ -119,6 +152,15 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['cardId'] && !changes['cardId'].firstChange) {
       if (this.cardId) this.loadApplicants(); else { this.rowData = []; this.refreshGrid(); }
+    }
+    if (changes['locationName'] && !changes['locationName'].firstChange) {
+      this.applyLocationToRows();
+    }
+    if (changes['selectedStage'] && !changes['selectedStage'].firstChange) {
+      this.applyStageMetaToRows();
+    }
+    if (changes['stageIconClass'] && !changes['stageIconClass'].firstChange) {
+      this.applyStageMetaToRows();
     }
   }
 
@@ -145,7 +187,7 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
           if (top.length > 0 && Array.isArray(top[0])) raw = top[0]; else raw = top;
         }
         const list = Array.isArray(raw) ? raw : [];
-        this.rowData = list.map((r: any) => {
+        const mapped = list.map((r: any) => {
           const statusObj = this.parseStatusDetails(r.Status);
           return {
             name: r.Name ?? r.name ?? '',
@@ -154,10 +196,28 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
             status: statusObj,
             custom: '',
             applied: r.Applied ?? r.applied ?? '',
-            // El SP devuelve "IdleSince" (alias en el SELECT). Aseguramos fallback en distintos formatos.
-            IdleSince: r.IdleSince ?? r.idleSince ?? r.idle_since ?? ''
-          };
+            IdleSince: r.IdleSince ?? r.idleSince ?? r.idle_since ?? '',
+            stageName: statusObj?.stage ?? '',
+            questionnaireLink: r.QuestionnaireUrl ?? r.questionnaireUrl ?? r.questionnaire_url ?? null,
+            details: this.buildDetails(r),
+            raw: r,
+            locationName: this.locationName,
+            stageIcon: this.stageIconClass
+          } as ApplicantRow;
         });
+        this.rowData = mapped;
+        this.recentApplicants = mapped;
+        this.applyLocationToRows();
+        this.applyStageMetaToRows();
+        if (this.activeApplicant) {
+          const refreshed = mapped.find(m => this.isSameApplicant(m, this.activeApplicant as ApplicantRow));
+          if (refreshed) {
+            this.activeApplicant = refreshed;
+            this.applyPanelMeta();
+          } else {
+            this.closePanel();
+          }
+        }
         this.refreshGrid();
       },
       error: err => {
@@ -199,6 +259,130 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     }
   }
 
+  onCellClicked(event: CellClickedEvent): void {
+    if (event.colDef.field === 'name' && event.data) {
+      this.openPanel(event.data as ApplicantRow);
+    }
+  }
+
+  openPanel(applicant: ApplicantRow): void {
+    this.enrichApplicantMeta(applicant);
+    this.activeApplicant = applicant;
+    this.panelOpen = true;
+    this.activeTab = 'messages';
+    this.trackApplicant(applicant);
+  }
+
+  closePanel(): void {
+    this.panelOpen = false;
+    this.activeApplicant = null;
+    this.draftMessage = '';
+  }
+
+  setTab(tab: PanelTab): void {
+    this.activeTab = tab;
+  }
+
+  onSendMessage(event: Event): void {
+    event.preventDefault();
+    if (!this.draftMessage.trim()) return;
+    Utilities.showToast('Message queued (preview only)', 'info');
+    this.draftMessage = '';
+  }
+
+  hasPreviousApplicant(): boolean {
+    if (!this.activeApplicant) return false;
+    const idx = this.recentApplicants.indexOf(this.activeApplicant);
+    return idx > 0;
+  }
+
+  hasNextApplicant(): boolean {
+    if (!this.activeApplicant) return false;
+    const idx = this.recentApplicants.indexOf(this.activeApplicant);
+    return idx >= 0 && idx < this.recentApplicants.length - 1;
+  }
+
+  goToPreviousApplicant(): void {
+    if (!this.hasPreviousApplicant()) return;
+    if (!this.activeApplicant) return;
+    const idx = this.recentApplicants.indexOf(this.activeApplicant);
+    if (idx > 0) {
+      this.activeApplicant = this.recentApplicants[idx - 1];
+      this.activeTab = 'messages';
+    }
+  }
+
+  goToNextApplicant(): void {
+    if (!this.hasNextApplicant()) return;
+    if (!this.activeApplicant) return;
+    const idx = this.recentApplicants.indexOf(this.activeApplicant);
+    if (idx >= 0 && idx < this.recentApplicants.length - 1) {
+      this.activeApplicant = this.recentApplicants[idx + 1];
+      this.activeTab = 'messages';
+    }
+  }
+
+  private trackApplicant(applicant: ApplicantRow): void {
+    if (!this.recentApplicants.includes(applicant)) {
+      this.recentApplicants.push(applicant);
+    }
+  }
+
+  private enrichApplicantMeta(applicant: ApplicantRow): void {
+    applicant.locationName = this.locationName || applicant.locationName || '';
+    if (this.selectedStage) {
+      applicant.stageName = this.selectedStage.name ?? applicant.stageName;
+    }
+    applicant.stageIcon = this.stageIconClass || applicant.stageIcon || 'icon-layers';
+  }
+
+  private applyLocationToRows(): void {
+    const loc = (this.locationName ?? '').trim();
+    this.rowData.forEach(row => row.locationName = loc || row.locationName || '');
+    this.recentApplicants.forEach(row => row.locationName = loc || row.locationName || '');
+    this.applyPanelMeta();
+  }
+
+  private applyStageMetaToRows(): void {
+    const stageName = (this.selectedStage?.name ?? '').trim();
+    const icon = this.stageIconClass || 'icon-layers';
+    this.rowData.forEach(row => {
+      row.stageName = stageName || row.stageName || row.status?.stage || '';
+      row.stageIcon = icon || row.stageIcon || 'icon-layers';
+    });
+    this.recentApplicants.forEach(row => {
+      row.stageName = stageName || row.stageName || row.status?.stage || '';
+      row.stageIcon = icon || row.stageIcon || 'icon-layers';
+    });
+    this.applyPanelMeta();
+  }
+
+  private applyPanelMeta(): void {
+    if (!this.activeApplicant) return;
+    this.enrichApplicantMeta(this.activeApplicant);
+  }
+
+  private isSameApplicant(a: ApplicantRow, b: ApplicantRow): boolean {
+    if (!a || !b) return false;
+    if (a.email && b.email) return a.email === b.email;
+    if (a.phone && b.phone) return a.phone === b.phone;
+    return a.name === b.name;
+  }
+
+  private buildDetails(raw: any): { label: string; value: string }[] {
+    const details: { label: string; value: string }[] = [];
+    const add = (label: string, value: any) => {
+      if (value === null || value === undefined || value === '') return;
+      details.push({ label, value: String(value) });
+    };
+    add('Applied', raw.Applied ?? raw.applied);
+    add('Idle Since', raw.IdleSince ?? raw.idleSince ?? raw.idle_since);
+    add('Referral', raw.Referral ?? raw.referral);
+    add('Sms Opt In', raw.SmsOptIn ?? raw.smsOptIn ?? raw.sms_opt_in);
+    add('Source', raw.Source ?? raw.source);
+    return details.length ? details : [{ label: 'Details', value: 'No additional information available.' }];
+  }
+
   // Legacy mock helpers removed after integrating real API
 
   onGridReady(e: GridReadyEvent) { this.gridApi = e.api; this.refreshGrid(); }
@@ -236,4 +420,23 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
   goToNext() { this.gridApi?.paginationGoToNextPage(); this.updatePaginationState(); }
 }
 
+type PanelTab = 'messages' | 'history' | 'files';
+
+interface StageMeta { name: string; id_stage_type: number; }
+
+interface ApplicantRow {
+  name: string;
+  email: string;
+  phone: string;
+  status: { stage: string; statusName: string; isComplete: boolean } | null;
+  custom: string;
+  applied: string;
+  IdleSince: string;
+  stageName?: string;
+  questionnaireLink?: string | null;
+  details: { label: string; value: string }[];
+  locationName?: string;
+  stageIcon?: string;
+  raw: any;
+}
 

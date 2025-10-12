@@ -297,7 +297,7 @@ export class ApplicantPanelComponent implements OnChanges {
       id: 'msg-1',
       direction: 'inbound',
       sender: 'Whip',
-      body: 'Hi Julius, your Whip is almost here! Finish your app now - full coverage, free maintenance, and unlimited miles included. <a href="#">web.fountain.com/apply/drivewhip</a>',
+      body: 'Hi {{ applicant.name }}, your Whip is almost here! Finish your app now - full coverage, free maintenance, and unlimited miles included. <a href="#">web.fountain.com/apply/drivewhip</a>',
       timestamp: '10:06 PM EDT',
       channel: 'SMS',
       status: 'not_delivered',
@@ -418,12 +418,17 @@ export class ApplicantPanelComponent implements OnChanges {
 
     this._resolvedMessages = source.map((msg, idx) => {
       const direction = (msg.direction ?? 'inbound') as 'inbound' | 'outbound';
+      // Replace {{ applicant.name }} with actual name if present in body
+      let body = msg.body ?? '';
+      if (body.includes('{{ applicant.name }}') && this.applicant?.name) {
+        body = body.replace(/{{\s*applicant\.name\s*}}/g, this.applicant.name);
+      }
       return {
         ...msg,
         id: msg.id ?? `msg-${idx}`,
         direction,
         sender: msg.sender ?? (direction === 'outbound' ? 'You' : 'Whip'),
-        body: msg.body ?? '',
+        body,
         timestamp: msg.timestamp ?? '',
         channel: msg.channel ?? 'SMS',
         status: msg.status,

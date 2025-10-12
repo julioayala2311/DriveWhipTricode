@@ -297,7 +297,7 @@ export class ApplicantPanelComponent implements OnChanges {
       id: 'msg-1',
       direction: 'inbound',
       sender: 'Whip',
-      body: 'Hi {{ applicant.name }}, your Whip is almost here! Finish your app now - full coverage, free maintenance, and unlimited miles included. <a href="#">web.fountain.com/apply/drivewhip</a>',
+      body: 'Hi {{ applicant.name }}, your Whip is almost here! Finish your app now - full coverage, free maintenance, and unlimited miles included.',
       timestamp: '10:06 PM EDT',
       channel: 'SMS',
       status: 'not_delivered',

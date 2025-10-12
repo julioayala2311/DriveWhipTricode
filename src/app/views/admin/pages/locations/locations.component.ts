@@ -1,6 +1,6 @@
 import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, OnDestroy } from '@angular/core';
 import Swal from 'sweetalert2';
-import { ApplicantsGridComponent } from './applicants-grid.component';
+import { ApplicantsGridComponent } from './applicants/applicants-grid.component';
 import { CommonModule } from '@angular/common';
 import { NgbDropdownModule, NgbDropdown } from '@ng-bootstrap/ng-bootstrap';
 import { CryptoService } from '../../../../core/services/crypto/crypto.service';

@@ -13,7 +13,7 @@ $gray-600:     #7987a1 !default;
 $gray-700:     #41516c !default;
 $gray-800:     #212a3a !default;
 $gray-900:     #060c17 !default;
-$black:        #000 !default;
+$black:        #1a1a1a !default;
 $text-muted:   $gray-600 !default; // Deprecated in 5.3.0
 
 
@@ -38,7 +38,7 @@ $secondary:       $gray-600 !default;
 $success:         #05a34a !default;
 $info:            #66d1d1 !default;
 $warning:         #fbbc06 !default;
-$danger:          #ff3366 !default;
+$danger:          #ff3333 !default;
 $light:           $gray-200 !default;
 $dark:            $gray-900 !default;
 //
@@ -233,9 +233,9 @@ $component-hover-bg:          rgba($secondary, .2);         // custom variable
 // Font family
 $font-family-sans-serif:           "Roboto", Helvetica, sans-serif !default;
 
-$font-size-base:              		 0.875rem !default;   // 14px
+$font-size-base:              		 0.790rem !default;   // 14px
 $font-size-lg:               	 		 1rem !default;       // 16px
-$font-size-sm:                		 0.812rem !default;   // 13px
+$font-size-sm:                		 0.770rem !default;   // 13px
 
 $font-weight-lighter:              lighter !default;
 $font-weight-light:                300 !default;

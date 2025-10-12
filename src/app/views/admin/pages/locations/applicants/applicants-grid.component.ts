@@ -1,14 +1,14 @@
 import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApplicantPanelComponent } from './applicant-panel.component';
+import { ApplicantPanelComponent } from './applicants-panel.component';
 import { AgGridAngular } from 'ag-grid-angular';
 import { ColDef, GridApi, GridReadyEvent, IHeaderParams, CellClickedEvent } from 'ag-grid-community';
 import { IHeaderAngularComp } from 'ag-grid-angular';
-import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
-import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
-import { IDriveWhipCoreAPI, DriveWhipCommandResponse } from '../../../../core/models/entities.model';
-import { Utilities } from '../../../../Utilities/Utilities';
+import { DriveWhipCoreService } from '../../../../../core/services/drivewhip-core/drivewhip-core.service';
+import { DriveWhipAdminCommand } from '../../../../../core/db/procedures';
+import { IDriveWhipCoreAPI, DriveWhipCommandResponse } from '../../../../../core/models/entities.model';
+import { Utilities } from '../../../../../Utilities/Utilities';
 
 @Component({
   selector: 'app-grid-header',
@@ -76,6 +76,8 @@ export class GridHeaderComponent implements IHeaderAngularComp {
     [locationName]="locationName"
     [stageName]="selectedStage?.name || activeApplicant?.stageName || ''"
     [stageIcon]="stageIconClass"
+    [availableStages]="stageOptions"
+    [currentStageId]="activeApplicant?.stageId ?? selectedStage?.id_stage ?? null"
     (closePanel)="closePanel()"
     (goToPrevious)="goToPreviousApplicant()"
     (goToNext)="goToNextApplicant()"
@@ -96,6 +98,7 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
   @Input() locationName = '';
   @Input() selectedStage: StageMeta | null = null;
   @Input() stageIconClass = 'icon-layers';
+  @Input() stageOptions: StageMeta[] = [];
 
   // Pagination
   pageSize = 10;
@@ -422,7 +425,7 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
 
 type PanelTab = 'messages' | 'history' | 'files';
 
-interface StageMeta { name: string; id_stage_type: number; }
+interface StageMeta { name: string; id_stage_type: number; id_stage?: number; }
 
 interface ApplicantRow {
   name: string;
@@ -433,10 +436,12 @@ interface ApplicantRow {
   applied: string;
   IdleSince: string;
   stageName?: string;
+  stageId?: number;
   questionnaireLink?: string | null;
   details: { label: string; value: string }[];
   locationName?: string;
   stageIcon?: string;
   raw: any;
 }
+
 

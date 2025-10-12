@@ -1,0 +1,229 @@
+<div class="applicant-panel-backdrop" (click)="closeMenus(); closePanel.emit()">
+    <aside class="applicant-panel" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="panel-header">
+        <div class="d-flex align-items-center gap-1">
+          <button type="button" class="btn btn-link btn-sm text-secondary px-2" (click)="closeMenus(); closePanel.emit()" aria-label="Close panel">
+            <i class="feather icon-x"></i>
+          </button>
+          <button type="button" class="btn btn-link btn-sm panel-nav px-2" (click)="goToPrevious.emit()" [disabled]="!hasPrevious" aria-label="Previous applicant">
+            <i class="feather icon-chevron-left"></i> Prev
+          </button>
+          <button type="button" class="btn btn-link btn-sm panel-nav px-2" (click)="goToNext.emit()" [disabled]="!hasNext" aria-label="Next applicant">
+            <i class="feather icon-chevron-right"></i> Next
+          </button>
+        </div>
+        <div class="panel-tabs">
+          <button type="button" class="panel-tab" [class.active]="activeTab==='messages'" (click)="setTab.emit('messages')"><i class="feather icon-message-circle me-1"></i>Messages</button>
+          <button type="button" class="panel-tab" [class.active]="activeTab==='history'" (click)="setTab.emit('history')"><i class="feather icon-clock me-1"></i>History</button>
+          <button type="button" class="panel-tab" [class.active]="activeTab==='files'" (click)="setTab.emit('files')"><i class="feather icon-file-text me-1"></i>Files</button>
+        </div>
+      </header>
+      <div class="panel-body" *ngIf="applicant">
+        <section class="panel-column panel-info">
+          <div class="panel-scroll">
+            <h5 class="panel-title mb-1">{{ applicant.name }}</h5>
+            <div class="panel-accordion">
+              <div class="accordion-item" [class.open]="isSectionOpen('info')">
+                <button type="button" class="accordion-toggle" (click)="toggleSection('info')">
+                  <span>Information</span>
+                  <i class="feather" [ngClass]="isSectionOpen('info') ? 'icon-chevron-up' : 'icon-chevron-down'"></i>
+                </button>
+                <div class="accordion-body" *ngIf="isSectionOpen('info')">
+                  <ul class="list-unstyled panel-list mb-2">
+                    <li *ngIf="applicant.email">
+                      <i class="feather icon-mail me-2 text-primary"></i>{{ applicant.email }}
+                    </li>
+                    <li *ngIf="applicant.phone">
+                      <i class="feather icon-phone me-2 text-primary"></i>{{ applicant.phone }}
+                    </li>
+                    <li *ngIf="displayLocation">
+                      <i class="feather icon-map-pin me-2 text-primary"></i>{{ displayLocation }}
+                    </li>
+                    <li *ngIf="displayStage">
+                      <i class="feather me-2 text-primary" [ngClass]="stageIconClass"></i>{{ displayStage }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <div class="accordion-item" [class.open]="isSectionOpen('status')">
+                <button type="button" class="accordion-toggle" (click)="toggleSection('status')">
+                  <span>Status</span>
+                  <i class="feather" [ngClass]="isSectionOpen('status') ? 'icon-chevron-up' : 'icon-chevron-down'"></i>
+                </button>
+                <div class="accordion-body" *ngIf="isSectionOpen('status')">
+                  <span class="status-chip badge d-inline-flex align-items-center gap-1"
+                        [ngClass]="statusBadgeClass(applicant?.status)">
+                    <i class="feather" [ngClass]="statusBadgeIcon(applicant?.status)"></i>
+                    <span>{{ applicant.status?.stage || 'Stage' }} - {{ (applicant.status?.statusName || 'incomplete') | titlecase }}</span>
+                  </span>
+                  <div class="text-secondary small mt-2">Stage completion</div>
+                </div>
+              </div>
+              <div class="accordion-item" [class.open]="isSectionOpen('notes')">
+                <button type="button" class="accordion-toggle" (click)="toggleSection('notes')">
+                  <span>Notes</span>
+                  <i class="feather" [ngClass]="isSectionOpen('notes') ? 'icon-chevron-up' : 'icon-chevron-down'"></i>
+                </button>
+                <div class="accordion-body" *ngIf="isSectionOpen('notes')">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Notes</span>
+                    <button type="button" class="btn btn-link btn-xs px-0">Add Note</button>
+                  </div>
+                  <div class="text-secondary small">No notes yet.</div>
+                </div>
+              </div>
+              <div class="accordion-item" [class.open]="isSectionOpen('details')">
+                <button type="button" class="accordion-toggle" (click)="toggleSection('details')">
+                  <span>Details</span>
+                  <i class="feather" [ngClass]="isSectionOpen('details') ? 'icon-chevron-up' : 'icon-chevron-down'"></i>
+                </button>
+                <div class="accordion-body" *ngIf="isSectionOpen('details')">
+                  <dl class="detail-grid mb-2">
+                    <ng-container *ngFor="let item of applicant.details">
+                      <dt>{{ item.label }}</dt>
+                      <dd>{{ item.value }}</dd>
+                    </ng-container>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class = "btn btn-primary btn-sm">Move to next stage</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm">Reject</button>
+            <div class="dropdown-wrapper" (click)="$event.stopPropagation()">
+              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="toggleMenu(); $event.stopPropagation()">More actions</button>
+              <div class="actions-menu shadow-lg" *ngIf="menuOpen" (click)="$event.stopPropagation()">
+                <div class="menu-section">
+                  <button type="button" class="menu-item">
+                    <span class="icon"><i class="feather icon-mail"></i></span>
+                    <span>Send Email</span>
+                  </button>
+                  <button type="button" class="menu-item">
+                    <span class="icon"><i class="feather icon-smartphone"></i></span>
+                    <span>Send Text/SMS</span>
+                  </button>
+                  <button type="button" class="menu-item">
+                    <span class="icon"><i class="feather icon-repeat"></i></span>
+                    <span>Resend Message</span>
+                  </button>
+                </div>
+                <div class="menu-divider"></div>
+                <div class="menu-section">
+                  <div class="menu-item has-submenu" (mouseenter)="stageMenuOpen = true" (mouseleave)="stageMenuOpen = false">
+                    <span class="icon"><i class="feather icon-corner-up-right"></i></span>
+                    <span>Move to Stage...</span>
+                    <i class="feather icon-chevron-right ms-auto"></i>
+                    <div class="submenu" *ngIf="stageMenuOpen" (click)="$event.stopPropagation()">
+                      <div class="submenu-title">Move to Stage</div>
+                      <button
+                        type="button"
+                        class="submenu-item"
+                        *ngFor="let stage of stageMenuOptions"
+                        [class.current]="stage.id === currentStageId"
+                        [disabled]="stage.id === currentStageId"
+                      >
+                        <span>{{ stage.name }}</span>
+                        <span class="stage-type">{{ stage.type }}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <button type="button" class="menu-item">
+                    <span class="icon"><i class="feather icon-trending-up"></i></span>
+                    <span>Move to Next Stage</span>
+                  </button>
+                  <button type="button" class="menu-item">
+                    <span class="icon"><i class="feather icon-share-2"></i></span>
+                    <span>Move to...</span>
+                  </button>
+                  <button type="button" class="menu-item">
+                    <span class="icon"><i class="feather icon-alert-octagon"></i></span>
+                    <span>Reject</span>
+                  </button>
+                </div>
+                <div class="menu-divider"></div>
+                <div class="menu-section">
+                  <button type="button" class="menu-item">
+                    <span class="icon"><i class="feather icon-printer"></i></span>
+                    <span>Print Data</span>
+                  </button>
+                  <button type="button" class="menu-item">
+                    <span class="icon"><i class="feather icon-award"></i></span>
+                    <span>Score Applicant</span>
+                  </button>
+                  <button type="button" class="menu-item">
+                    <span class="icon"><i class="feather icon-upload"></i></span>
+                    <span>Upload File</span>
+                  </button>
+                </div>
+                <div class="menu-divider"></div>
+                <div class="menu-section">
+                  <button type="button" class="menu-item">
+                    <span class="icon"><i class="feather icon-edit-3"></i></span>
+                    <span>Edit Applicant</span>
+                  </button>
+                  <button type="button" class="menu-item text-danger">
+                    <span class="icon"><i class="feather icon-trash-2"></i></span>
+                    <span>Delete Applicant</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="panel-column panel-chat">
+          <div class="panel-chat-body messages" *ngIf="activeTab==='messages'">
+            <ng-container *ngFor="let message of resolvedMessages; let i = index">
+              <div class="chat-day text-secondary small" *ngIf="message.dayLabel && shouldRenderDay(message.dayLabel, i)">
+                {{ message.dayLabel }}
+              </div>
+              <div class="chat-message" [ngClass]="message.direction">
+                <div class="chat-avatar" *ngIf="message.direction === 'inbound'">
+                  <span>{{ message.avatar ?? (message.sender | slice:0:1) }}</span>
+                </div>
+                <div class="chat-content">
+                  <div class="chat-bubble" [ngClass]="message.direction">
+                    <div class="chat-title fw-semibold mb-1" *ngIf="message.sender">{{ message.sender }}</div>
+                    <div class="chat-text" [innerHTML]="message.body"></div>
+                  </div>
+                  <div class="chat-meta small">
+                    <span>{{ message.timestamp }}</span>
+                    <span class="dot">•</span>
+                    <span>{{ message.channel }}</span>
+                    <span class="dot" *ngIf="message.statusLabel">•</span>
+                    <!-- <span
+                      *ngIf="message.statusLabel"
+                      [ngClass]="statusMetaClass(message.status)"
+                      class="d-inline-flex align-items-center gap-1"
+                    >
+                      <i class="feather" [ngClass]="statusMetaIcon(message.status)"></i>{{ message.statusLabel }}
+                    </span> -->
+                    <button
+                      type="button"
+                      class="btn btn-link btn-xxs px-1 text-secondary"
+                      *ngIf="message.automated"
+                    >
+                      Hide automated messages
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+          <div class="panel-chat-body" *ngIf="activeTab==='history'">
+            <div class="text-secondary small">No history available yet.</div>
+          </div>
+          <div class="panel-chat-body" *ngIf="activeTab==='files'">
+            <div class="text-secondary small">No files uploaded.</div>
+          </div>
+          <form class="chat-input" (submit)="sendMessage.emit($event)">
+            <div class="input-group">
+              <button type="button" class="btn btn-link text-secondary px-2" aria-label="Add attachment"><i class="feather icon-plus"></i></button>
+              <input type="text" class="form-control" placeholder="Enter your message" [(ngModel)]="draftMessage" (ngModelChange)="onDraftMessageChange($event)" name="messageInput" />
+              <button type="submit" class="btn btn-primary" [disabled]="!draftMessage.trim()">Send</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </aside>
+  </div>

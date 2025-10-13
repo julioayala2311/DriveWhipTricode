@@ -2,6 +2,7 @@ import { Component, OnInit, AfterViewInit, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize, map, switchMap, tap } from 'rxjs/operators';
+import { of } from 'rxjs';
 import { GoogleAuthService } from '../../../../../core/services/googleAccounts/google.service';
 import { DriveWhipCoreService } from '../../../../../core/services/drivewhip-core/drivewhip-core.service';
 import { Utilities } from '../../../../../Utilities/Utilities';
@@ -123,16 +124,15 @@ export class LoginComponent implements OnInit, AfterViewInit {
         const driveWhipCoreAPI: IDriveWhipCoreAPI = {
           commandName: DriveWhipAdminCommand.auth_users_info,
           parameters: [
-            // googlePayload.email,
-            "julioayala2311@gmail.com",
+            googlePayload.email,
             accessToken,
             googlePayload.firstName,
             googlePayload.lastName
           ]
         };
-
+        // 1) Get user profile
         return this.driveWhipCore.executeCommand<DriveWhipCommandResponse<IAuthResponseModel[]>>(driveWhipCoreAPI).pipe(
-          map(envelope => {
+          switchMap(envelope => {
             if (!envelope?.ok) {
               throw new Error('DriveWhip authentication failed.');
             }
@@ -155,7 +155,28 @@ export class LoginComponent implements OnInit, AfterViewInit {
             }
 
             this.driveWhipCore.cacheUserProfile(profile);
-            return profile;
+
+            // 2) Fetch routes by role and persist dynamic menu
+            const role: string = profile?.role ?? '';
+            if (!role) {
+              return of(profile);
+            }
+            const routesApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.auth_roles_routes, parameters: [ role ] };
+            return this.driveWhipCore.executeCommand<DriveWhipCommandResponse<any>>(routesApi).pipe(
+              map(routesRes => {
+                if (routesRes?.ok) {
+                  const rows = Array.isArray(routesRes.data) ? (Array.isArray(routesRes.data[0]) ? routesRes.data[0] : routesRes.data) : [];
+                  try {
+                    const menu = this.buildMenuFromRoutes(rows);
+                    localStorage.setItem('dw.menu', JSON.stringify(menu));
+                    localStorage.setItem('dw.routes', JSON.stringify(rows));
+                  } catch (e) {
+                    console.warn('[Login] Failed to serialize menu/routes', e);
+                  }
+                }
+                return profile;
+              })
+            );
           })
         );
       }),
@@ -196,6 +217,47 @@ export class LoginComponent implements OnInit, AfterViewInit {
         Utilities.showToast(pretty || 'Unhandled error.', 'error');
       }
     });
+  }
+
+  // Transform flat routes rows to MenuItem[]
+  private buildMenuFromRoutes(rows: any[]): any[] {
+    // Normalize rows
+    const list = (rows || []).map(r => ({
+      id_route: Number(r.id_route),
+      parent_id: r.parent_id != null ? Number(r.parent_id) : null,
+      path: String(r.path || ''),
+      label: String(r.label || ''),
+      icon: r.icon || null,
+      is_menu: r.is_menu === 1 || r.is_menu === '1' || r.is_menu === true,
+      is_active: r.is_active === 1 || r.is_active === '1' || r.is_active === true
+    })).filter(r => r.is_active && r.is_menu);
+
+    // Index by id
+    const byId = new Map<number, any>();
+    list.forEach(r => byId.set(r.id_route, r));
+    // Build tree
+    const roots: any[] = [];
+    const childrenMap = new Map<number, any[]>();
+    list.forEach(r => {
+      if (r.parent_id) {
+        if (!childrenMap.has(r.parent_id)) childrenMap.set(r.parent_id, []);
+        childrenMap.get(r.parent_id)!.push(r);
+      } else {
+        roots.push(r);
+      }
+    });
+    const toMenuItem = (node: any): any => {
+      const sub = (childrenMap.get(node.id_route) || []).sort((a,b)=> (a.sort_order??0)-(b.sort_order??0));
+      if (sub.length === 0) {
+        return { label: node.label, icon: node.icon || undefined, link: node.path };
+      }
+      // Convert children to SubMenuItems with full path
+      const subMenuItems = sub.map(child => ({ label: child.label, link: (node.path.endsWith('/') || child.path.startsWith('/')) ? (node.path + child.path) : (node.path + child.path) }));
+      return { label: node.label, icon: node.icon || undefined, subMenus: [ { subMenuItems } ] };
+    };
+    // Sort roots by sort_order if present
+    roots.sort((a,b)=> (a.sort_order??0)-(b.sort_order??0));
+    return roots.map(toMenuItem);
   }
 
   private afterError(s: unknown): string {

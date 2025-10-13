@@ -121,6 +121,11 @@ export class DriveWhipCoreService {
         Utilities.showToast('Session expired. Please sign in again.', 'warning', { timer: 4000 });
         setTimeout(() => {
           this.router.navigate(['/auth/login']).finally(() => {
+            localStorage.removeItem('dw.auth.session');
+            localStorage.removeItem('dw.menu');
+            localStorage.removeItem('dw.routes');
+            localStorage.removeItem('dw.auth.user');
+            localStorage.removeItem('google_picture');
             this.handlingUnauthorized = false;
           });
         }, 800);

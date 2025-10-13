@@ -2,7 +2,7 @@ import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { ThemeModeService } from '../../../core/services/theme-mode.service';
-import { DOCUMENT, NgClass, NgFor, NgIf } from '@angular/common';
+import { NgClass, NgIf } from '@angular/common';
 
 import { MENU } from './menu';
 import { MenuItem } from './menu.model';
@@ -19,7 +19,6 @@ import { AUTH_USER_STORAGE_KEY } from '../../../core/services/drivewhip-core/dri
     FeatherIconDirective,
     RouterLink,
     RouterLinkActive,
-    NgFor,
     NgIf,
     NgClass
   ],
@@ -48,7 +47,77 @@ export class NavbarComponent implements OnInit, OnDestroy {
       this.showActiveTheme(this.currentTheme);
     });
 
-    this.menuItems = MENU;
+    // Prefer dynamic menu from storage (dw.menu) but filter by dw.routes is_assigned; fallback to static MENU
+    try {
+      const storedMenu = localStorage.getItem('dw.menu');
+      const storedRoutes = localStorage.getItem('dw.routes');
+      let assigned: Set<string> | null = null;
+      // Maps for ordering by sort_order from dw.routes
+      let topOrder: Map<string, number> | null = null; // parent_id NULL -> path -> sort_order
+      let orderByFullPath: Map<string, number> | null = null; // fullPath (parent+child) -> sort_order
+      if (storedRoutes) {
+        try {
+          const rows = JSON.parse(storedRoutes);
+          if (Array.isArray(rows)) {
+            const all = rows.map((r: any) => ({
+              path: String(r.path || ''),
+              parent_id: r.parent_id != null ? Number(r.parent_id) : null,
+              id_route: Number(r.id_route),
+              is_active: (r.is_active === 1 || r.is_active === '1' || r.is_active === true),
+              is_assigned: (r.is_assigned === 0 || r.is_assigned === '0' || r.is_assigned === false) ? false : true,
+              sort_order: Number(r.sort_order ?? 0)
+            }));
+            const byId = new Map<number, any>();
+            all.forEach(r => byId.set(r.id_route, r));
+            const activeAssigned = all.filter(r => r.is_active && r.is_assigned);
+            const paths = new Set<string>();
+            // Build fullPath map for all rows (active or not) to compute order reliably
+            const fullPathById = new Map<number, string>();
+            for (const r of all) {
+              if (!r.parent_id) {
+                fullPathById.set(r.id_route, r.path);
+              } else {
+                const parent = byId.get(r.parent_id);
+                const full = parent ? ((parent.path.endsWith('/') || r.path.startsWith('/')) ? (parent.path + r.path) : (parent.path + r.path)) : r.path;
+                fullPathById.set(r.id_route, full);
+              }
+            }
+            // Assigned paths set for filtering menu visibility
+            for (const r of activeAssigned) {
+              const full = fullPathById.get(r.id_route) || r.path;
+              paths.add(full);
+            }
+            assigned = paths;
+            // Build order maps
+            topOrder = new Map<string, number>();
+            for (const r of activeAssigned) {
+              if (!r.parent_id) {
+                topOrder.set(r.path, r.sort_order || 0);
+              }
+            }
+            orderByFullPath = new Map<string, number>();
+            for (const r of activeAssigned) {
+              const full = fullPathById.get(r.id_route) || r.path;
+              orderByFullPath.set(full, r.sort_order || 0);
+            }
+          }
+        } catch { /* ignore */ }
+      }
+      if (storedMenu) {
+        const parsed = JSON.parse(storedMenu);
+        if (Array.isArray(parsed)) {
+          const menu = parsed as MenuItem[];
+          const filtered = assigned ? this.filterMenuByAssigned(menu, assigned) : menu;
+          this.menuItems = (topOrder && orderByFullPath) ? this.sortMenuByRoutes(filtered, topOrder, orderByFullPath) : filtered;
+        } else {
+          this.menuItems = MENU;
+        }
+      } else {
+        this.menuItems = MENU;
+      }
+    } catch {
+      this.menuItems = MENU;
+    }
 
   // Load profile info from storage
   this.loadProfileFromStorage();
@@ -103,11 +172,15 @@ export class NavbarComponent implements OnInit, OnDestroy {
    */
   onLogout(e: Event) {
     e.preventDefault();
-
-    localStorage.setItem('isLoggedin', 'false');
-    if (localStorage.getItem('isLoggedin') === 'false') {
-      this.router.navigate(['/auth/login']);
-    }
+    // Clear session and related cached items
+    try {
+      localStorage.removeItem('dw.auth.session');
+      localStorage.removeItem('dw.menu');
+      localStorage.removeItem('dw.routes');
+      localStorage.removeItem('dw.auth.user');
+      localStorage.removeItem('google_picture');
+    } catch { /* ignore */ }
+    this.router.navigate(['/auth/login']);
   }
 
   /**
@@ -206,6 +279,82 @@ export class NavbarComponent implements OnInit, OnDestroy {
         }
       }
     } catch { /* ignore */ }
+  }
+
+  // Hide menu items and submenu links that aren't assigned in dw.routes
+  private filterMenuByAssigned(menu: MenuItem[], assignedPaths: Set<string>): MenuItem[] {
+    const clone = (obj: any) => JSON.parse(JSON.stringify(obj));
+    const menuCopy = clone(menu) as MenuItem[];
+    const filterItem = (item: MenuItem): MenuItem | null => {
+      // If item has direct link
+      if ((item as any).link) {
+        const link = (item as any).link as string;
+        if (!assignedPaths.has(link)) {
+          return null;
+        }
+      }
+      // If item has subMenus/subMenuItems
+      if (item.subMenus && item.subMenus.length) {
+        const newSubMenus = item.subMenus.map(group => {
+          const newItems = (group.subMenuItems || []).filter(si => assignedPaths.has(si.link || ''));
+          return { ...group, subMenuItems: newItems };
+        }).filter(group => (group.subMenuItems || []).length > 0);
+        const withSubs = { ...item, subMenus: newSubMenus };
+        // If no direct link and no submenus remain, drop it
+        if (!(withSubs as any).link && newSubMenus.length === 0) return null;
+        return withSubs;
+      }
+      return item;
+    };
+    const filtered = menuCopy.map(filterItem).filter(Boolean) as MenuItem[];
+    return filtered;
+  }
+
+  // Sort menu and submenu items by sort_order from dw.routes
+  private sortMenuByRoutes(menu: MenuItem[], topOrder: Map<string, number>, orderByFullPath: Map<string, number>): MenuItem[] {
+    const clone = (obj: any) => JSON.parse(JSON.stringify(obj));
+    const copy = clone(menu) as MenuItem[];
+    const getTopOrder = (item: MenuItem): number => {
+      const link = (item as any).link as string | undefined;
+      if (link && topOrder.has(link)) return topOrder.get(link)!;
+      // If no direct link, derive order from the first submenu item order (min across groups)
+      if (item.subMenus && item.subMenus.length) {
+        let minOrder = Number.MAX_SAFE_INTEGER;
+        for (const group of item.subMenus) {
+          for (const si of (group.subMenuItems || [])) {
+            const ord = orderByFullPath.get(si.link || '') ?? Number.MAX_SAFE_INTEGER;
+            if (ord < minOrder) minOrder = ord;
+          }
+        }
+        return minOrder === Number.MAX_SAFE_INTEGER ? 999999 : minOrder;
+      }
+      return 999999;
+    };
+    const sortSubMenus = (item: MenuItem) => {
+      if (item.subMenus && item.subMenus.length) {
+        item.subMenus = item.subMenus.map(group => {
+          const items = (group.subMenuItems || []).slice().sort((a, b) => {
+            const oa = orderByFullPath.get(a.link || '') ?? 999999;
+            const ob = orderByFullPath.get(b.link || '') ?? 999999;
+            if (oa !== ob) return oa - ob;
+            return (a.label || '').localeCompare(b.label || '');
+          });
+          return { ...group, subMenuItems: items };
+        });
+      }
+    };
+    // Sort top-level
+    copy.sort((a, b) => {
+      const oa = getTopOrder(a);
+      const ob = getTopOrder(b);
+      if (oa !== ob) return oa - ob;
+      const la = (a as any).label || '';
+      const lb = (b as any).label || '';
+      return la.localeCompare(lb);
+    });
+    // Sort children for each item
+    copy.forEach(sortSubMenus);
+    return copy;
   }
 
   get profileInitials(): string {

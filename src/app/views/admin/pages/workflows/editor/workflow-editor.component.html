@@ -2,6 +2,9 @@
   <!-- Header bar -->
   <div class="editor-header text-white rounded bg-primary py-2 px-3 d-flex flex-column align-items-center justify-content-center">
     <div class="d-flex align-items-center gap-3 justify-content-center w-100 position-relative">
+      <a class="btn btn-xs bg-transparent border-white position-absolute start-0 top-50 translate-middle-y" [routerLink]="['/workflows']" title="Back to workflows" style="border-radius:100px;">
+        <i class="feather icon-arrow-left text-white"></i>
+      </a>
       <h4 class="mb-0 fw-semibold" *ngIf="!editingWorkflowName">{{ workflowName() }}</h4>
       <form *ngIf="editingWorkflowName" class="d-inline-flex align-items-center gap-2" (ngSubmit)="confirmWorkflowNameEdit()">
         <input type="text" class="form-control form-control-sm bg-transparent text-white border-white fw-semibold" autocomplete="off" [(ngModel)]="workflowNameEditValue" name="workflowNameEditValue" style="max-width:220px; border-width:1px;" />
@@ -21,10 +24,6 @@
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <div class="row">
             <div class="small fw-semibold text-secondary d-flex align-items-center gap-2" style="letter-spacing:.5px; font-size:.65rem;">
-              <a class="btn btn-xs btn-outline-primary d-inline-flex align-items-center justify-content-center gap-1" [routerLink]="['/workflows']" title="Back to workflows" style="height:28px; min-width:80px; border-radius:6px;">
-                <i class="feather icon-arrow-left" ></i>
-                <span class="d-none d-md-inline ms-1">Back</span>
-              </a>
               <button type="button" class="btn btn-xs btn-outline-primary d-inline-flex align-items-center justify-content-center gap-1" (click)="openAddStageModal()" style="height:28px; min-width:80px; border-radius:6px;">
                 <i class="feather icon-git-commit" style="font-size:.9rem; line-height:1;" aria-hidden="true"></i>
                 <span class="d-none d-md-inline ms-1">Add Stage</span>
@@ -95,7 +94,7 @@
     <!-- Right column placeholder -->
     <section class="editor-main flex-grow-1">
       <div class="px-3 pb-3 pt-3 d-flex flex-column gap-3">
-        <div *ngIf="!dataCollectionVisible() && !rulesVisible(); else stageSpecificTpl" class="empty-state text-center py-5 px-2">
+  <div *ngIf="!nonRulesVisible() && !rulesVisible(); else stageSpecificTpl" class="empty-state text-center py-5 px-2">
           <div class="empty-icon-wrapper mx-auto mb-3">
             <div class="gradient-ring">
               <i class="feather icon-layers empty-main-icon"></i>
@@ -116,8 +115,8 @@
           <div class="empty-hint mt-4 small text-secondary">Drag stages to refine their order at any time.</div>
         </div>
         <ng-template #stageSpecificTpl>
-          <!-- Data Collection OR Custom Template container -->
-          <ng-container *ngIf="dataCollectionVisible() || customVisible(); else rulesTpl">
+          <!-- Non-Rules container (Data Collection, Custom, and others except Rules) -->
+          <ng-container *ngIf="nonRulesVisible(); else rulesTpl">
           <!-- Data Collection Form card: ONLY when Data Collection -->
           <div class="card shadow-sm border-0 mt-3" *ngIf="dataCollectionVisible()">
             <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">

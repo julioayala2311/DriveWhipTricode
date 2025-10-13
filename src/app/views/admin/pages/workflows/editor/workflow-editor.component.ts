@@ -188,6 +188,14 @@ export class WorkflowEditorComponent implements OnInit {
     return st?.type === 'Rules';
   });
 
+  // Show general sections (Idle Move, Initial Message, Follow-Ups) for any non-Rules stage
+  readonly nonRulesVisible = computed(() => {
+    const stId = this.selectedStageId();
+    if (!stId) return false;
+    const st = this.stages().find(s => s.id_stage === stId);
+    return !!st && st.type !== 'Rules';
+  });
+
   // --- Rules Form State (initial single rule card) ---
   readonly rulesLoading = signal(false);
   readonly rulesError = signal<string | null>(null);
@@ -1424,22 +1432,24 @@ export class WorkflowEditorComponent implements OnInit {
     this.selectedStageId.set(id);
     // Limpiar inmediatamente el estado del Initial Message para evitar valores residuales de otro stage
     this.resetInitialMessageState();
-    if (this.stages().find(s => s.id_stage === id)?.type === 'Data Collection') {
+    const st = this.stages().find(s => s.id_stage === id);
+    const type = st?.type;
+    if (type === 'Data Collection') {
       this.loadDataCollectionSection(id, true); // force reset si no existe registro
       this.ensureInitialMessageCatalogs();
-      // Attempt loading idle move rule after section load (section id may not yet be known). We'll also call again after section resolves.
-      // First optimistic call with current (possibly null) section id
+      // Carga optimista con id_section posiblemente nulo; se recargará cuando la sección exista
       this.loadIdleMove(id, this.dataSectionId());
       this.loadFollowUps(id, this.dataSectionId());
-    } else if (this.stages().find(s => s.id_stage === id)?.type === 'Custom') {
-      // For Custom type, show messaging/idle move UI (first card hidden in template)
-      this.ensureInitialMessageCatalogs();
-      this.loadIdleMove(id, this.dataSectionId());
-      this.loadFollowUps(id, this.dataSectionId());
-    }
-    if (this.stages().find(s => s.id_stage === id)?.type === 'Rules') {
+    } else if (type === 'Rules') {
       this.loadRulesCatalogs();
       this.loadRulesSection(id); // will chain load of rule rows
+    } else {
+      // Para cualquier tipo distinto de Rules (incluye Custom y otros), mostrar secciones generales
+      // Evitar reutilizar un id de sección anterior (propio de Data Collection)
+      this.dataSectionId.set(null);
+      this.ensureInitialMessageCatalogs();
+      this.loadIdleMove(id, null);
+      this.loadFollowUps(id, null);
     }
   }
 

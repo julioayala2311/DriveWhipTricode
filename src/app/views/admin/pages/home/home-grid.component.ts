@@ -5,6 +5,7 @@ import { AgGridAngular } from 'ag-grid-angular';
 import { ColDef, GridApi, GridReadyEvent, IHeaderParams, CellClickedEvent } from 'ag-grid-community';
 import { IHeaderAngularComp } from 'ag-grid-angular';
 import { Router } from '@angular/router';
+import { Utilities } from '../../../../Utilities/Utilities';
 import { LocationsRecord } from '../../../../core/models/locations.model';
 
 /* ---------------- Grid Header (with icon) ---------------- */
@@ -201,8 +202,18 @@ export class HomeGridComponent implements OnChanges {
     if (btn) {
       const action = btn.getAttribute('data-action');
       const rec = e.data as LocationsRecord;
-      if (action === 'edit')   this.editRow.emit(rec);
-      if (action === 'delete') this.deleteRow.emit(rec);
+      if (action === 'edit') {
+        this.editRow.emit(rec);
+      } else if (action === 'delete') {
+        Utilities.confirm({
+          title: 'Disable location',
+          text: `The location "${(rec as any)?.location_name ?? 'this location'}" will be disabled. Continue?`,
+          confirmButtonText: 'Disable'
+        }).then(c => {
+          if (!c) return;
+          this.deleteRow.emit(rec);
+        });
+      }
       return;
     }
 

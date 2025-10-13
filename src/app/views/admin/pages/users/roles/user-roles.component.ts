@@ -286,7 +286,6 @@ export class UserRolesComponent implements OnInit, OnDestroy {
   
   private isAdminRole(rec: RoleRecord): boolean {
       const role = (rec?.role ?? '').toString().trim().toUpperCase();
-      console.log(role)
       return this.ADMIN_ROLES.has(role);
   }
   

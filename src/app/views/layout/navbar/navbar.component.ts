@@ -192,7 +192,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
         const pic = this.crypto.decrypt<string>(encPic);
         if (pic && typeof pic === 'string') {
           this.profileImageUrl = pic;
-          console.log("Profile image URL:", this.profileImageUrl);
         }
       }
     } catch { /* ignore */ }
@@ -202,7 +201,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
       if (encUser) {
         const user: any = this.crypto.decrypt(encUser);
         if (user) {
-          console.log(user);
           this.profileEmail = user.user;
           this.profileName = `${user.firstname} ${user.lastname}`.trim();
         }

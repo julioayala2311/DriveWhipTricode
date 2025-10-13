@@ -68,7 +68,9 @@ export class GridHeaderComponent implements IHeaderAngularComp {
 
   <app-applicant-panel
     *ngIf="panelOpen"
-    [applicant]="activeApplicant"
+    [applicant]="null"
+    [applicantId]="activeApplicant?.id || null"
+      [status]="activeApplicant?.status || null"
     [activeTab]="activeTab"
     [hasPrevious]="hasPreviousApplicant()"
     [hasNext]="hasNextApplicant()"
@@ -84,6 +86,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
     (setTab)="setTab($event)"
     (sendMessage)="onSendMessage($event)"
     (stageMoved)="onStageMoved($event)"
+    (applicantSaved)="onApplicantSaved($event)"
   ></app-applicant-panel>
   `,
   styles: [`
@@ -91,6 +94,10 @@ export class GridHeaderComponent implements IHeaderAngularComp {
     .grid-link { color: var(--bs-primary,#0d6efd); cursor:pointer; font-weight:600; text-decoration:none; }
     .grid-link:hover { text-decoration: underline; }
     .selection-badge { border-radius: 999px; padding:.35rem .65rem; }
+    /* Allow multi-line content in cells and avoid clipping */
+    :host ::ng-deep .ag-theme-quartz .ag-cell-wrap-text { white-space: normal !important; }
+    :host ::ng-deep .ag-theme-quartz .status-badge { line-height: 1; }
+    :host ::ng-deep .ag-theme-quartz .ag-cell div.d-flex.flex-wrap { align-items: center; gap: .25rem; }
   `]
 })
 export class ApplicantsGridComponent implements OnInit, OnChanges {
@@ -121,15 +128,29 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     { headerName: 'Phone', field: 'phone', minWidth: 140, flex: .8, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-phone' } },
     { 
       headerName: 'Status', field: 'status', minWidth: 260, flex: 1.4, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-clipboard' },
+      autoHeight: true, wrapText: true, cellClass: 'ag-cell-wrap-text',
       cellRenderer: (p: any) => {
-        if (!p.value) return '';
-        const complete = !!p.value.isComplete;
-        const stage = p.value.stage || 'Stage';
-        const statusName = p.value.statusName || (complete ? 'complete' : 'incomplete');
-        const text = `${stage} - ${statusName}`;
-        const colorClass = complete ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary';
-        const icon = complete ? 'icon-check-circle' : 'icon-shield';
-        return `<span class="badge ${colorClass} d-inline-flex align-items-center gap-1 status-badge"><i class="feather ${icon}"></i><span>${text}</span></span>`;
+        // Prefer rendering the full list of statuses if available; fallback to single p.value
+        const list = Array.isArray(p?.data?.statuses) ? p.data.statuses : (p?.value ? [p.value] : []);
+        if (!list.length) return '';
+        const renderOne = (item: any) => {
+          const complete = !!item.isComplete;
+          const stage = item.stage || 'Stage';
+          const statusName = item.statusName || (complete ? 'complete' : 'incomplete');
+          const text = `${stage} - ${statusName}`;
+          const colorClass = complete ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary';
+          const icon = complete ? 'icon-check-circle' : 'icon-shield';
+          return `<span class="badge ${colorClass} d-inline-flex align-items-center gap-1 status-badge"><i class="feather ${icon}"></i><span>${text}</span></span>`;
+        };
+        // Optionally de-duplicate repeated statuses keeping the last occurrence
+        const seen = new Set<string>();
+        const deduped: any[] = [];
+        for (let i = list.length - 1; i >= 0; i--) {
+          const it = list[i];
+          const key = `${(it.stage||'').toLowerCase()}|${(it.statusName||'').toLowerCase()}|${it.order ?? ''}`;
+          if (!seen.has(key)) { seen.add(key); deduped.unshift(it); }
+        }
+        return `<div class="d-flex flex-wrap gap-1">${deduped.map(renderOne).join('')}</div>`;
       }
     },
     { headerName: 'Custom Label', field: 'custom', minWidth: 150, flex: .7, valueGetter: () => '', headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-tag' } },
@@ -203,7 +224,8 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
         }
         const list = Array.isArray(raw) ? raw : [];
         const mapped = list.map((r: any) => {
-          const statusObj = this.parseStatusDetails(r.Status);
+          const parsed = this.parseStatuses(r.Status);
+          const statusObj = parsed.last;
           // Extract applicant id from any known property that may contain it
           const applicantId = (r?.id_applicant ?? r?.ID_APPLICANT ?? r?.id ?? r?.ID ?? r?.Id ?? r?.uuid ?? r?.guid ?? r?.applicant_id) ?? null;
           return {
@@ -212,6 +234,7 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
             email: r.Email ?? r.email ?? '',
             phone: r.Phone ?? r.phone ?? '',
             status: statusObj,
+            statuses: parsed.list,
             custom: '',
             applied: r.Applied ?? r.applied ?? '',
             IdleSince: r.IdleSince ?? r.idleSince ?? r.idle_since ?? '',
@@ -254,23 +277,35 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     this.loadApplicants();
   }
 
-  private parseStatusDetails(rawStatusJson: any): { stage: string; statusName: string; isComplete: boolean } | null {
+  private parseStatuses(rawStatusJson: any): { list: Array<{ stage: string; statusName: string; isComplete: boolean; order?: number }>; last: { stage: string; statusName: string; isComplete: boolean; order?: number } | null } {
+    const empty = { list: [], last: null as any };
+    if (!rawStatusJson) return empty;
+    // Try to parse; if malformed, attempt a light repair by ensuring closing bracket
+    let arr: any;
     try {
-      if (!rawStatusJson) return null;
-      const arr = typeof rawStatusJson === 'string' ? JSON.parse(rawStatusJson) : rawStatusJson;
-      if (Array.isArray(arr) && arr.length) {
-        const last = arr[arr.length - 1];
-        if (last && typeof last === 'object') {
-          const stage = String(last.stage || last.Stage || '').trim();
-          const statusName = String(last.statusName || last.status || '').trim().toLowerCase();
-          const normalized = statusName === 'complete' ? 'complete' : 'incomplete';
-          return { stage: stage || 'Stage', statusName: normalized, isComplete: normalized === 'complete' };
-        }
-      }
-      return null;
+      arr = typeof rawStatusJson === 'string' ? JSON.parse(rawStatusJson) : rawStatusJson;
     } catch {
-      return null;
+      // Attempt a simple repair for truncated arrays
+      try {
+        const s = String(rawStatusJson).trim();
+        const repaired = s.endsWith(']') ? s : (s + ']');
+        arr = JSON.parse(repaired);
+      } catch {
+        return empty;
+      }
     }
+    if (!Array.isArray(arr) || !arr.length) return empty;
+    const list = arr
+      .filter((x: any) => x && typeof x === 'object')
+      .map((x: any) => {
+        const stage = String(x.stage || x.Stage || '').trim();
+        const statusNameRaw = String(x.statusName || x.status || '').trim().toLowerCase();
+        const normalized = statusNameRaw === 'complete' ? 'complete' : 'incomplete';
+        const order = typeof x.order === 'number' ? x.order : undefined;
+        return { stage: stage || 'Stage', statusName: normalized, isComplete: normalized === 'complete', order };
+      });
+    const last = list.length ? list[list.length - 1] : null;
+    return { list, last };
   }
 
   private refreshGrid() {
@@ -279,17 +314,22 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
       this.gridApi.paginationGoToFirstPage();
       this.updatePaginationState();
       this.clearSelection();
+      // Recalculate row heights to fit autoHeight cells (e.g., multiple status badges)
+      this.gridApi.resetRowHeights();
     }
   }
 
   onCellClicked(event: CellClickedEvent): void {
     if (event.colDef.field === 'name' && event.data) {
-      this.openPanel(event.data as ApplicantRow);
+      this.openPanel(event.data.id);
     }
   }
 
-  openPanel(applicant: ApplicantRow): void {
-    this.enrichApplicantMeta(applicant);
+  openPanel(applicantId: string): void {
+    const applicant = this.rowData.find(row => row.id === applicantId);
+    if (applicant) {
+      this.enrichApplicantMeta(applicant);
+    }
     this.activeApplicant = applicant;
     this.panelOpen = true;
     this.activeTab = 'messages';
@@ -387,6 +427,7 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
 
   private isSameApplicant(a: ApplicantRow, b: ApplicantRow): boolean {
     if (!a || !b) return false;
+    if (a.id && b.id) return a.id === b.id;
     if (a.email && b.email) return a.email === b.email;
     if (a.phone && b.phone) return a.phone === b.phone;
     return a.name === b.name;
@@ -406,6 +447,16 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     return details.length ? details : [{ label: 'Details', value: 'No additional information available.' }];
   }
 
+  onApplicantSaved(evt: { id: string; payload: any } | any): void {
+    if (!evt) return;
+    const id = evt.id ?? evt?.payload?.id ?? null;
+    if (this.activeApplicant && id && this.activeApplicant.id === id) {
+      this.activeApplicant = { ...this.activeApplicant, ...(evt.payload ?? {}) };
+    }
+    // Refresh the grid data so applicant row reflects latest info
+    this.loadApplicants();
+  }
+
   // Legacy mock helpers removed after integrating real API
 
   onGridReady(e: GridReadyEvent) { this.gridApi = e.api; this.refreshGrid(); }
@@ -413,6 +464,7 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     // With flex columns sizeColumnsToFit is usually not needed, but we ensure width usage.
     this.gridApi?.sizeColumnsToFit();
     this.updatePaginationState();
+    this.gridApi?.resetRowHeights();
   }
   onSelectionChanged() { this.selectedCount = this.gridApi?.getSelectedNodes().length || 0; }
   clearSelection() { this.gridApi?.deselectAll(); this.onSelectionChanged(); }
@@ -452,6 +504,7 @@ interface ApplicantRow {
   email: string;
   phone: string;
   status: { stage: string; statusName: string; isComplete: boolean } | null;
+  statuses?: Array<{ stage: string; statusName: string; isComplete: boolean; order?: number }>;
   custom: string;
   applied: string;
   IdleSince: string;

@@ -10,6 +10,7 @@ import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/d
 import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/models/entities.model';
 import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
 import { WorkflowsDialogComponent, WorkflowDialogResult, WorkflowRecord } from './workflows-dialog.component';
+import { Utilities } from '../../../../Utilities/Utilities';
 
 @Component({
   selector: 'app-workflow',
@@ -138,23 +139,35 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   delete(rec: WorkflowRecord): void {
-    if (!window.confirm(`Disable workflow "${rec.workflow_name}"?`)) return;
-    this.mutate('D', { id_workflow: rec.id_workflow });
+    Utilities.confirm({
+      title: 'Disable workflow',
+      text: `The workflow "${rec.workflow_name}" will be disabled. Continue?`,
+      confirmButtonText: 'Disable'
+    }).then(c => {
+      if (!c) return;
+      this.mutate('D', { id_workflow: rec.id_workflow });
+    });
   }
 
   /** CRUD → ajusta orden/params según tu SP */
   private mutate(action: 'C'|'U'|'D', rec: Partial<WorkflowRecord> & { is_active?: number }) {
     this._loading.set(true);
 
-    // Ejemplo de firma: (p_action, p_id_workflow, p_id_location, p_name, p_notes, p_sort_order, p_is_active)
+    // Firma real del SP:
+    // (p_action, p_id_workflow, p_id_location, p_name, p_is_active, p_created_by, p_updated_by)
+    const actor = this.resolveActor();
+    const isActive = action === 'D' ? null : (rec.is_active ?? 1); // 0 | 1 | null
+    const createdBy = action === 'C' ? actor : null;
+    const updatedBy = action === 'U' || action === 'D' ? actor : null;
+
     const params: any[] = [
       action,
       rec.id_workflow ?? null,
       rec.id_location ?? null,
       rec.workflow_name ?? null,
-      rec.notes ?? null,
-      rec.sort_order ?? null,
-      action === 'D' ? null : (rec.is_active ?? 1)
+      isActive,
+      createdBy,
+      updatedBy
     ];
 
     const api: IDriveWhipCoreAPI = {
@@ -182,6 +195,28 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
           this._loading.set(false);
         }
       });
+  }
+
+  /** Try to get a user string for audit fields, fallback to 'system' */
+  private resolveActor(): string {
+    try {
+      const u = localStorage.getItem('dw.auth.user') || localStorage.getItem('user');
+      if (!u) return 'system';
+      // If values are encrypted the decrypt may return a JSON string or plain text; keep it defensive
+      let s: string | null = null;
+      try { s = this.crypto.decrypt(u) as unknown as string; } catch { /* ignore */ }
+      const raw = s || u;
+      try {
+        const obj = JSON.parse(raw);
+        return obj?.email || obj?.username || obj?.name || 'system';
+      } catch {
+        // Not JSON, return trimmed string if reasonable
+        const t = raw.trim();
+        return t.length > 2 ? t : 'system';
+      }
+    } catch {
+      return 'system';
+    }
   }
 
   /* ------- layout helpers (optional) ------- */

@@ -23,6 +23,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   @ViewChild('moreActionsWrapper', { static: false }) moreActionsWrapper?: ElementRef;
   private authSession = inject(AuthSessionService);
   @Input() applicant: any;
+  @Input() applicantId: string | null = null;
   @Input() activeTab: 'messages' | 'history' | 'files' = 'messages';
   @Input() hasPrevious: boolean = false;
   @Input() hasNext: boolean = false;
@@ -34,6 +35,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   @Input() stageIcon: string = 'icon-layers';
   @Input() availableStages: any[] = [];
   @Input() currentStageId: number | null = null;
+  @Input() status: ApplicantStatus | null = null;
   @Output() draftMessageChange = new EventEmitter<string>();
   @Output() closePanel = new EventEmitter<void>();
   @Output() goToPrevious = new EventEmitter<void>();
@@ -48,6 +50,14 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   notesSaving = false;
   movingStage = false;
   newNoteText = '';
+  applicantDetailsLoading = false;
+  applicantDetailsError: string | null = null;
+  // Answers (registration)
+  answersLoading = false;
+  answersError: string | null = null;
+  answers: Array<{ id_question?: any; answer_text?: string; answered_at?: any; created_at?: any }> = [];
+  showAllAnswers = false;
+  private lastLoadedApplicantId: string | null = null;
   // Copy tooltip state
   copyFeedbackKey: string | null = null;
   private _copyFeedbackTimer: any = null;
@@ -122,42 +132,67 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   saveApplicant(): void {
-    if (!this.applicant || !this.applicant.id) { Utilities.showToast('Applicant id missing', 'warning'); return; }
+    const applicantId = this.resolveApplicantId(this.applicant);
+    if (!applicantId) { Utilities.showToast('Applicant id missing', 'warning'); return; }
     const payload = { ...this.editableApplicant };
     this.applicantSaving = true;
-    // Call the provided stored procedure app_applicants_crud
-    // SP signature (IN order): p_action, p_first_name, p_last_name, p_date_birthday, p_email, p_phone_number, p_referral_name, p_state_code, p_street, p_city, p_zip_code, p_accept_terms, p_allow_msg_updates, p_allow_calls, p_is_active, p_state_code_location
+
+    const fullName = (payload.name ?? '').toString().trim();
+    const firstName = (payload.first_name ?? this.applicant?.first_name ?? fullName.split(' ').shift() ?? '').toString().trim();
+    const lastName = (payload.last_name ?? this.applicant?.last_name ?? fullName.split(' ').slice(1).join(' ')).toString().trim();
+    const email = (payload.email ?? this.applicant?.email ?? '').toString().trim();
+    const phone = (payload.phone_number ?? payload.phone ?? this.applicant?.phone ?? '').toString().trim();
+    const referral = payload.referral_name ?? this.applicant?.referral_name ?? null;
+    const acceptTerms = payload.accept_terms ?? this.applicant?.accept_terms ?? false;
+    const allowMsgUpdates = payload.allow_msg_updates ?? this.applicant?.allow_msg_updates ?? false;
+    const allowCalls = payload.allow_calls ?? this.applicant?.allow_calls ?? false;
+    const isActive = payload.is_active ?? this.applicant?.is_active ?? true;
+    const countryCode = payload.country_code ?? this.applicant?.country_code ?? null;
+    const stateCode = payload.state_code ?? this.applicant?.state_code ?? null;
+    const street = payload.street ?? this.applicant?.street ?? null;
+    const city = payload.city ?? this.applicant?.city ?? null;
+    const zip = payload.zip_code ?? this.applicant?.zip_code ?? null;
+    const createdBy = this.applicant?.created_by ?? this.currentUserIdentifier();
+    const updatedBy = this.currentUserIdentifier();
+
     try {
       const params: any[] = [
         'U',
-        payload.first_name ?? payload.name ?? null,
-        payload.last_name ?? null,
-        payload.date_birthday ?? null,
-        payload.email ?? null,
-        payload.phone_number ?? payload.phone ?? payload.phoneNumber ?? null,
-        payload.referral_name ?? null,
-        payload.state_code ?? null,
-        payload.street ?? null,
-        payload.city ?? null,
-        payload.zip_code ?? payload.zip ?? null,
-        payload.accept_terms ? 1 : 0,
-        payload.allow_msg_updates ? 1 : 0,
-        payload.allow_calls ? 1 : 0,
-        (payload.is_active === undefined ? (payload.isActive ?? 1) : payload.is_active) ? 1 : 0,
-        payload.state_code_location ?? payload.state_code_location ?? null
+        applicantId,
+        firstName || null,
+        lastName || null,
+        email || null,
+        phone || null,
+        referral || null,
+        acceptTerms ? 1 : 0,
+        allowMsgUpdates ? 1 : 0,
+        allowCalls ? 1 : 0,
+        isActive ? 1 : 0,
+        countryCode || null,
+        stateCode || null,
+        street || null,
+        city || null,
+        zip || null,
+        createdBy || null,
+        updatedBy || null
       ];
-      const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.app_applicants_crud as any, parameters: params } as any;
+      const api: IDriveWhipCoreAPI = {
+        commandName: DriveWhipAdminCommand.crm_applicants_crud as any,
+        parameters: params
+      } as any;
       this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
         next: res => {
           if (!res.ok) { Utilities.showToast(String(res.error || 'Failed to save applicant'), 'error'); return; }
           Utilities.showToast('Applicant saved', 'success');
-          // Update local applicant object with editable values so UI shows updated fields
-          this.applicant = { ...this.applicant, ...this.editableApplicant };
           this.isEditingApplicant = false;
-          // emit event to parent to allow refresh of lists/counts
-          this.applicantSaved.emit({ id: this.applicant.id, payload: this.applicant });
+          this.loadApplicantDetails(applicantId);
+          this.applicantSaved.emit({ id: applicantId, payload: { ...this.applicant, ...payload } });
         },
-        error: err => { console.error('[ApplicantPanel] saveApplicant error', err); Utilities.showToast('Failed to save applicant', 'error'); },
+        error: err => {
+          console.error('[ApplicantPanel] saveApplicant error', err);
+          Utilities.showToast('Failed to save applicant', 'error');
+          this.applicantSaving = false;
+        },
         complete: () => { this.applicantSaving = false; }
       });
     } catch (e) {
@@ -167,13 +202,23 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
   }
 
+  private currentUserIdentifier(): string {
+    try {
+      const user: any = (this.authSession as any).user;
+      if (!user) return 'system';
+      return user.email || user.username || user.name || user.id || 'system';
+    } catch {
+      return 'system';
+    }
+  }
+
 
   private readonly fallbackMessages: ApplicantMessage[] = [
     {
       id: 'msg-1',
       direction: 'inbound',
       sender: 'Whip',
-      body: 'Hi {{ applicant.name }}, your Whip is almost here! Finish your app now - full coverage, free maintenance, and unlimited miles included.',
+      body: 'Hi {{ applicant.first_name }} {{ applicant.last_name }}, your Whip is almost here! Finish your app now - full coverage, free maintenance, and unlimited miles included.',
       timestamp: '10:06 PM EDT',
       channel: 'SMS',
       status: 'not_delivered',
@@ -282,16 +327,25 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (changes['messages'] || changes['applicant']) {
       this.refreshResolvedMessages();
     }
-    if (changes['applicant']) {
+    if (changes['applicant'] || changes['applicantId']) {
       this.openSections = new Set<string>(this.defaultSectionIds);
       this.closeMenus();
       // prepare editable copy for inline editing
       this.editableApplicant = this.applicant ? { ...this.applicant } : {};
       // load notes for this applicant when panel opens / applicant changes
-      if (this.applicant && this.applicant.id) {
-        this.loadNotes(this.applicant.id);
+      const idFromApplicant = this.resolveApplicantId(this.applicant);
+      const id = (this.applicantId || idFromApplicant || null) as string | null;
+      if (id) {
+        this.loadNotes(id);
       } else {
         this.notes = [];
+      }
+      if (id && id !== this.lastLoadedApplicantId) {
+        this.loadApplicantDetails(id);
+        // If opening with only ID, ensure there is a lightweight stub so header and info placeholders render
+        if (!this.applicant) {
+          this.applicant = { id };
+        }
       }
     }
     if (changes['availableStages']) {
@@ -384,6 +438,20 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (fromApplicant) return fromApplicant;
     const fromStatus = (this.applicant?.status?.stage ?? '').toString().trim();
     return fromStatus || null;
+  }
+
+  get resolvedStatus(): ApplicantStatus | null {
+    // Prefer the applicant object if it already has status
+    const appStatus = this.applicant?.status as ApplicantStatus | undefined;
+    if (appStatus && (appStatus.stage || appStatus.statusName)) return appStatus;
+    // Fallback to input status from grid
+    const inStatus = this.status as ApplicantStatus | null;
+    if (inStatus && (inStatus.stage || inStatus.statusName)) return inStatus;
+    // Build minimal status from available inputs
+    const stage = this.displayStage || '';
+    if (!stage) return null;
+    const statusName = 'incomplete';
+    return { stage, statusName, isComplete: false } as ApplicantStatus;
   }
 
   /** Returns the history array to render in the timeline (prefers explicit input, falls back to applicant.history) */
@@ -567,6 +635,194 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: '2-digit' }).format(date);
   }
 
+  private resolveApplicantId(applicant: any): string | null {
+    if (!applicant) return null;
+    return (applicant.id ?? applicant.id_applicant ?? applicant.ID_APPLICANT ?? applicant.uuid ?? applicant.guid ?? null) ? String(applicant.id ?? applicant.id_applicant ?? applicant.ID_APPLICANT ?? applicant.uuid ?? applicant.guid) : null;
+  }
+
+  private loadApplicantDetails(applicantId: string): void {
+    this.applicantDetailsLoading = true;
+    this.applicantDetailsError = null;
+    const params: any[] = [
+      'R',
+      applicantId,
+      null, null, null, null, null, null, null, null, null,
+      null, null, null, null, null,
+      null, null
+    ];
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_applicants_crud as any,
+      parameters: params
+    } as any;
+
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: res => {
+        if (!res.ok) {
+          const err = String(res.error || 'Failed to load applicant details');
+          this.applicantDetailsError = err;
+          Utilities.showToast(err, 'error');
+          this.applicantDetailsLoading = false;
+          return;
+        }
+        const record = this.extractSingleRecord(res.data);
+        if (record) {
+          this.applyApplicantRecord(record);
+          this.lastLoadedApplicantId = applicantId;
+          this.applicantDetailsLoading = false;
+          this.applicantDetailsError = null;
+        } else {
+          this.applicantDetailsError = 'Applicant not found';
+          this.applicantDetailsLoading = false;
+        }
+      },
+      error: err => {
+        console.error('[ApplicantPanel] loadApplicantDetails error', err);
+        this.applicantDetailsError = 'Failed to load applicant details';
+        Utilities.showToast(this.applicantDetailsError, 'error');
+        this.applicantDetailsLoading = false;
+      },
+      complete: () => {
+        this.editableApplicant = this.applicant ? { ...this.applicant } : {};
+      }
+    });
+    // Load answers in parallel
+    this.loadApplicantAnswers(applicantId);
+  }
+
+  private loadApplicantAnswers(applicantId: string): void {
+    this.answersLoading = true;
+    this.answersError = null;
+    this.answers = [];
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_applicants_answers_registration as any,
+      parameters: [ applicantId ]
+    } as any;
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        if (!res?.ok) {
+          this.answers = [];
+          this.answersError = String(res?.error || 'Failed to load answers');
+          return;
+        }
+        let raw: any = res.data;
+        if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+        const list = Array.isArray(raw) ? raw : [];
+        this.answers = list.map((r:any) => ({
+          id_question: r.id_question ?? r.ID_QUESTION ?? null,
+          answer_text: r.answer_text ?? r.ANSWER_TEXT ?? '',
+          answered_at: r.answered_at ?? r.ANSWERED_AT ?? null,
+          created_at: r.created_at ?? r.CREATED_AT ?? null
+        }));
+      },
+      error: (err) => {
+        console.error('[ApplicantPanel] loadApplicantAnswers error', err);
+        this.answers = [];
+        this.answersError = 'Failed to load answers';
+      },
+      complete: () => { this.answersLoading = false; }
+    });
+  }
+
+  private extractSingleRecord(data: any): any | null {
+    if (!data) return null;
+    if (Array.isArray(data)) {
+      if (data.length === 0) return null;
+      if (Array.isArray(data[0])) {
+        return data[0].length ? data[0][0] : null;
+      }
+      return data[0];
+    }
+    if (typeof data === 'object') return data;
+    return null;
+  }
+
+  private applyApplicantRecord(record: any): void {
+    if (!record) return;
+    const normalized = this.normalizeApplicantRecord(record);
+    this.applicant = { ...this.applicant, ...normalized };
+    this.editableApplicant = { ...this.applicant };
+  }
+
+  private normalizeApplicantRecord(record: any): any {
+    const firstName = this.coalesce(record.first_name, record.FIRST_NAME, record.firstName, '');
+    const lastName = this.coalesce(record.last_name, record.LAST_NAME, record.lastName, '');
+    const email = this.coalesce(record.email, record.EMAIL, '');
+    const phone = this.coalesce(record.phone_number, record.PHONE_NUMBER, '');
+    const id = this.coalesce(record.id_applicant, record.ID_APPLICANT, record.id, this.resolveApplicantId(record), this.resolveApplicantId(this.applicant));
+    const countryCode = this.coalesce(record.country_code, record.COUNTRY_CODE, '');
+    const stateCode = this.coalesce(record.state_code, record.STATE_CODE, '');
+    const street = this.coalesce(record.street, record.STREET, '');
+    const city = this.coalesce(record.city, record.CITY, '');
+    const zip = this.coalesce(record.zip_code, record.ZIP_CODE, '');
+    const createdAt = this.coalesce(record.created_at, record.CREATED_AT, null);
+    const updatedAt = this.coalesce(record.updated_at, record.UPDATED_AT, null);
+    const referral = this.coalesce(record.referral_name, record.REFERRAL_NAME, '');
+    const acceptTerms = this.booleanize(record.accept_terms ?? record.ACCEPT_TERMS);
+    const allowMsgUpdates = this.booleanize(record.allow_msg_updates ?? record.ALLOW_MSG_UPDATES);
+    const allowCalls = this.booleanize(record.allow_calls ?? record.ALLOW_CALLS);
+    const isActive = this.booleanize(record.is_active ?? record.IS_ACTIVE ?? true);
+
+    const detailItems: { label: string; value: string }[] = [];
+    const addDetail = (label: string, value: any) => {
+      if (value === null || value === undefined || value === '') return;
+      detailItems.push({ label, value: String(value) });
+    };
+    addDetail('Referral', referral);
+    addDetail('Phone', phone);
+    addDetail('Email', email);
+    addDetail('Address', [street, city, stateCode, zip].filter(Boolean).join(', '));
+    addDetail('Country', countryCode);
+    addDetail('Accept terms', acceptTerms ? 'Yes' : 'No');
+    addDetail('Allow messaging updates', allowMsgUpdates ? 'Yes' : 'No');
+    addDetail('Allow calls', allowCalls ? 'Yes' : 'No');
+    if (createdAt) addDetail('Created at', createdAt);
+    if (updatedAt) addDetail('Updated at', updatedAt);
+
+    return {
+      id,
+      id_applicant: id,
+      first_name: firstName,
+      last_name: lastName,
+      name: [firstName, lastName].filter(Boolean).join(' ').trim() || (this.applicant?.name ?? ''),
+      email,
+      phone,
+      phone_number: phone,
+      referral_name: referral,
+      accept_terms: acceptTerms,
+      allow_msg_updates: allowMsgUpdates,
+      allow_calls: allowCalls,
+      is_active: isActive,
+      country_code: countryCode,
+      state_code: stateCode,
+      street,
+      city,
+      zip_code: zip,
+      created_at: createdAt,
+      updated_at: updatedAt,
+      details: detailItems,
+      updated_by: record.updated_by ?? record.UPDATED_BY ?? this.applicant?.updated_by ?? null,
+      created_by: record.created_by ?? record.CREATED_BY ?? this.applicant?.created_by ?? null
+    };
+  }
+
+  private coalesce<T>(...values: T[]): T | null {
+    for (const v of values) {
+      if (v !== undefined && v !== null && v !== '') return v;
+    }
+    return null;
+  }
+
+  private booleanize(value: any): boolean {
+    if (typeof value === 'boolean') return value;
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+      const lowered = value.toLowerCase();
+      return lowered === '1' || lowered === 'true' || lowered === 'yes' || lowered === 'y';
+    }
+    return Boolean(value);
+  }
+
   get stageIconClass(): string {
     const icon = (this.stageIcon ?? '').trim() || (this.applicant?.stageIcon ?? '').trim();
     return icon || 'icon-layers';
@@ -632,9 +888,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       const direction = (msg.direction ?? 'inbound') as 'inbound' | 'outbound';
       // Replace {{ applicant.name }} with actual name if present in body
       let body = msg.body ?? '';
-      if (body.includes('{{ applicant.name }}') && this.applicant?.name) {
-        body = body.replace(/{{\s*applicant\.name\s*}}/g, this.applicant.name);
-      }
+      // Interpolate any {{ ... }} placeholders using applicant fields (supports dotted paths)
+      body = this.interpolateTemplate(body, { applicant: this.applicant || {} });
       return {
         ...msg,
         id: msg.id ?? `msg-${idx}`,
@@ -650,6 +905,30 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         avatar: msg.avatar ?? (direction === 'inbound' ? (msg.sender ?? '').slice(0, 1) : undefined)
       };
     });
+  }
+
+  // Simple template interpolation: replaces {{ path.to.value }} using values from ctx
+  private interpolateTemplate(template: string, ctx: any): string {
+    if (!template || typeof template !== 'string') return template as any;
+    return template.replace(/{{\s*([\w\.]+)\s*}}/g, (_match, path) => {
+      const value = this.resolvePath(ctx, path);
+      return value !== undefined && value !== null ? String(value) : '';
+    });
+    }
+
+  private resolvePath(obj: any, path: string): any {
+    try {
+      if (!obj || !path) return undefined;
+      const parts = path.split('.');
+      let cur = obj;
+      for (const p of parts) {
+        if (cur == null) return undefined;
+        cur = cur[p];
+      }
+      return cur;
+    } catch {
+      return undefined;
+    }
   }
 
   private loadNotes(applicantId: string): void {

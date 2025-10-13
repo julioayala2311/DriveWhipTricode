@@ -116,9 +116,10 @@
           <div class="empty-hint mt-4 small text-secondary">Drag stages to refine their order at any time.</div>
         </div>
         <ng-template #stageSpecificTpl>
-          <!-- Data Collection Template -->
-          <ng-container *ngIf="dataCollectionVisible(); else rulesTpl">
-          <div class="card shadow-sm border-0 mt-3">
+          <!-- Data Collection OR Custom Template container -->
+          <ng-container *ngIf="dataCollectionVisible() || customVisible(); else rulesTpl">
+          <!-- Data Collection Form card: ONLY when Data Collection -->
+          <div class="card shadow-sm border-0 mt-3" *ngIf="dataCollectionVisible()">
             <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
               <h6 class="mb-0 fw-semibold">Data Collection Form</h6>
               <span *ngIf="dataSectionLoading()" class="small text-secondary">Loading…</span>
@@ -150,7 +151,7 @@
               <div class="px-2 py-4 text-center small text-secondary">Loading settings…</div>
             </ng-template>
           </div>
-          <!-- Idle Move Rule Card -->
+          <!-- Idle Move Rule Card (visible for Data Collection and Custom) -->
           <div class="card shadow-sm border-0 mt-3 idle-move-card">
             <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
               <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2">Idle Move Rule
@@ -200,7 +201,7 @@
               </div>
             </div>
           </div>
-          <!-- Initial Message Card -->
+          <!-- Initial Message Card (visible for Data Collection and Custom) -->
           <div class="card shadow-sm border-0 mt-3">
             <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
               <div class="d-flex flex-column">
@@ -249,7 +250,7 @@
               </div>
             </div>
           </div>
-            <!-- Follow-Up Messages Card -->
+            <!-- Follow-Up Messages Card (visible for Data Collection and Custom) -->
             <div class="card shadow-sm border-0 mt-3 followup-messages-card">
               <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
                 <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2">Follow-Up Messages
@@ -447,7 +448,7 @@
           </div>
           <div class="col-12">
             <label class="form-label small fw-semibold">Stage Type <span class="text-danger">*</span></label>
-            <select class="form-select form-select-sm" [value]="newStageTypeId() ?? ''" (focus)="ensureStageTypes()" (change)="newStageTypeId.set(+($any($event.target).value)||null)" [disabled]="stageTypesLoading()">
+            <select class="form-select form-select-sm" [value]="newStageTypeId() ?? ''" (focus)="ensureStageTypes()" (change)="newStageTypeId.set(+($any($event.target).value)||null); (isAddingDataCollection() ? ensureDcForms() : null)" [disabled]="stageTypesLoading()">
               <option value="">Select type…</option>
               <ng-container *ngFor="let st of stageTypeOptions()">
                 <option *ngIf="st.label !== 'Rules'" [value]="st.id">{{ st.label }}</option>
@@ -455,6 +456,16 @@
             </select>
             <div *ngIf="stageTypesLoading()" class="form-text small text-secondary">Loading types…</div>
             <div *ngIf="stageTypesError()" class="form-text small text-danger">{{ stageTypesError() }}</div>
+          </div>
+          <!-- Conditional Form select for Data Collection type -->
+          <div class="col-12" *ngIf="isAddingDataCollection()">
+            <label class="form-label small fw-semibold">Form <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" [value]="newStageFormCode() ?? ''" (focus)="ensureDcForms()" (change)="newStageFormCode.set(($any($event.target).value)||null)" [disabled]="dcFormsLoading()">
+              <option value="">Select form…</option>
+              <option *ngFor="let f of dcFormOptions()" [value]="f.code">{{ f.name }}</option>
+            </select>
+            <div *ngIf="dcFormsLoading()" class="form-text small text-secondary">Loading forms…</div>
+            <div *ngIf="dcFormsError()" class="form-text small text-danger">{{ dcFormsError() }}</div>
           </div>
           <div class="col-12">
             <label class="form-label small fw-semibold">Stage Placement</label>
@@ -468,7 +479,7 @@
         </div>
         <div class="d-flex justify-content-end gap-2 mt-3">
           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeAddStageModal()">Cancel</button>
-          <button type="submit" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" [disabled]="!newStageName().trim() || !newStageTypeId() || newStageSaving()">
+          <button type="submit" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" [disabled]="!newStageName().trim() || !newStageTypeId() || (isAddingDataCollection() && !newStageFormCode()) || newStageSaving()">
             <ng-container *ngIf="!newStageSaving(); else addingStage">Add Stage</ng-container>
           </button>
           <ng-template #addingStage>

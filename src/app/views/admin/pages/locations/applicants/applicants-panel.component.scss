@@ -319,3 +319,24 @@ body.dark .timeline-marker { border-color:#1f2634; box-shadow:none; background:#
   border-left: 0px solid #FF6221!important;
   background: transparent!important;
 }
+
+/* Files view (right column) */
+.panel-chat-body.files-view { padding: 1.25rem 1.5rem; }
+.files-wrapper { display:flex; flex-direction:column; gap:1.75rem; }
+.file-block { display:flex; flex-direction:column; gap:.85rem; }
+.file-block-header { display:flex; align-items:center; justify-content:space-between; }
+.file-title { font-weight:600; }
+.file-actions { display:flex; align-items:center; gap:1rem; }
+.file-actions .action { background:none; border:none; color:#e74c3c; font-size:.9rem; padding:0; }
+.file-actions .action:hover { text-decoration:underline; }
+.status-label { font-weight:600; }
+.status-label.text-success { color:#1ab769; }
+.status-label.text-warning { color:#e5a000; }
+.file-preview { position:relative; border:1px solid rgba(15,23,42,.08); border-radius:16px; background:#fff; padding:1rem; min-height: 240px; display:flex; align-items:center; justify-content:center; }
+.file-preview img { max-width:100%; max-height:420px; border-radius:12px; box-shadow: 0 1px 0 rgba(0,0,0,0.03); }
+.download-btn { position:absolute; left:1rem; bottom:1rem; width:32px; height:32px; border-radius:8px; border:1px solid rgba(15,23,42,.12); background:#fff; display:flex; align-items:center; justify-content:center; color:#6b7280; }
+.download-btn:hover { color:#111827; border-color: rgba(15,23,42,.18); }
+
+@media (max-width: 768px) {
+  .panel-chat-body.files-view { padding: 1rem; }
+}

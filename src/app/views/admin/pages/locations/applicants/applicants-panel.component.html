@@ -21,7 +21,7 @@
       <div class="panel-body" *ngIf="applicant">
         <section class="panel-column panel-info">
           <div class="panel-scroll">
-            <h5 class="panel-title mb-1">{{ applicant.name }}</h5>
+            <h5 class="panel-title mb-1">{{ applicant.first_name }} {{ applicant.last_name }}</h5>
             <div class="panel-accordion">
               <div class="accordion-item" [class.open]="isSectionOpen('info')">
                 <button type="button" class="accordion-toggle" (click)="toggleSection('info')">
@@ -30,10 +30,24 @@
                 </button>
                 <div class="accordion-body" *ngIf="isSectionOpen('info')">
                   <ul class="list-unstyled panel-list mb-2">
+                    <li *ngIf="applicantDetailsLoading" class="d-flex align-items-center text-secondary small mb-2">
+                      <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Loading applicant details...
+                    </li>
+                    <li *ngIf="!applicantDetailsLoading && applicantDetailsError" class="text-warning small mb-2">
+                      {{ applicantDetailsError }}
+                    </li>
                     <!-- Editable applicant fields -->
                     <li *ngIf="isEditingApplicant">
                       <div class="mb-2">
-                        <input class="form-control form-control-sm mb-1" [(ngModel)]="editableApplicant.name" name="editName" placeholder="Full name" />
+                        <div class="row g-2 mb-1">
+                          <div class="col-12 col-sm-6">
+                            <input class="form-control form-control-sm" [(ngModel)]="editableApplicant.first_name" name="editFirstName" placeholder="First name" />
+                          </div>
+                          <div class="col-12 col-sm-6">
+                            <input class="form-control form-control-sm" [(ngModel)]="editableApplicant.last_name" name="editLastName" placeholder="Last name" />
+                          </div>
+                        </div>
                         <input class="form-control form-control-sm mb-1" [(ngModel)]="editableApplicant.email" name="editEmail" placeholder="Email" />
                         <input class="form-control form-control-sm" [(ngModel)]="editableApplicant.phone" name="editPhone" placeholder="Phone" />
                       </div>
@@ -84,9 +98,9 @@
                 </button>
                 <div class="accordion-body" *ngIf="isSectionOpen('status')">
                   <span class="status-chip badge d-inline-flex align-items-center gap-1"
-                        [ngClass]="statusBadgeClass(applicant?.status)">
-                    <i class="feather" [ngClass]="statusBadgeIcon(applicant?.status)"></i>
-                    <span>{{ applicant.status?.stage || 'Stage' }} - {{ (applicant.status?.statusName || 'incomplete') | titlecase }}</span>
+                        [ngClass]="statusBadgeClass(resolvedStatus)">
+                    <i class="feather" [ngClass]="statusBadgeIcon(resolvedStatus)"></i>
+                    <span>{{ resolvedStatus?.stage || 'Stage' }} - {{ (resolvedStatus?.statusName || 'incomplete') | titlecase }}</span>
                   </span>
                   <div class="text-secondary small mt-2">Stage completion</div>
                 </div>
@@ -150,12 +164,24 @@
                   <i class="feather" [ngClass]="isSectionOpen('details') ? 'icon-chevron-up' : 'icon-chevron-down'"></i>
                 </button>
                 <div class="accordion-body" *ngIf="isSectionOpen('details')">
-                  <dl class="detail-grid mb-2">
-                    <ng-container *ngFor="let item of applicant.details">
-                      <dt>{{ item.label }}</dt>
-                      <dd>{{ item.value }}</dd>
-                    </ng-container>
-                  </dl>
+                  <!-- Answers from crm_applicants_answers_registration -->
+                  <div *ngIf="answersLoading" class="small text-secondary mb-2 d-flex align-items-center gap-2">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Loading answers...
+                  </div>
+                  <div *ngIf="!answersLoading && answersError" class="alert alert-warning py-1 px-2 small mb-2">{{ answersError }}</div>
+                  <ul class="list-unstyled mb-2" *ngIf="!answersLoading && !answersError">
+                    <li *ngFor="let a of (showAllAnswers ? answers : (answers | slice:0:5))" class="mb-2">
+                      <i class="feather icon-file-text me-2 text-primary"></i>
+                      <span>{{ a.answer_text }}</span>
+                    </li>
+                    <li *ngIf="answers && answers.length === 0" class="text-secondary small">No answers yet.</li>
+                  </ul>
+                  <div *ngIf="answers && answers.length > 5" class="mt-1">
+                    <button type="button" class="btn btn-link btn-sm px-0" (click)="showAllAnswers = !showAllAnswers">
+                      {{ showAllAnswers ? 'Show less' : 'Show all (' + answers.length + ')' }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -314,8 +340,39 @@
                 </div>
               </div>
             </div>
-          <div class="panel-chat-body" *ngIf="activeTab==='files'">
-            <div class="text-secondary small">No files uploaded.</div>
+          <div class="panel-chat-body files-view" *ngIf="activeTab==='files'">
+            <div class="files-wrapper">
+              <!-- Upload Drivers License block -->
+              <div class="file-block">
+                <div class="file-block-header">
+                  <div class="file-title">Upload Drivers License</div>
+                  <div class="file-actions">
+                    <span class="status-label text-success">Approved</span>
+                    <button type="button" class="btn-link action text-danger">Unapprove</button>
+                    <button type="button" class="btn-link action text-danger">Delete</button>
+                  </div>
+                </div>
+                <div class="file-preview">
+                  <img src="/images/others/placeholder.jpg" alt="Drivers License" />
+                  <button type="button" class="download-btn" title="Download"><i class="feather icon-download"></i></button>
+                </div>
+              </div>
+
+              <!-- Proof Of Address block -->
+              <div class="file-block">
+                <div class="file-block-header">
+                  <div class="file-title">Proof Of Address</div>
+                  <div class="file-actions">
+                    <span class="status-label text-warning">Re-collecting File</span>
+                    <button type="button" class="btn-link action text-danger">Cancel Re-collection</button>
+                  </div>
+                </div>
+                <div class="file-preview">
+                  <img src="/images/others/placeholder.jpg" alt="Proof Of Address" />
+                  <button type="button" class="download-btn" title="Download"><i class="feather icon-download"></i></button>
+                </div>
+              </div>
+            </div>
           </div>
           <form class="chat-input" (submit)="sendMessage.emit($event)" *ngIf="activeTab==='messages'">
             <div class="input-group">

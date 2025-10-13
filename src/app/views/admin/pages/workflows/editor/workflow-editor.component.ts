@@ -172,6 +172,14 @@ export class WorkflowEditorComponent implements OnInit {
     return st?.type === 'Data Collection';
   });
 
+  // Show some parts of the UI also for Custom stages
+  readonly customVisible = computed(() => {
+    const stId = this.selectedStageId();
+    if (!stId) return false;
+    const st = this.stages().find(s => s.id_stage === stId);
+    return st?.type === 'Custom';
+  });
+
   // Rules section visibility (stage type === 'Rules')
   readonly rulesVisible = computed(() => {
     const stId = this.selectedStageId();
@@ -200,6 +208,10 @@ export class WorkflowEditorComponent implements OnInit {
   readonly stageTypesLoading = signal(false);
   readonly stageTypesError = signal<string | null>(null);
   readonly stageTypeOptions = signal<{ id: number; label: string; is_active: boolean }[]>([]);
+  // Data Collection forms catalog (for Add Stage when type = Data Collection)
+  readonly dcFormsLoading = signal(false);
+  readonly dcFormsError = signal<string | null>(null);
+  readonly dcFormOptions = signal<{ code: string; name: string }[]>([]);
   // Dynamic placement model replaced: use 'top' or select a stage id to insert AFTER that stage.
   // Dynamic rule types catalog
   readonly ruleTypesLoading = signal(false);
@@ -208,6 +220,14 @@ export class WorkflowEditorComponent implements OnInit {
   // Forms
   newStageName = signal('');
   newStageTypeId = signal<number | null>(null);
+  newStageFormCode = signal<string | null>(null); // only for Data Collection
+  // Whether current newStageTypeId corresponds to Data Collection
+  readonly isAddingDataCollection = computed(() => {
+    const typeId = this.newStageTypeId();
+    if (!typeId) return false;
+    const match = this.stageTypeOptions().find(t => t.id === typeId);
+    return (match?.label || '').toLowerCase() === 'data collection';
+  });
   // Placement: 'top' or stringified id_stage of the stage AFTER which to insert
   newStagePlacement = signal('top');
   newRuleValue = signal('');
@@ -219,13 +239,24 @@ export class WorkflowEditorComponent implements OnInit {
   openAddRuleModal(): void { this.resetRuleForm(); this.showAddRuleModal.set(true); }
   closeAddStageModal(): void { this.showAddStageModal.set(false); }
   closeAddRuleModal(): void { this.showAddRuleModal.set(false); }
-  private resetStageForm(): void { this.newStageName.set(''); this.newStageTypeId.set(null); this.newStagePlacement.set('top'); this.ensureStageTypes(); }
+  private resetStageForm(): void {
+    this.newStageName.set('');
+    this.newStageTypeId.set(null);
+    this.newStagePlacement.set('top');
+    this.newStageFormCode.set(null);
+    this.ensureStageTypes();
+  }
   private resetRuleForm(): void { this.newRuleValue.set(''); this.newRuleTypeId.set(null); this.newRulePlacement.set('end'); this.ensureRuleTypes(); }
 
   readonly newStageSaving = signal(false);
 
   confirmAddStage(): void {
     if (!this.newStageName().trim() || !this.newStageTypeId()) { Utilities.showToast('Stage name & type required','warning'); return; }
+    // If Data Collection selected and we show the Form selector, require a selection
+    if (this.isAddingDataCollection() && !this.newStageFormCode()) {
+      Utilities.showToast('Select a Form for Data Collection','warning');
+      return;
+    }
     if (this.workflowId == null) { Utilities.showToast('Workflow context missing','error'); return; }
     if (this.newStageSaving()) return;
 
@@ -256,7 +287,8 @@ export class WorkflowEditorComponent implements OnInit {
         (stage.sort_order||0) + 1,
         1,
         null,
-        currentUser
+        currentUser,
+        stage.form_code ?? null
       ];
       const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
       return this.core.executeCommand<DriveWhipCommandResponse>(api);
@@ -273,7 +305,8 @@ export class WorkflowEditorComponent implements OnInit {
       newSortOrder,
       1,
       currentUser,
-      null
+      null,
+      this.isAddingDataCollection() ? (this.newStageFormCode() ?? null) : null
     ];
     const createApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: createParams };
 
@@ -302,6 +335,30 @@ export class WorkflowEditorComponent implements OnInit {
         console.error('[WorkflowEditor] create stage error', err);
         Utilities.showToast('Error creating stage','error');
       }
+    });
+  }
+
+  // Load available Data Collection forms (one-time fetch while modal is open)
+  ensureDcForms(): void {
+    if (!this.isAddingDataCollection()) return; // only relevant when DC is selected
+    if (this.dcFormsLoading() || this.dcFormOptions().length > 0) return;
+    this.dcFormsLoading.set(true);
+    this.dcFormsError.set(null);
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_datacollections_forms as any, parameters: ['R', null, null, null, null, null] };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.dcFormsLoading.set(false))).subscribe({
+      next: res => {
+        if (!res || !res.ok) { this.dcFormsError.set('Failed to load forms'); return; }
+        let rows: any[] = [];
+        if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+        const mapped = (rows || []).map(r => ({
+          code: r.form_code ?? r.code ?? r.id ?? '',
+          name: r.form_name ?? r.name ?? r.description ?? r.title ?? (r.form_code ?? 'Unnamed')
+        })).filter(x => x.code);
+        this.dcFormOptions.set(mapped);
+        // If only one option, preselect for convenience
+        if (mapped.length === 1) this.newStageFormCode.set(mapped[0].code);
+      },
+      error: () => this.dcFormsError.set('Failed to load forms')
     });
   }
 
@@ -355,6 +412,7 @@ export class WorkflowEditorComponent implements OnInit {
       newSortOrder,
       1,
       currentUser,
+      null,
       null
     ];
     const createApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: createParams };
@@ -781,10 +839,8 @@ export class WorkflowEditorComponent implements OnInit {
     }
     const params: any[] = ['R', null, null, null, null, null, null, null, null, null];
     const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followup_crud as any, parameters: params };
-    console.log(api, "follow-ups API"); 
     this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.followUpsLoading.set(false))).subscribe({
       next: res => {
-        console.log(res, "follow-ups raw data");
         if (!res.ok) { this.followUpsError.set('Failed to load follow-up messages'); return; }
         let rows: any[] = [];
         if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
@@ -1075,7 +1131,6 @@ export class WorkflowEditorComponent implements OnInit {
       return (templateId !== f.templateId || delivery !== f.delivery) ? { ...f, templateId, delivery } : f;
     });
     if (changed) {
-      console.log('[FollowUps] Rebinder applied', normalized);
       this.followUps.set(normalized);
       // re-sincronizar DOM tras cambio
       setTimeout(()=> this.forceFollowUpsDomSync(), 0);
@@ -1352,6 +1407,7 @@ export class WorkflowEditorComponent implements OnInit {
             type: r.type,
             applicants_count: r.applicants_count,
             sort_order: r.sort_order,
+            form_code: r.form_code
           }))
           .filter((s) => s.name)
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -1373,6 +1429,11 @@ export class WorkflowEditorComponent implements OnInit {
       this.ensureInitialMessageCatalogs();
       // Attempt loading idle move rule after section load (section id may not yet be known). We'll also call again after section resolves.
       // First optimistic call with current (possibly null) section id
+      this.loadIdleMove(id, this.dataSectionId());
+      this.loadFollowUps(id, this.dataSectionId());
+    } else if (this.stages().find(s => s.id_stage === id)?.type === 'Custom') {
+      // For Custom type, show messaging/idle move UI (first card hidden in template)
+      this.ensureInitialMessageCatalogs();
       this.loadIdleMove(id, this.dataSectionId());
       this.loadFollowUps(id, this.dataSectionId());
     }
@@ -1675,7 +1736,8 @@ export class WorkflowEditorComponent implements OnInit {
         stage.sort_order,    // p_sort_order
         1,                   // p_is_active (preserve active state; could read from stage if exists)
         null,                // p_created_by ignored on update
-        currentUser          // p_updated_by
+        currentUser,         // p_updated_by
+        stage.form_code ?? null // p_form_code
       ];
       const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
       return this.core.executeCommand<DriveWhipCommandResponse>(api);

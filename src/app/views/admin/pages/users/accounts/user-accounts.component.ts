@@ -183,7 +183,6 @@ export class UserAccountsComponent implements OnInit {
 
   private isAdminRole(rec: UserAccountRecord): boolean {
     const role = (rec?.role ?? '').toString().trim().toUpperCase();
-    //console.log(role)
     return this.ADMIN_ROLES.has(role);
   }
 
@@ -212,8 +211,8 @@ export class UserAccountsComponent implements OnInit {
     const params: any[] = [
       action,
       rec.user,
-      // sessionToken || null,
-      "", // token
+      sessionToken || null,
+      // "", // token
       rec.firstname,
       rec.lastname,
       rec.role,

@@ -5,19 +5,25 @@
       "apiBaseUrl": "https://qa-whipbridge.drivewhip.com/api/",
       "driveWhipCoreServiceUser": "admin@drivewhip.com",
       "driveWhipCoreServicePassword": "Secret123!",
-      "googleClientId": "294673509392-r28uave2kur9aah2l6kvlfbbs7tgra9n.apps.googleusercontent.com"
+      "googleClientId": "294673509392-r28uave2kur9aah2l6kvlfbbs7tgra9n.apps.googleusercontent.com",
+      "siteBaseUrl": "http://localhost:4200",
+      "accountCreatedTemplateId": "d-e32ef59d803445d4a324becc5a234ecf"
     },
     "QA": {
       "apiBaseUrl": "https://qa.api.drivewhip.com/api/v1/",
       "driveWhipCoreServiceUser": "admin@drivewhip.com",
       "driveWhipCoreServicePassword": "Secret123!",
-      "googleClientId": "294673509392-5ou7ogpl15html9sd6sa0jdo3oj5jn2l.apps.googleusercontent.com"
+      "googleClientId": "294673509392-5ou7ogpl15html9sd6sa0jdo3oj5jn2l.apps.googleusercontent.com",
+      "siteBaseUrl": "https://qa-whipflow.drivewhip.com",
+      "accountCreatedTemplateId": "d-e32ef59d803445d4a324becc5a234ecf"
     },
     "PROD": {
       "apiBaseUrl": "https://api.drivewhip.com/api/v1/",
       "driveWhipCoreServiceUser": "admin@drivewhip.com",
       "driveWhipCoreServicePassword": "Secret123!",
-      "googleClientId": "REEMPLAZAR_CLIENT_ID_PROD"
+      "googleClientId": "REEMPLAZAR_CLIENT_ID_PROD",
+      "siteBaseUrl": "https://app.drivewhip.com",
+      "accountCreatedTemplateId": "REPLACE_PROD_TEMPLATE_ID"
     }
   }
 }

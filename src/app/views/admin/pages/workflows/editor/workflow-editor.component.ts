@@ -404,7 +404,8 @@ export class WorkflowEditorComponent implements OnInit {
         (stage.sort_order||0) + 1,
         1,
         null,
-        currentUser
+        currentUser, 
+        stage.form_code ?? null
       ];
       const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
       return this.core.executeCommand<DriveWhipCommandResponse>(api);

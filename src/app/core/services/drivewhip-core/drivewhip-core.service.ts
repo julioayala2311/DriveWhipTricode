@@ -104,6 +104,43 @@ export class DriveWhipCoreService {
   }
 
   /**
+   * Build absolute URL to fetch a file from S3 via API gateway
+   * Example result: {baseUrl}Files/{folder}/{fileName}
+   */
+  getFileUrl(folder: string, fileName: string): string {
+    const safeFolder = encodeURIComponent(folder || '');
+    const safeName = encodeURIComponent(fileName || '');
+    return `${this.baseUrl}Files/${safeFolder}/${safeName}`;
+  }
+
+  /**
+   * Fetch a file as Blob from the Files endpoint. Useful for previews or downloads.
+   */
+  fetchFile<T = any>(folder: string, fileName: string): Observable<T> {
+    const url = this.getFileUrl(folder, fileName);
+    return this.http.get<T>(url, { headers: this.buildHeaders() }).pipe(
+      map(res => {
+        // Detect wrapped stored procedure error pattern: any nested object containing throwMessageTricode
+        let toastShown = false;
+        const msg = this.extractTricodeError(res as any);
+        if (msg) {
+          const clean = msg.replace(/^Error:\s*/i, '').trim();
+          this.safeShowErrorToast(clean || 'Unexpected error');
+          toastShown = true;
+          try { (res as any).ok = false; (res as any).error = clean || msg; } catch { /* ignore */ }
+        }
+        // If backend already flags ok=false with an error string, surface it.
+        const r: any = res as any;
+        if (!toastShown && r && r.ok === false && typeof r.error === 'string' && r.error.trim()) {
+          this.safeShowErrorToast(r.error.trim());
+          toastShown = true;
+        }
+        return res;
+      }),
+    );
+  }
+
+  /**
    * Send an email using a server-side template
    * POST {baseUrl}Email/send-template
    * Body: { title, message, templateId, to: string[] }

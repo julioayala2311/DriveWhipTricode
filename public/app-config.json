@@ -10,7 +10,7 @@
       "accountCreatedTemplateId": "d-e32ef59d803445d4a324becc5a234ecf"
     },
     "QA": {
-      "apiBaseUrl": "https://qa.api.drivewhip.com/api/v1/",
+      "apiBaseUrl": "https://qa.api.drivewhip.com/api/",
       "driveWhipCoreServiceUser": "admin@drivewhip.com",
       "driveWhipCoreServicePassword": "Secret123!",
       "googleClientId": "294673509392-5ou7ogpl15html9sd6sa0jdo3oj5jn2l.apps.googleusercontent.com",
@@ -18,7 +18,7 @@
       "accountCreatedTemplateId": "d-e32ef59d803445d4a324becc5a234ecf"
     },
     "PROD": {
-      "apiBaseUrl": "https://api.drivewhip.com/api/v1/",
+      "apiBaseUrl": "https://api.drivewhip.com/api/",
       "driveWhipCoreServiceUser": "admin@drivewhip.com",
       "driveWhipCoreServicePassword": "Secret123!",
       "googleClientId": "REEMPLAZAR_CLIENT_ID_PROD",

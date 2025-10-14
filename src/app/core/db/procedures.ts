@@ -37,7 +37,8 @@ export enum DriveWhipAdminCommand {
     crm_locations_active = "crm_locations_active",
     commun_country_states = "commun_country_states",
     crm_applicants_answers_registration = "crm_applicants_answers_registration",
-    crm_datacollections_forms = "crm_datacollections_forms"
+    crm_datacollections_forms = "crm_datacollections_forms",
+    crm_applicants_documents_crud = "crm_applicants_documents_crud"
 }
 
 export enum DriveWhipAplicantsCommand {

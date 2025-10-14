@@ -404,7 +404,8 @@ export class WorkflowEditorComponent implements OnInit {
         (stage.sort_order||0) + 1,
         1,
         null,
-        currentUser
+        currentUser,
+        stage.form_code ?? null
       ];
       const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
       return this.core.executeCommand<DriveWhipCommandResponse>(api);
@@ -1415,10 +1416,11 @@ export class WorkflowEditorComponent implements OnInit {
             type: r.type,
             applicants_count: r.applicants_count,
             sort_order: r.sort_order,
-            form_code: r.form_code
+            form_code: r.form_code,
+            form_names: r.form_name
           }))
           .filter((s) => s.name)
-          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)); 
         this.stages.set(normalized);
         // Refresh original order snapshot after loading from backend
         this.initialOrder = normalized.map(s => s.id_stage);

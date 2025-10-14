@@ -58,6 +58,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   answers: Array<{ id_question?: any; answer_text?: string; answered_at?: any; created_at?: any }> = [];
   showAllAnswers = false;
   private lastLoadedApplicantId: string | null = null;
+  // Documents (files)
+  docsLoading = false;
+  docsError: string | null = null;
+  documentGroups: DocumentGroup[] = [];
+  private docsLoadedForApplicantId: string | null = null;
   // Copy tooltip state
   copyFeedbackKey: string | null = null;
   private _copyFeedbackTimer: any = null;
@@ -204,14 +209,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   private currentUserIdentifier(): string {
     try {
-      const user: any = (this.authSession as any).user;
+      const user: any = this.authSession.user;
       if (!user) return 'system';
-      return user.email || user.username || user.name || user.id || 'system';
+      return user.user;
     } catch {
       return 'system';
     }
   }
-
 
   private readonly fallbackMessages: ApplicantMessage[] = [
     {
@@ -346,10 +350,24 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         if (!this.applicant) {
           this.applicant = { id };
         }
+        // Reset docs cache when applicant changes
+        this.docsLoadedForApplicantId = null;
+      }
+      // If Files tab is active, load documents for current applicant id
+      if (this.activeTab === 'files' && id) {
+        this.loadApplicantDocuments(id);
       }
     }
     if (changes['availableStages']) {
       this.stageMenuOpen = false;
+    }
+    // Load documents when switching into Files tab and we have an applicant id
+    if (changes['activeTab'] && this.activeTab === 'files') {
+      const idFromApplicant = this.resolveApplicantId(this.applicant);
+      const id = (this.applicantId || idFromApplicant || null) as string | null;
+      if (id) {
+        this.loadApplicantDocuments(id);
+      }
     }
   }
 
@@ -721,6 +739,168 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       },
       complete: () => { this.answersLoading = false; }
     });
+  }
+
+  /** Load documents for applicant and build groups by data_key */
+  private loadApplicantDocuments(applicantId: string): void {
+    if (!applicantId) return;
+    if (this.docsLoadedForApplicantId === applicantId && this.documentGroups && this.documentGroups.length) return;
+    this.docsLoading = true;
+    this.docsError = null;
+    this.documentGroups = [];
+    const params: any[] = [
+      'R',
+      null,                 // p_id_applicant_document 
+      applicantId,       // p_id_applicant
+      null, null, null,  // p_data_key, p_document_name, p_status
+      null, null,        // p_approved_at, p_approved_by
+      null, null         // p_disapproved_at, p_disapproved_by
+    ];
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_applicants_documents_crud as any,
+      parameters: params
+    } as any;
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        if (!res?.ok) {
+          this.docsError = String(res?.error || 'Failed to load files');
+          this.documentGroups = [];
+          return;
+        }
+        let raw: any = res.data;
+        if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+        const rows = Array.isArray(raw) ? raw : [];
+        const docs: ApplicantDocument[] = rows.map(r => this.normalizeDocRecord(r)).filter(Boolean) as ApplicantDocument[];
+        // attach S3 URL
+        for (const d of docs) {
+          this.core.fetchFile(d.folder || '', d.document_name || '').subscribe({
+            next: (response) => {
+              d.url = response.data.url;
+            },
+            error: (err) => {
+              console.error('[ApplicantPanel] fetchFile error', err);
+            }
+          });
+        }
+        this.documentGroups = this.groupDocuments(docs);
+        this.docsLoadedForApplicantId = applicantId;
+      },
+      error: (err) => {
+        console.error('[ApplicantPanel] loadApplicantDocuments error', err);
+        this.docsError = 'Failed to load files';
+        this.documentGroups = [];
+      },
+      complete: () => { this.docsLoading = false; }
+    });
+  }
+
+  private normalizeDocRecord(r: any): ApplicantDocument {
+    return {
+      id_applicant_document: Number(r.id_applicant_document ?? r.ID_APPLICANT_DOCUMENT ?? r.id ?? 0),
+      id_applicant: String(r.id_applicant ?? r.ID_APPLICANT ?? r.idApplicant ?? ''),
+      data_key: String(r.data_key ?? r.DATA_KEY ?? ''),
+      document_name: String(r.document_name ?? r.DOCUMENT_NAME ?? ''),
+      status: (r.status ?? r.STATUS ?? null) ? String(r.status ?? r.STATUS) : null,
+      created_at: r.created_at ?? r.CREATED_AT ?? null,
+      approved_at: r.approved_at ?? r.APPROVED_AT ?? null,
+      approved_by: r.approved_by ?? r.APPROVED_BY ?? null,
+      disapproved_at: r.disapproved_at ?? r.DISAPPROVED_AT ?? null,
+      disapproved_by: r.disapproved_by ?? r.DISAPPROVED_BY ?? null,
+      folder: r.folder ?? r.FOLDER ?? null,
+      url: ''
+    };
+  }
+
+  private groupDocuments(docs: ApplicantDocument[]): DocumentGroup[] {
+    const map = new Map<string, ApplicantDocument[]>();
+    for (const d of docs) {
+      const key = d.data_key || 'Files';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(d);
+    }
+    // sort docs by created_at desc inside each group
+    const groups: DocumentGroup[] = Array.from(map.entries()).map(([dataKey, items]) => ({
+      dataKey,
+      items: items.slice().sort((a, b) => {
+        const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return tb - ta;
+      })
+    }));
+    // sort groups alphabetically by dataKey
+    groups.sort((a, b) => a.dataKey.localeCompare(b.dataKey));
+    return groups;
+  }
+
+  downloadDocument(doc: ApplicantDocument): void {
+    try {
+      const url = doc.url || this.core.getFileUrl(String(doc.folder || ''), String(doc.document_name || ''));
+      if (!url) { Utilities.showToast('File URL not available', 'warning'); return; }
+      window.open(url, '_blank');
+    } catch {
+      Utilities.showToast('Unable to open file', 'error');
+    }
+  }
+
+  approveDocument(doc: ApplicantDocument): void {
+    this.updateDocumentStatus(doc, 'APPROVED');
+  }
+
+  disapproveDocument(doc: ApplicantDocument): void {
+    this.updateDocumentStatus(doc, 'DISAPPROVED');
+  }
+
+  private updateDocumentStatus(doc: ApplicantDocument, status: string): void {
+    if (!doc || !doc.id_applicant_document) return;
+    const now = new Date();
+    const fmt = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,19).replace('T',' ');
+    const approved_at = status.toUpperCase() === 'APPROVED' ? fmt(now) : null;
+    const approved_by = status.toUpperCase() === 'APPROVED' ? this.currentUserIdentifier() : null;
+    const disapproved_at = status.toUpperCase() === 'DISAPPROVED' ? fmt(now) : null;
+    const disapproved_by = status.toUpperCase() === 'DISAPPROVED' ? this.currentUserIdentifier() : null;
+    const params: any[] = [
+      'U',
+      doc.id_applicant_document,
+      doc.id_applicant,
+      null,
+      null,
+      status,
+      approved_at,
+      approved_by,
+      disapproved_at,
+      disapproved_by
+    ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_applicants_documents_crud as any, parameters: params } as any;
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        if (!res?.ok) { Utilities.showToast(String(res?.error || 'Failed to update document'), 'error'); return; }
+        Utilities.showToast('Document updated', 'success');
+        const id = this.resolveApplicantId(this.applicant) || this.applicantId;
+        if (id) {
+          // force reload
+          this.docsLoadedForApplicantId = null;
+          this.loadApplicantDocuments(String(id));
+        }
+      },
+      error: (err) => { console.error('[ApplicantPanel] updateDocumentStatus error', err); Utilities.showToast('Failed to update document', 'error'); },
+      complete: () => {}
+    });
+  }
+
+  docStatusLabel(doc: ApplicantDocument): string {
+    const s = (doc.status || '').toString().toUpperCase();
+    if (s === 'APPROVED') return 'Approved';
+    if (s === 'DISAPPROVED') return 'Disapproved';
+    if (s === 'RECOLLECTING' || s === 'RE-COLLECTING') return 'Re-collecting File';
+    return s ? s.charAt(0) + s.slice(1).toLowerCase() : 'Pending';
+  }
+
+  docStatusClass(doc: ApplicantDocument): string {
+    const s = (doc.status || '').toString().toUpperCase();
+    if (s === 'APPROVED') return 'text-success';
+    if (s === 'DISAPPROVED') return 'text-danger';
+    if (s === 'RECOLLECTING' || s === 'RE-COLLECTING') return 'text-warning';
+    return 'text-secondary';
   }
 
   private extractSingleRecord(data: any): any | null {
@@ -1199,5 +1379,25 @@ interface StageMenuOption {
   id: number;
   name: string;
   type: string;
+}
+
+interface ApplicantDocument {
+  id_applicant_document: number;
+  id_applicant: string;
+  data_key: string;
+  document_name: string;
+  status: string | null;
+  created_at?: any;
+  approved_at?: any;
+  approved_by?: string | null;
+  disapproved_at?: any;
+  disapproved_by?: string | null;
+  folder?: string | null;
+  url?: string;
+}
+
+interface DocumentGroup {
+  dataKey: string;
+  items: ApplicantDocument[];
 }
 

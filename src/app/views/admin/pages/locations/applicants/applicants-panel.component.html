@@ -248,14 +248,10 @@
                 </div>
                 <div class="menu-divider"></div>
                 <div class="menu-section">
-                  <button type="button" class="menu-item">
-                    <span class="icon"><i class="feather icon-printer"></i></span>
-                    <span>Print Data</span>
-                  </button>
-                  <button type="button" class="menu-item">
+                  <!-- <button type="button" class="menu-item">
                     <span class="icon"><i class="feather icon-award"></i></span>
                     <span>Score Applicant</span>
-                  </button>
+                  </button> -->
                   <button type="button" class="menu-item">
                     <span class="icon"><i class="feather icon-upload"></i></span>
                     <span>Upload File</span>
@@ -342,36 +338,56 @@
             </div>
           <div class="panel-chat-body files-view" *ngIf="activeTab==='files'">
             <div class="files-wrapper">
-              <!-- Upload Drivers License block -->
-              <div class="file-block">
-                <div class="file-block-header">
-                  <div class="file-title">Upload Drivers License</div>
-                  <div class="file-actions">
-                    <span class="status-label text-success">Approved</span>
-                    <button type="button" class="btn-link action text-danger">Unapprove</button>
-                    <button type="button" class="btn-link action text-danger">Delete</button>
+              <div *ngIf="docsLoading" class="small text-secondary">Loading files...</div>
+              <div *ngIf="!docsLoading && docsError" class="alert alert-warning py-1 px-2 small">{{ docsError }}</div>
+              <div *ngIf="!docsLoading && !docsError && (!documentGroups || documentGroups.length === 0)" class="files-empty-state empty-state text-center py-5 px-3 mx-auto">
+                <div class="empty-icon-wrapper mx-auto mb-3">
+                  <div class="gradient-ring">
+                    <i class="feather icon-file-text empty-main-icon"></i>
                   </div>
                 </div>
-                <div class="file-preview">
-                  <img src="/images/others/placeholder.jpg" alt="Drivers License" />
-                  <button type="button" class="download-btn" title="Download"><i class="feather icon-download"></i></button>
-                </div>
+                <h5 class="empty-title mb-2">No files uploaded yet</h5>
+                <p class="empty-subtitle mb-3">This applicant hasn’t uploaded any documents for review.</p>
+                <div class="empty-hint text-secondary">You can proceed with other actions or check back later.</div>
               </div>
 
-              <!-- Proof Of Address block -->
-              <div class="file-block">
-                <div class="file-block-header">
-                  <div class="file-title">Proof Of Address</div>
-                  <div class="file-actions">
-                    <span class="status-label text-warning">Re-collecting File</span>
-                    <button type="button" class="btn-link action text-danger">Cancel Re-collection</button>
+              <ng-container *ngFor="let group of documentGroups">
+                <div class="file-block">
+                  <div class="file-block-header">
+                    <div class="file-title">{{ group.dataKey }}</div>
+                    <!-- Show summary status from the most recent file if any -->
+                    <div class="file-actions" *ngIf="group.items && group.items.length">
+                      <span class="status-label" [ngClass]="docStatusClass(group.items[0])">{{ docStatusLabel(group.items[0]) }}</span>
+                    </div>
                   </div>
+
+                  <!-- Render the most recent file in preview; list others as links below -->
+                  <div class="file-preview" *ngIf="group.items && group.items.length; else emptyGroup">
+                    <img *ngIf="group.items[0].url" [src]="group.items[0].url" [alt]="group.items[0].document_name" />
+                    <button type="button" class="download-btn" title="Download" (click)="downloadDocument(group.items[0])"><i class="feather icon-download"></i></button>
+                  </div>
+                  <ng-template #emptyGroup>
+                    <div class="text-secondary small">No files in this section.</div>
+                  </ng-template>
+
+                  <!-- Actions for the most recent file -->
+                  <div class="mt-2 d-flex align-items-center gap-3" *ngIf="group.items && group.items.length">
+                    <button type="button" class="btn btn-sm btn-outline-success" (click)="approveDocument(group.items[0])" [disabled]="docsLoading">Approve</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="disapproveDocument(group.items[0])" [disabled]="docsLoading">Disapprove</button>
+                  </div>
+
+                  <!-- Other versions/files in this group -->
+                  <ul class="list-unstyled small mt-2" *ngIf="group.items && group.items.length > 1">
+                    <li *ngFor="let doc of (group.items | slice:1)" class="d-flex align-items-center gap-2">
+                      <i class="feather icon-file-text text-primary"></i>
+                      <a [href]="doc.url" target="_blank">{{ doc.document_name }}</a>
+                      <span class="text-muted">•</span>
+                      <span [ngClass]="docStatusClass(doc)">{{ docStatusLabel(doc) }}</span>
+                      <button type="button" class="btn btn-link btn-xxs text-secondary" (click)="downloadDocument(doc)">Download</button>
+                    </li>
+                  </ul>
                 </div>
-                <div class="file-preview">
-                  <img src="/images/others/placeholder.jpg" alt="Proof Of Address" />
-                  <button type="button" class="download-btn" title="Download"><i class="feather icon-download"></i></button>
-                </div>
-              </div>
+              </ng-container>
             </div>
           </div>
           <form class="chat-input" (submit)="sendMessage.emit($event)" *ngIf="activeTab==='messages'">

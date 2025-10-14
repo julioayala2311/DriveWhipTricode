@@ -340,3 +340,45 @@ body.dark .timeline-marker { border-color:#1f2634; box-shadow:none; background:#
 @media (max-width: 768px) {
   .panel-chat-body.files-view { padding: 1rem; }
 }
+
+/* Empty state (match Locations component styling) */
+.empty-state { position: relative; }
+.files-empty-state { max-width: 520px; }
+.empty-icon-wrapper {
+  width: 86px;
+  height: 86px;
+  border-radius: 24px;
+  position: relative;
+}
+.empty-icon-wrapper .gradient-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(var(--bs-primary-rgb,13,110,253),.18), rgba(var(--bs-primary-rgb,13,110,253),.05));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px -2px rgba(0,0,0,.15), 0 4px 18px -6px rgba(0,0,0,.25);
+  backdrop-filter: blur(2px);
+}
+.empty-main-icon {
+  font-size: 34px;
+  color: var(--bs-primary,#0d6efd);
+  opacity: .85;
+}
+.empty-title {
+  font-weight: 600;
+  letter-spacing: .25px;
+  font-size: 1.05rem;
+}
+.empty-subtitle {
+  font-size: .8rem;
+  color: var(--bs-secondary-color,rgba(0,0,0,.58));
+  letter-spacing: .25px;
+  margin: 0 auto;
+  max-width: 420px;
+}
+.empty-hint {
+  font-size: .7rem;
+  letter-spacing: .25px;
+}

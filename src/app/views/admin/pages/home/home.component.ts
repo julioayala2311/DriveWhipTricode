@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, computed } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
@@ -11,6 +11,7 @@ import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/mo
 import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
 import { LocationsRecord } from '../../../../core/models/locations.model';
 import { HomeDialogComponent, LocationDialogResult } from './home-dialog.component';
+import { AuthSessionService } from '../../../../core/services/auth/auth-session.service';
 
 @Component({
   selector: 'app-ride-share',
@@ -26,6 +27,8 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   filterMode: 'all' | 'active' | 'inactive' = 'all';
 
+  
+  private authSession = inject(AuthSessionService);
   private readonly _loading = signal(false);
   private readonly _records = signal<LocationsRecord[]>([]);
   private readonly _error = signal<string | null>(null);
@@ -205,7 +208,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     this._loading.set(true);
 
     const nameForSp = (rec as any).location_name ?? (rec as any).name ?? null;
-
+    const currentUser = this.authSession.user?.user || 'system';
     const params: any[] = [
       action,
       (rec as any).id_location ?? null,
@@ -213,7 +216,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
       nameForSp,
       (rec as any).notes ?? null,
       action === 'D' ? null : ((rec as any).is_active ?? 1),
-      null,
+      currentUser, //createdby
       null,
        (rec as any).country_code ?? null, //county
        (rec as any).state_code ?? null, //state

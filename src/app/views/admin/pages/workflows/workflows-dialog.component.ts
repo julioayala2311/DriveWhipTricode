@@ -1,8 +1,22 @@
 import {
-  Component, Input, Output, EventEmitter, OnChanges, SimpleChanges
+  Component, Input, Output, EventEmitter, OnChanges, SimpleChanges,
+  signal,
+  computed,
+  OnInit
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
+import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/models/entities.model';
+import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
+
+export interface LocationRecord {
+  id_location: string;
+  name: string;
+}
+
+export interface LocationListResponse extends Array<LocationRecord> {}
+
 
 export interface WorkflowRecord {
   id_workflow: number;
@@ -49,17 +63,38 @@ export interface WorkflowDialogResult {
               <div class="invalid-feedback d-block" *ngIf="nameError">{{ nameError }}</div>
             </div>
 
-            <div class="col-md-4">
+            <!-- <div class="col-md-4">
               <label class="form-label small fw-semibold">Location (optional)</label>
               <input type="number" class="form-control form-control-sm"
                      name="id_location" [(ngModel)]="id_location" [min]="0" />
+            </div> -->
+            <div class="col-md-12">
+              <label class="form-label small fw-semibold"
+                >Location <span class="text-danger">*</span></label
+              >
+              <select
+                class="form-select form-select-sm"
+                name="role"
+                [(ngModel)]="id_location"
+                required
+                [disabled]="_locations().length === 0"
+              >
+                <option value="" disabled>Select a location...</option>
+                <option *ngFor="let r of _locations()" [value]="r.id_location">{{ r.name }}</option>
+              </select>      
+              <div
+                class="text-muted small fst-italic pt-1"
+                *ngIf="_locations().length === 0"
+              >
+                No active locations available.
+              </div>
             </div>
 
-            <div class="col-md-4">
+            <!-- <div class="col-md-12">
               <label class="form-label small fw-semibold">Sort Order (optional)</label>
               <input type="number" class="form-control form-control-sm"
                      name="sort_order" [(ngModel)]="sort_order" />
-            </div>
+            </div> -->
 
             <div class="col-12">
               <label class="form-label small fw-semibold">Notes</label>
@@ -94,20 +129,33 @@ export interface WorkflowDialogResult {
     .dw-acc-dialog{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:520px; max-width:95%; }
   `],
 })
-export class WorkflowsDialogComponent implements OnChanges {
+export class WorkflowsDialogComponent implements OnInit, OnChanges {
   @Input() mode: 'create' | 'edit' = 'create';
   @Input() record: WorkflowRecord | null = null;
   @Input() saving = false;
   @Output() closed = new EventEmitter<void>();
-  @Output() saved  = new EventEmitter<WorkflowDialogResult>();
+  @Output() saved  = new EventEmitter<WorkflowDialogResult>();  
+  //@Input() locations: string[] = [];
+  
+  _locations = signal<LocationRecord[]>([]); // active role names
+  locations : LocationRecord[] = []; // computed(() => this._locations());
 
   workflow_name = '';
   id_location: number | null = null;
   notes = '';
   sort_order: number | null = null;
   active = true;
+  locationSelected: number | null = null;
 
   nameError: string | null = null;
+
+  
+  constructor(private core: DriveWhipCoreService) {
+    this.loadLocations();
+  }
+
+  ngOnInit(){
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['record'] || changes['mode']) {
@@ -118,6 +166,7 @@ export class WorkflowsDialogComponent implements OnChanges {
         this.notes = this.record.notes ?? '';
         this.sort_order = (this.record.sort_order ?? null) as any;
         this.active = Number(this.record.is_active) === 1;
+        this.locationSelected = this.record.id_location;
       } else {
   // Reset to initial state for create mode
         this.workflow_name = '';
@@ -125,13 +174,52 @@ export class WorkflowsDialogComponent implements OnChanges {
         this.notes = '';
         this.sort_order = null;
         this.active = true;
+        this.locationSelected = null;
       }
       this.nameError = null;
     }
   }
 
+  private loadLocations(): void {
+
+      const api: IDriveWhipCoreAPI = {
+        commandName: DriveWhipAdminCommand.crm_locations_workflows_list,
+        parameters: []
+      };
+      this.core.executeCommand<DriveWhipCommandResponse<LocationRecord>>(api).subscribe({
+        next: res => {
+          if (!res.ok) return; 
+
+          let raw: any = [];
+
+          if (Array.isArray(res.data)) {
+            const top = res.data as any[];
+              if (top.length > 0 && Array.isArray(top[0])) raw = top[0]; else raw = top;
+          }
+          const list: LocationRecord[] = Array.isArray(raw) ? raw : [];
+        
+          this._locations.set(list);
+
+          console.log(this._locations());
+        },
+    error: () => { /* ignore roles load error to avoid breaking accounts UI */ }
+      });
+  }
+
+  // formValid(): boolean {
+  //   return !!this.workflow_name.trim() || !!this.id_location;
+  // }
+
   formValid(): boolean {
-    return !!this.workflow_name.trim();
+    const nameOk =
+      typeof this.workflow_name === 'string' &&
+      this.workflow_name.trim().length > 0;
+
+    // id_location puede venir como number o string desde el <select>
+    const loc = this.id_location as any;
+    const locationOk = loc !== null && loc !== undefined && String(loc).trim() !== '';
+
+    return nameOk && locationOk;
   }
 
   save(): void {
@@ -145,9 +233,9 @@ export class WorkflowsDialogComponent implements OnChanges {
 
     this.saved.emit({
       workflow_name: this.workflow_name,
-      id_location: (loc === undefined || loc === null || (loc as any) === '') ? null : Number(loc),
+      id_location: this.id_location,
       notes: this.notes?.trim() || '',
-      sort_order: (order === undefined || order === null || (order as any) === '') ? null : Number(order),
+      sort_order:null,// (order === undefined || order === null || (order as any) === '') ? null : Number(order),
       active: this.active,
     });
   }

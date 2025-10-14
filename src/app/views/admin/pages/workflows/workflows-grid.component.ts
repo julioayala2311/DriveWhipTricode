@@ -68,8 +68,17 @@ export class WorkflowsGridComponent implements OnChanges {
     { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
 
     {
-  headerName: 'Workflow',
-  field: 'workflow_name',
+      headerName: 'Location',
+      field: 'location_name',
+      minWidth: 110,
+      flex: .5,
+      headerComponent: GridHeaderComponent,
+      headerComponentParams: { icon: 'icon-map-pin' }
+    },
+
+    {
+      headerName: 'Workflow',
+      field: 'workflow_name',
       minWidth: 160,
       flex: 1,
       headerComponent: GridHeaderComponent,

@@ -30,6 +30,8 @@ export class DriveWhipCoreService {
 
   get serviceUser(): string { return this.appConfig.driveWhipCoreServiceUser; }
   get servicePassword(): string { return this.appConfig.driveWhipCoreServicePassword; }
+  get siteBaseUrl(): string { return this.appConfig.get<string>('siteBaseUrl', ''); }
+  get accountCreatedTemplateId(): string { return this.appConfig.get<string>('accountCreatedTemplateId', ''); }
 
   getCachedToken(): string | null {
     const encrypted = this.readFromStorage(AUTH_TOKEN_STORAGE_KEY);
@@ -97,6 +99,26 @@ export class DriveWhipCoreService {
       'Content-Type': 'application/json'
     });
     return this.http.post(url, body, { headers }).pipe(
+      catchError(err => this.handleError(err))
+    );
+  }
+
+  /**
+   * Send an email using a server-side template
+   * POST {baseUrl}Email/send-template
+   * Body: { title, message, templateId, to: string[] }
+   */
+  sendTemplateEmail(params: { title: string; message: string; templateId: string; to: string[] }): Observable<any> {
+    const url = this.baseUrl + 'Email/send-template';
+    // Basic validation to avoid obvious 400s
+    const payload = {
+      title: params.title ?? '',
+      message: params.message ?? '',
+      templateId: params.templateId ?? '',
+      to: Array.isArray(params.to) ? params.to : []
+    };
+    return this.http.post(url, payload, { headers: this.buildHeaders() }).pipe(
+      map(res => res),
       catchError(err => this.handleError(err))
     );
   }

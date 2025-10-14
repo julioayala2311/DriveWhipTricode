@@ -174,8 +174,10 @@ export class UserAccountsComponent implements OnInit {
     this.mutate(action, {
       user: result.user,
       token: '',
-      firstname: result.firstname,
-      lastname: result.lastname,
+      // firstname: result.firstname,
+      // lastname: result.lastname,
+      firstname: '',
+      lastname: '',
       role: result.role,
       active: result.active ? 1 : 0
     });
@@ -185,7 +187,6 @@ export class UserAccountsComponent implements OnInit {
     const role = (rec?.role ?? '').toString().trim().toUpperCase();
     return this.ADMIN_ROLES.has(role);
   }
-
 
   delete(rec: UserAccountRecord): void {
 
@@ -211,8 +212,7 @@ export class UserAccountsComponent implements OnInit {
     const params: any[] = [
       action,
       rec.user,
-      sessionToken || null,
-      // "", // token
+      action === 'C' ? null : rec.token,
       rec.firstname,
       rec.lastname,
       rec.role,
@@ -233,6 +233,22 @@ export class UserAccountsComponent implements OnInit {
         this._saving.set(false);
         this.closeDialog();
         this.load();
+
+        if (action === 'C') {
+          const siteUrl = this.core.siteBaseUrl || '';
+          const templateId = this.core.accountCreatedTemplateId || '';
+          const title = 'Your DriveWhip account is ready';
+          const message = `<p>Hello,</p><p>We have created your DriveWhip account. You can now sign in and get started.</p><p><br><a href="${siteUrl}" style="display:inline-block;padding:10px 16px;background:#1a73e8;color:#fff;text-decoration:none;border-radius:6px;font-weight:600" target="_blank" rel="noopener noreferrer">Go to DriveWhip</a><br></p><p>If the button doesn’t work, copy and paste this link into your browser:<br><span style="color:#1a73e8">${siteUrl}</span></p><p>Welcome aboard!</p>`;
+          this.core.sendTemplateEmail({
+            title,
+            message,
+            templateId,
+            to: [rec.user]
+          }).subscribe({
+            next: () => Utilities.showToast('Welcome email sent', 'success'),
+            error: () => Utilities.showToast('Failed to send welcome email', 'error')
+          });
+        }
       },
       error: err => {
         console.error('[UserAccountsComponent] mutate error', err);

@@ -43,7 +43,7 @@ export interface AccountDialogResult {
       <div class="card-body">
         <form (ngSubmit)="save()" #f="ngForm" autocomplete="off" novalidate>
           <div class="row g-3">
-            <div class="col-md-6">
+            <!-- <div class="col-md-6">
               <label class="form-label small fw-semibold"
                 >First Name <span class="text-danger">*</span></label
               >
@@ -66,10 +66,10 @@ export interface AccountDialogResult {
                 [(ngModel)]="lastname"
                 required
               />
-            </div>
+            </div> -->
             <div class="col-md-6">
               <label class="form-label small fw-semibold"
-                >Username <span class="text-danger">*</span></label
+                >Email <span class="text-danger">*</span></label
               >
               <input
                 type="text"
@@ -209,8 +209,8 @@ export class AccountDialogComponent implements OnChanges {
   formValid(): boolean {
     if (
       !this.user.trim() ||
-      !this.firstname.trim() ||
-      !this.lastname.trim() ||
+      // !this.firstname.trim() ||
+      // !this.lastname.trim() ||
       !this.role.trim()
     )
       return false;

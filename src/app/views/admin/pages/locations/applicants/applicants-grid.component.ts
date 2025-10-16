@@ -71,6 +71,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
     [applicant]="null"
     [applicantId]="activeApplicant?.id || null"
       [status]="activeApplicant?.status || null"
+    [statuses]="activeApplicant?.statuses || null"
     [activeTab]="activeTab"
     [hasPrevious]="hasPreviousApplicant()"
     [hasNext]="hasNextApplicant()"

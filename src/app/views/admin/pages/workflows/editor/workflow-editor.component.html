@@ -11,9 +11,24 @@
         <button type="submit" class="btn btn-sm bg-transparent border-white" title="Save"><i class="feather icon-check text-white"></i></button>
         <button type="button" class="btn btn-sm bg-transparent border-white" (click)="cancelWorkflowNameEdit()" title="Cancel"><i class="feather icon-x text-white"></i></button>
       </form>
-      <button type="button" class="btn btn-xs btn-link text-white position-absolute end-0 top-50 translate-middle-y" (click)="startWorkflowNameEdit()" title="Actions">
-        <i class="feather icon-more-horizontal"></i>
-      </button>
+      <div class="dropdown position-absolute end-0 top-50 translate-middle-y editor-actions">
+        <button type="button" class="btn btn-xs btn-link text-white" (click)="toggleActionsMenu()" [attr.aria-expanded]="actionsMenuOpen" title="Actions">
+          <i class="feather icon-more-horizontal"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end show" *ngIf="actionsMenuOpen" (mouseleave)="closeActionsMenu()">
+          <li>
+            <button type="button" class="dropdown-item" (click)="onActionEditName()">
+              <i class="feather icon-edit me-2"></i> Edit workflow name
+            </button>
+          </li>
+          <li><hr class="dropdown-divider" /></li>
+          <li>
+            <button type="button" class="dropdown-item" (click)="openCloneModal()">
+              <i class="feather icon-copy me-2"></i> Clone workflow
+            </button>
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -528,6 +543,37 @@
         <div class="d-flex justify-content-end gap-2 mt-3">
           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeAddRuleModal()">Cancel</button>
           <button type="submit" class="btn btn-sm btn-primary" [disabled]="!newRuleTypeId()">Add Rule</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Clone Workflow Dialog -->
+<div *ngIf="showCloneModal()" class="dw-acc-clone-dialog" aria-modal="true" role="dialog">
+  <div class="dw-acc-dialog-backdrop" (click)="closeCloneModal()"></div>
+  <div class="dw-acc-dialog card shadow-lg small" style="width:520px; max-width:95%;">
+    <div class="card-header d-flex align-items-center justify-content-between py-2">
+      <h6 class="mb-0 fw-semibold">Clone Workflow</h6>
+      <button type="button" class="btn btn-sm btn-link text-secondary" (click)="closeCloneModal()">×</button>
+    </div>
+    <div class="card-body py-3">
+      <form (ngSubmit)="confirmCloneWorkflow()" autocomplete="off" novalidate>
+        <div class="alert alert-info small" role="alert">
+          You are about to create a copy of this workflow and all its current stages and settings.
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">New workflow name <span class="text-danger">*</span></label>
+          <input type="text" class="form-control form-control-sm" [value]="cloneName()" (input)="cloneName.set($any($event.target).value)" placeholder="Enter new workflow name" />
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeCloneModal()">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" [disabled]="!cloneName().trim() || cloning()">
+            <ng-container *ngIf="!cloning(); else cloningTpl">Clone workflow</ng-container>
+          </button>
+          <ng-template #cloningTpl>
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Cloning…
+          </ng-template>
         </div>
       </form>
     </div>

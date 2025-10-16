@@ -39,7 +39,8 @@ export enum DriveWhipAdminCommand {
     crm_applicants_answers_registration = "crm_applicants_answers_registration",
     crm_datacollections_forms = "crm_datacollections_forms",
     crm_applicants_documents_crud = "crm_applicants_documents_crud",
-    crm_locations_workflows_list = "crm_locations_workflows_list"
+    crm_locations_workflows_list = "crm_locations_workflows_list",
+    crm_workflow_clonate = "crm_workflow_clonate"
 }
 
 export enum DriveWhipAplicantsCommand {

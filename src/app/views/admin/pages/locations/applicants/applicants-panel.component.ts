@@ -36,6 +36,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   @Input() availableStages: any[] = [];
   @Input() currentStageId: number | null = null;
   @Input() status: ApplicantStatus | null = null;
+  @Input() statuses: Array<ApplicantStatus & { order?: number }> | null = null;
   @Output() draftMessageChange = new EventEmitter<string>();
   @Output() closePanel = new EventEmitter<void>();
   @Output() goToPrevious = new EventEmitter<void>();
@@ -66,6 +67,20 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   // Copy tooltip state
   copyFeedbackKey: string | null = null;
   private _copyFeedbackTimer: any = null;
+  // Image viewer state
+  imageViewerOpen = false;
+  viewerDocs: ApplicantDocument[] = [];
+  viewerIndex = 0;
+  viewerCurrentUrl: string = '';
+  viewerLoading = false;
+  viewerZoom = 1;
+  viewerRotate = 0;
+  // Panning state for image viewer
+  isPanning = false;
+  viewerPanX = 0;
+  viewerPanY = 0;
+  private _panLastX = 0;
+  private _panLastY = 0;
 
   // Permission helpers - assumptions:
   // - authSession.user?.roles is an array of role strings (e.g. ['admin','reviewer']).
@@ -389,8 +404,40 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   handleEscape(): void {
+    if (this.imageViewerOpen) {
+      this.closeImageViewer();
+      return;
+    }
     this.closeMenus();
   }
+
+  @HostListener('document:keydown', ['$event'])
+  onGlobalKeydown(ev: KeyboardEvent): void {
+    if (!this.imageViewerOpen) return;
+    const key = ev.key.toLowerCase();
+    if (key === 'arrowright') { ev.preventDefault(); this.nextImage(); }
+    else if (key === 'arrowleft') { ev.preventDefault(); this.prevImage(); }
+    else if (key === '+') { ev.preventDefault(); this.zoomIn(); }
+    else if (key === '-') { ev.preventDefault(); this.zoomOut(); }
+    else if (key === '0') { ev.preventDefault(); this.resetZoom(); }
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onDocumentMouseMove(ev: MouseEvent): void {
+    if (!this.imageViewerOpen || !this.isPanning) return;
+    const x = ev.clientX;
+    const y = ev.clientY;
+    const dx = x - this._panLastX;
+    const dy = y - this._panLastY;
+    this.viewerPanX += dx;
+    this.viewerPanY += dy;
+    this._panLastX = x;
+    this._panLastY = y;
+    ev.preventDefault();
+  }
+
+  @HostListener('document:mouseup')
+  onDocumentMouseUp(): void { if (this.isPanning) this.isPanning = false; }
 
   ngOnInit(): void {
     // use capture phase to avoid being canceled by stopPropagation on inner handlers
@@ -470,6 +517,32 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (!stage) return null;
     const statusName = 'incomplete';
     return { stage, statusName, isComplete: false } as ApplicantStatus;
+  }
+
+  /** Returns a deduplicated list of statuses to render as badges, similar to the grid column logic. */
+  get resolvedStatuses(): Array<ApplicantStatus & { order?: number }> {
+    // Priority: explicit input -> applicant.statuses -> single resolvedStatus
+    const src = (Array.isArray(this.statuses) && this.statuses.length)
+      ? this.statuses
+      : (Array.isArray((this.applicant as any)?.statuses) && (this.applicant as any).statuses.length
+        ? (this.applicant as any).statuses as Array<ApplicantStatus & { order?: number }>
+        : (this.resolvedStatus ? [this.resolvedStatus] : []));
+    if (!Array.isArray(src) || !src.length) return [] as any;
+    // Deduplicate keeping last occurrence
+    const seen = new Set<string>();
+    const result: Array<ApplicantStatus & { order?: number }> = [];
+    for (let i = src.length - 1; i >= 0; i--) {
+      const it: any = src[i] || {};
+      const stage = String(it.stage || '').toLowerCase();
+      const statusName = String(it.statusName || (it.isComplete ? 'complete' : 'incomplete')).toLowerCase();
+      const key = `${stage}|${statusName}|${(it as any).order ?? ''}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        const orderVal = typeof (it as any).order === 'number' ? (it as any).order : undefined;
+        result.unshift({ stage: it.stage || 'Stage', statusName: statusName || 'incomplete', isComplete: !!it.isComplete, order: orderVal });
+      }
+    }
+    return result;
   }
 
   /** Returns the history array to render in the timeline (prefers explicit input, falls back to applicant.history) */
@@ -675,6 +748,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
       next: res => {
+        console.log('[ApplicantPanel] loadApplicantDetails response', res);
         if (!res.ok) {
           const err = String(res.error || 'Failed to load applicant details');
           this.applicantDetailsError = err;
@@ -832,13 +906,220 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     return groups;
   }
 
+  private isImageDocument(doc: ApplicantDocument | null | undefined): boolean {
+    if (!doc) return false;
+    const name = (doc.document_name || '').toLowerCase();
+    return /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.bmp|\.svg)$/.test(name);
+  }
+
+  /** Open the in-app image viewer for the selected group/doc (falls back to openDocument for non-images) */
+  openImageViewer(group: DocumentGroup, doc?: ApplicantDocument, ev?: Event): void {
+    try {
+      if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+      const images = (group?.items || []).filter(d => this.isImageDocument(d));
+      if (!images.length) {
+        // No images in this group, fallback to open in new tab if doc provided
+        if (doc) { this.openDocument(doc); }
+        return;
+      }
+      const startId = doc?.id_applicant_document;
+      const idx = startId ? Math.max(0, images.findIndex(d => d.id_applicant_document === startId)) : 0;
+      this.viewerDocs = images;
+      this.viewerIndex = idx >= 0 ? idx : 0;
+      this.viewerZoom = 1;
+      this.viewerRotate = 0;
+  this.viewerPanX = 0; this.viewerPanY = 0;
+      this.imageViewerOpen = true;
+      this.loadViewerUrl();
+    } catch (e) {
+      console.error('[ApplicantPanel] openImageViewer error', e);
+    }
+  }
+
+  loadViewerUrl(): void {
+    const cur = this.viewerDocs[this.viewerIndex];
+    if (!cur) { this.viewerCurrentUrl = ''; return; }
+    this.viewerLoading = true;
+    this.core.fetchFile(cur.folder || '', cur.document_name || '').subscribe({
+      next: (resp: any) => {
+        const fresh = resp?.data?.url || cur.url || '';
+        cur.url = fresh;
+        this.viewerCurrentUrl = fresh;
+        this.viewerLoading = false;
+        // reset pan each time we load a new image
+        this.viewerPanX = 0;
+        this.viewerPanY = 0;
+        // Optional: preload next
+        const next = this.viewerDocs[this.viewerIndex + 1];
+        if (next) {
+          this.core.fetchFile(next.folder || '', next.document_name || '').subscribe({ next: (r:any)=> { next.url = r?.data?.url || next.url || ''; }, error: ()=>{} });
+        }
+      },
+      error: (err) => {
+        console.error('[ApplicantPanel] loadViewerUrl error', err);
+        this.viewerLoading = false;
+        Utilities.showToast('Unable to load image', 'error');
+      }
+    });
+  }
+
+  nextImage(): void {
+    if (!this.viewerDocs.length) return;
+    this.viewerIndex = (this.viewerIndex + 1) % this.viewerDocs.length;
+    this.viewerZoom = 1; this.viewerRotate = 0; this.viewerPanX = 0; this.viewerPanY = 0;
+    this.loadViewerUrl();
+  }
+
+  prevImage(): void {
+    if (!this.viewerDocs.length) return;
+    this.viewerIndex = (this.viewerIndex - 1 + this.viewerDocs.length) % this.viewerDocs.length;
+    this.viewerZoom = 1; this.viewerRotate = 0; this.viewerPanX = 0; this.viewerPanY = 0;
+    this.loadViewerUrl();
+  }
+
+  closeImageViewer(): void {
+    this.imageViewerOpen = false;
+    this.viewerCurrentUrl = '';
+    this.viewerDocs = [];
+    this.viewerIndex = 0;
+    this.viewerZoom = 1;
+    this.viewerRotate = 0;
+    this.viewerPanX = 0; this.viewerPanY = 0; this.isPanning = false;
+  }
+
+  zoomIn(): void { this.viewerZoom = Math.min(this.viewerZoom + 0.25, 5); }
+  zoomOut(): void {
+    this.viewerZoom = Math.max(this.viewerZoom - 0.25, 0.25);
+    if (this.viewerZoom <= 1) { this.viewerPanX = 0; this.viewerPanY = 0; }
+  }
+  resetZoom(): void { this.viewerZoom = 1; this.viewerRotate = 0; this.viewerPanX = 0; this.viewerPanY = 0; }
+  rotateClockwise(): void { this.viewerRotate = (this.viewerRotate + 90) % 360; }
+
+  onViewerMouseDown(ev: MouseEvent): void {
+    if (!this.imageViewerOpen || this.viewerZoom <= 1) return;
+    this.isPanning = true;
+    this._panLastX = ev.clientX;
+    this._panLastY = ev.clientY;
+    ev.preventDefault();
+  }
+
+  onViewerTouchStart(ev: TouchEvent): void {
+    if (!this.imageViewerOpen || this.viewerZoom <= 1) return;
+    if (ev.touches && ev.touches.length > 0) {
+      const t = ev.touches[0];
+      this.isPanning = true;
+      this._panLastX = t.clientX;
+      this._panLastY = t.clientY;
+      ev.preventDefault();
+    }
+  }
+
+  onViewerTouchMove(ev: TouchEvent): void {
+    if (!this.imageViewerOpen || !this.isPanning) return;
+    if (ev.touches && ev.touches.length > 0) {
+      const t = ev.touches[0];
+      const dx = t.clientX - this._panLastX;
+      const dy = t.clientY - this._panLastY;
+      this.viewerPanX += dx;
+      this.viewerPanY += dy;
+      this._panLastX = t.clientX;
+      this._panLastY = t.clientY;
+      ev.preventDefault();
+    }
+  }
+
+  onViewerTouchEnd(_ev: TouchEvent): void { if (this.isPanning) this.isPanning = false; }
+
   downloadDocument(doc: ApplicantDocument): void {
     try {
-      const url = doc.url || this.core.getFileUrl(String(doc.folder || ''), String(doc.document_name || ''));
-      if (!url) { Utilities.showToast('File URL not available', 'warning'); return; }
-      window.open(url, '_blank');
+      const name = doc.document_name || 'download';
+      // Always fetch a fresh signed URL to avoid 403 due to short-lived tokens
+      this.core.fetchFile(doc.folder || '', doc.document_name || '').subscribe({
+        next: (response: any) => {
+          const freshUrl = response?.data?.url || doc.url || this.core.getFileUrl(String(doc.folder || ''), String(doc.document_name || ''));
+          if (!freshUrl) { Utilities.showToast('File URL not available', 'warning'); return; }
+          this.forceDownload(freshUrl, name);
+        },
+        error: (err) => {
+          console.error('[ApplicantPanel] downloadDocument fetchFile error', err);
+          Utilities.showToast('Unable to download file', 'error');
+        }
+      });
+    } catch {
+      Utilities.showToast('Unable to download file', 'error');
+    }
+  }
+
+  /** Open the document in a new tab using a fresh signed URL (avoids stale links) */
+  openDocument(doc: ApplicantDocument, ev?: Event): void {
+    try {
+      if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+      this.core.fetchFile(doc.folder || '', doc.document_name || '').subscribe({
+        next: (response: any) => {
+          const freshUrl = response?.data?.url || doc.url || this.core.getFileUrl(String(doc.folder || ''), String(doc.document_name || ''));
+          if (!freshUrl) { Utilities.showToast('File URL not available', 'warning'); return; }
+          // If it is an image, open in viewer; otherwise, open in new tab
+          if (this.isImageDocument(doc)) {
+            // Ensure list includes only this doc to avoid navigating to other groups unexpectedly
+            this.viewerDocs = [ { ...doc, url: freshUrl } ];
+            this.viewerIndex = 0;
+            this.viewerZoom = 1; this.viewerRotate = 0; this.viewerPanX = 0; this.viewerPanY = 0;
+            this.viewerCurrentUrl = freshUrl;
+            this.imageViewerOpen = true;
+          } else {
+            window.open(freshUrl, '_blank', 'noopener');
+          }
+        },
+        error: (err) => {
+          console.error('[ApplicantPanel] openDocument fetchFile error', err);
+          Utilities.showToast('Unable to open file', 'error');
+        }
+      });
     } catch {
       Utilities.showToast('Unable to open file', 'error');
+    }
+  }
+
+  /** Refresh a document's signed URL (useful for preview <img> on error) */
+  refreshDocUrl(doc: ApplicantDocument): void {
+    try {
+      this.core.fetchFile(doc.folder || '', doc.document_name || '').subscribe({
+        next: (response: any) => { doc.url = response?.data?.url || doc.url || ''; },
+        error: (err) => { console.warn('[ApplicantPanel] refreshDocUrl error', err); }
+      });
+    } catch { /* noop */ }
+  }
+
+  private async forceDownload(url: string, fileName: string): Promise<void> {
+    try {
+      // Use CORS-friendly fetch without credentials; many storage providers (e.g., S3)
+      // will reject cross-origin requests with credentials, causing a redirect fallback.
+      const res = await fetch(url, { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store' });
+      if (!res.ok || res.status === 0) throw new Error(`HTTP ${res.status || 0}`);
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName || 'download';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 0);
+    } catch (e) {
+      // Fallback that avoids redirecting the current page: try loading in a hidden iframe.
+      // If the server serves Content-Disposition: attachment, the browser will download it.
+      try {
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        // Clean up iframe later; if no download is triggered, this is a no-op
+        setTimeout(() => { try { document.body.removeChild(iframe); } catch { /* noop */ } }, 30000);
+      } catch {
+        Utilities.showToast('Download failed', 'error');
+      }
     }
   }
 

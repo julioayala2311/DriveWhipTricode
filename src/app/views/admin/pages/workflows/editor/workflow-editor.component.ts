@@ -65,6 +65,8 @@ export class WorkflowEditorComponent implements OnInit {
   // --- Workflow name editing state ---
   editingWorkflowName = false;
   workflowNameEditValue = '';
+  // Actions dropdown state
+  actionsMenuOpen = false;
 
   startWorkflowNameEdit(): void {
     this.workflowNameEditValue = this.workflowName();
@@ -114,6 +116,77 @@ export class WorkflowEditorComponent implements OnInit {
       }
     });
   }
+
+  // Header actions menu helpers
+  toggleActionsMenu(): void { this.actionsMenuOpen = !this.actionsMenuOpen; }
+  closeActionsMenu(): void { this.actionsMenuOpen = false; }
+  onActionEditName(): void { this.closeActionsMenu(); this.startWorkflowNameEdit(); }
+
+  // --- Clone Workflow Modal state & logic ---
+  readonly showCloneModal = signal(false);
+  readonly cloneName = signal('');
+  readonly cloning = signal(false);
+
+  openCloneModal(): void {
+    this.closeActionsMenu();
+    this.cloneName.set(`${this.workflowName()} (Copy)`);
+    this.showCloneModal.set(true);
+  }
+  closeCloneModal(): void { this.showCloneModal.set(false); }
+
+  confirmCloneWorkflow(): void {
+    const name = this.cloneName().trim();
+    if (!name) { Utilities.showToast('Enter a name for the new workflow','warning'); return; }
+    if (!this.workflowId) { Utilities.showToast('Workflow ID missing','error'); return; }
+    if (this.cloning()) return;
+    const currentUser = this.authSession.user?.user || 'system';
+    const params: any[] = [ this.workflowId, name, currentUser ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_workflow_clonate as any, parameters: params };
+    this.cloning.set(true);
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.cloning.set(false))).subscribe({
+      next: res => {
+        if (!res.ok) { Utilities.showToast('Clone failed','error'); return; }
+        // Try to extract new workflow id if SP returns it; fallback to list reload
+        let newId: number | null = null;
+        try {
+          const raw = Array.isArray(res.data) ? (Array.isArray(res.data[0]) ? res.data[0] : res.data) : null;
+          if (raw && raw.length) {
+            const first = raw[0];
+            const idCandidate = first.id_workflow ?? first.new_id_workflow ?? first.p_new_id_workflow ?? first.insert_id ?? first.last_insert_id;
+            if (idCandidate != null) newId = Number(idCandidate);
+          }
+        } catch { /* ignore */ }
+        Utilities.showToast('Workflow cloned','success');
+        this.closeCloneModal();
+        // Navigate to new workflow editor if we could determine id; else refresh current lists
+        if (newId && Number.isFinite(newId)) {
+          this.router.navigate(['/workflows/edit/', newId]);
+        } else {
+          // Reload workflows list and try to find by name (best effort)
+          this.loading.set(true);
+          const listApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_workflows_list, parameters: [] };
+          this.core.executeCommand<DriveWhipCommandResponse>(listApi).pipe(finalize(()=> this.loading.set(false))).subscribe({
+            next: listRes => {
+              let rows: any[] = [];
+              if (listRes.ok && Array.isArray(listRes.data)) rows = Array.isArray(listRes.data[0]) ? listRes.data[0] : (listRes.data as any[]);
+              const match = rows.find(r => String(r.workflow_name || r.name).trim().toLowerCase() === name.toLowerCase());
+              if (match?.id_workflow) {
+                this.router.navigate(['/workflows', match.id_workflow]);
+              } else {
+                // As a fallback, reload local lists
+                this.loadWorkflow();
+                this.loadStages();
+              }
+            },
+            error: () => { this.loadWorkflow(); this.loadStages(); }
+          });
+        }
+      },
+      error: err => { Utilities.showToast('Clone failed','error'); }
+    });
+  }
+
+  
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private core = inject(DriveWhipCoreService);

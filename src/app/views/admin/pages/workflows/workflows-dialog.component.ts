@@ -54,7 +54,7 @@ export interface WorkflowDialogResult {
       <div class="card-body">
         <form (ngSubmit)="save()" #f="ngForm" autocomplete="off" novalidate>
           <div class="row g-3">
-            <div class="col-md-8">
+            <div class="col-md-12">
               <label class="form-label small fw-semibold">
                 Workflow Name <span class="text-danger">*</span>
               </label>

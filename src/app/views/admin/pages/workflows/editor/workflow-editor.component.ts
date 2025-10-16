@@ -171,7 +171,8 @@ export class WorkflowEditorComponent implements OnInit {
               if (listRes.ok && Array.isArray(listRes.data)) rows = Array.isArray(listRes.data[0]) ? listRes.data[0] : (listRes.data as any[]);
               const match = rows.find(r => String(r.workflow_name || r.name).trim().toLowerCase() === name.toLowerCase());
               if (match?.id_workflow) {
-                this.router.navigate(['/workflows', match.id_workflow]);
+                //this.router.navigate(['/workflows', match.id_workflow]);
+                this.router.navigate(['/workflows/edit/', match.id_workflow]);
               } else {
                 // As a fallback, reload local lists
                 this.loadWorkflow();

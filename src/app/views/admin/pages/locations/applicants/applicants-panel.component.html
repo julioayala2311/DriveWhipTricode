@@ -56,10 +56,6 @@
                           <span *ngIf="applicantSaving" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
                           Save
                         </button>
-                        <!-- <button type="button" class="btn btn-success btn-sm" (click)="saveApplicant(); closePanel.emit();" [disabled]="applicantSaving">
-                          <span *ngIf="applicantSaving" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                          Save
-                        </button> -->
                         <button type="button" class="btn btn-link btn-sm" (click)="cancelEditApplicant()">Cancel</button>
                       </div>
                     </li>
@@ -285,7 +281,7 @@
           </div>
         </section>
         <section class="panel-column panel-chat">
-          <div class="panel-chat-body messages" *ngIf="activeTab==='messages'">
+          <div class="panel-chat-body messages" *ngIf="activeTab==='messages'" #messagesScroll>
             <ng-container *ngFor="let message of resolvedMessages; let i = index">
               <div class="chat-day text-secondary small" *ngIf="message.dayLabel && shouldRenderDay(message.dayLabel, i)">
                 {{ message.dayLabel }}
@@ -384,9 +380,6 @@
                              class="img-fluid rounded"
                              (error)="refreshDocUrl(group.items[0])" />
                       </div>
-                      <!-- <button type="button" class="btn btn-light btn-sm position-absolute bottom-0 start-0 m-2" title="Download" (click)="downloadDocument(group.items[0])">
-                        <i class="feather icon-download"></i>
-                      </button> -->
                       <button type="button" class="btn btn-light btn-sm position-absolute bottom-0 end-0 m-2" title="View"
                               (click)="openImageViewer(group, group.items[0], $event)" *ngIf="group.items[0] && (group.items[0].document_name | lowercase).match('\\.png|\\.jpg|\\.jpeg|\\.gif|\\.webp|\\.bmp|\\.svg')">
                         <i class="feather icon-maximize"></i>
@@ -405,9 +398,6 @@
                           <i class="feather icon-x me-1"></i>Disapprove
                         </button>
                       </div>
-                      <!-- <a class="btn btn-sm btn-outline-secondary" href="#" (click)="openDocument(group.items[0], $event)">
-                        <i class="feather icon-external-link me-1"></i>Open
-                      </a> -->
                     </div>
 
                     <ul class="list-group list-group-flush mt-3" *ngIf="group.items && group.items.length > 1">
@@ -431,16 +421,16 @@
             <div class="image-viewer" (click)="$event.stopPropagation()">
               <div class="viewer-toolbar d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-2">
-                  <button type="button" class="btn btn-light btn-sm" (click)="prevImage()" [disabled]="viewerDocs.length < 2"><i class="feather icon-chevron-left"></i></button>
-                  <button type="button" class="btn btn-light btn-sm" (click)="nextImage()" [disabled]="viewerDocs.length < 2"><i class="feather icon-chevron-right"></i></button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="prevImage()" [disabled]="viewerDocs.length < 2"><i class="feather icon-chevron-left"></i></button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="nextImage()" [disabled]="viewerDocs.length < 2"><i class="feather icon-chevron-right"></i></button>
                   <span class="small text-secondary" *ngIf="viewerDocs.length">{{ viewerIndex + 1 }} / {{ viewerDocs.length }}</span>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                  <button type="button" class="btn btn-light btn-sm" (click)="zoomOut()"><i class="feather icon-zoom-out"></i></button>
-                  <button type="button" class="btn btn-light btn-sm" (click)="resetZoom()"><i class="feather icon-minimize-2"></i></button>
-                  <button type="button" class="btn btn-light btn-sm" (click)="zoomIn()"><i class="feather icon-zoom-in"></i></button>
-                  <button type="button" class="btn btn-light btn-sm" (click)="rotateClockwise()"><i class="feather icon-rotate-cw"></i></button>
-                  <button type="button" class="btn btn-primary btn-sm" (click)="downloadDocument(viewerDocs[viewerIndex])"><i class="feather icon-download"></i></button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="zoomOut()"><i class="feather icon-zoom-out"></i></button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="resetZoom()"><i class="feather icon-minimize-2"></i></button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="zoomIn()"><i class="feather icon-zoom-in"></i></button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="rotateClockwise()"><i class="feather icon-rotate-cw"></i></button>
+                  <button type="button" class="btn btn-outline-primary btn-sm" (click)="downloadDocument(viewerDocs[viewerIndex])"><i class="feather icon-download"></i></button>
                   <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeImageViewer()"><i class="feather icon-x"></i></button>
                 </div>
               </div>
@@ -457,11 +447,19 @@
               </div>
             </div>
           </div>
-          <form class="chat-input" (submit)="sendMessage.emit($event)" *ngIf="activeTab==='messages'">
-            <div class="input-group">
-              <button type="button" class="btn btn-link text-secondary px-2" aria-label="Add attachment"><i class="feather icon-plus"></i></button>
-              <input type="text" class="form-control" placeholder="Enter your message" [(ngModel)]="draftMessage" (ngModelChange)="onDraftMessageChange($event)" name="messageInput" />
-              <button type="submit" class="btn btn-primary" [disabled]="!draftMessage.trim()">Send</button>
+          <form class="chat-input" (submit)="onSendMessage($event)" *ngIf="activeTab==='messages'">
+            <div class="composer">
+              <button type="button" class="attach-btn" aria-label="Add attachment"><i class="feather icon-plus"></i></button>
+              <input
+                type="text"
+                class="composer-control"
+                placeholder="Enter your messages"
+                [(ngModel)]="draftMessage"
+                (ngModelChange)="onDraftMessageChange($event)"
+                name="messageInput"
+                autocomplete="off"
+              />
+              <button type="submit" class="btn btn-primary send-btn" [disabled]="!draftMessage.trim() || chatSending">Send</button>
             </div>
           </form>
         </section>

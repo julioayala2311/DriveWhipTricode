@@ -1,29 +1,84 @@
-<div class="workflow-editor" style="margin-top: -30px;">
+<div class="workflow-editor" style="margin-top: -30px">
   <!-- Header bar -->
-  <div class="editor-header text-white rounded bg-primary py-2 px-3 d-flex flex-column align-items-center justify-content-center">
-    <div class="d-flex align-items-center gap-3 justify-content-center w-100 position-relative">
-      <a class="btn btn-xs bg-transparent border-white position-absolute start-0 top-50 translate-middle-y" [routerLink]="['/workflows']" title="Back to workflows" style="border-radius:100px;">
+  <div
+    class="editor-header text-white rounded bg-primary py-2 px-3 d-flex flex-column align-items-center justify-content-center"
+  >
+    <div
+      class="d-flex align-items-center gap-3 justify-content-center w-100 position-relative"
+    >
+      <a
+        class="btn btn-xs bg-transparent border-white position-absolute start-0 top-50 translate-middle-y"
+        [routerLink]="['/workflows']"
+        title="Back to workflows"
+        style="border-radius: 100px"
+      >
         <i class="feather icon-arrow-left text-white"></i>
       </a>
-      <h4 class="mb-0 fw-semibold" *ngIf="!editingWorkflowName">{{ workflowName() }}</h4>
-      <form *ngIf="editingWorkflowName" class="d-inline-flex align-items-center gap-2" (ngSubmit)="confirmWorkflowNameEdit()">
-        <input type="text" class="form-control form-control-sm bg-transparent text-white border-white fw-semibold" autocomplete="off" [(ngModel)]="workflowNameEditValue" name="workflowNameEditValue" style="max-width:220px; border-width:1px;" />
-        <button type="submit" class="btn btn-sm bg-transparent border-white" title="Save"><i class="feather icon-check text-white"></i></button>
-        <button type="button" class="btn btn-sm bg-transparent border-white" (click)="cancelWorkflowNameEdit()" title="Cancel"><i class="feather icon-x text-white"></i></button>
+      <h4 class="mb-0 fw-semibold" *ngIf="!editingWorkflowName">
+        {{ workflowName() }}
+      </h4>
+      <form
+        *ngIf="editingWorkflowName"
+        class="d-inline-flex align-items-center gap-2"
+        (ngSubmit)="confirmWorkflowNameEdit()"
+      >
+        <input
+          type="text"
+          class="form-control form-control-sm bg-transparent text-white border-white fw-semibold"
+          autocomplete="off"
+          [(ngModel)]="workflowNameEditValue"
+          name="workflowNameEditValue"
+          style="max-width: 220px; border-width: 1px"
+        />
+        <button
+          type="submit"
+          class="btn btn-sm bg-transparent border-white"
+          title="Save"
+        >
+          <i class="feather icon-check text-white"></i>
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm bg-transparent border-white"
+          (click)="cancelWorkflowNameEdit()"
+          title="Cancel"
+        >
+          <i class="feather icon-x text-white"></i>
+        </button>
       </form>
-      <div class="dropdown position-absolute end-0 top-50 translate-middle-y editor-actions">
-        <button type="button" class="btn btn-xs btn-link text-white" (click)="toggleActionsMenu()" [attr.aria-expanded]="actionsMenuOpen" title="Actions">
+      <div
+        class="dropdown position-absolute end-0 top-50 translate-middle-y editor-actions"
+      >
+        <button
+          type="button"
+          class="btn btn-xs btn-link text-white"
+          (click)="toggleActionsMenu()"
+          [attr.aria-expanded]="actionsMenuOpen"
+          title="Actions"
+        >
           <i class="feather icon-more-horizontal"></i>
         </button>
-        <ul class="dropdown-menu dropdown-menu-end show" *ngIf="actionsMenuOpen" (mouseleave)="closeActionsMenu()">
+        <ul
+          class="dropdown-menu dropdown-menu-end show"
+          *ngIf="actionsMenuOpen"
+          (mouseleave)="closeActionsMenu()"
+        >
           <li>
-            <button type="button" class="dropdown-item" (click)="onActionEditName()">
+            <button
+              type="button"
+              class="dropdown-item"
+              (click)="onActionEditName()"
+            >
               <i class="feather icon-edit me-2"></i> Edit workflow name
             </button>
           </li>
           <li><hr class="dropdown-divider" /></li>
           <li>
-            <button type="button" class="dropdown-item" (click)="openCloneModal()">
+            <button
+              type="button"
+              class="dropdown-item"
+              (click)="openCloneModal()"
+            >
               <i class="feather icon-copy me-2"></i> Clone workflow
             </button>
           </li>
@@ -38,43 +93,80 @@
       <div class="stages-toolbar px-2 pt-2 pb-1 d-flex flex-column gap-2">
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <div class="row">
-            <div class="small fw-semibold text-secondary d-flex align-items-center gap-2" style="letter-spacing:.5px; font-size:.65rem;">
-              <button type="button" class="btn btn-xs btn-outline-primary d-inline-flex align-items-center justify-content-center gap-1" (click)="openAddStageModal()" style="height:28px; min-width:80px; border-radius:6px;">
-                <i class="feather icon-git-commit" style="font-size:.9rem; line-height:1;" aria-hidden="true"></i>
+            <div
+              class="small fw-semibold text-secondary d-flex align-items-center gap-2"
+              style="letter-spacing: 0.5px; font-size: 0.65rem"
+            >
+              <button
+                type="button"
+                class="btn btn-xs btn-outline-primary d-inline-flex align-items-center justify-content-center gap-1"
+                (click)="openAddStageModal()"
+                style="height: 28px; min-width: 80px; border-radius: 6px"
+              >
+                <i
+                  class="feather icon-git-commit"
+                  style="font-size: 0.9rem; line-height: 1"
+                  aria-hidden="true"
+                ></i>
                 <span class="d-none d-md-inline ms-1">Add Stage</span>
               </button>
-              <button type="button" class="btn btn-xs btn-outline-primary d-inline-flex align-items-center justify-content-center gap-1" (click)="openAddRuleModal()" style="height:28px; min-width:80px; border-radius:6px;">
-                <i class="feather icon-git-branch" style="font-size:.85rem;"></i>
+              <button
+                type="button"
+                class="btn btn-xs btn-outline-primary d-inline-flex align-items-center justify-content-center gap-1"
+                (click)="openAddRuleModal()"
+                style="height: 28px; min-width: 80px; border-radius: 6px"
+              >
+                <i
+                  class="feather icon-git-branch"
+                  style="font-size: 0.85rem"
+                ></i>
                 <span class="d-none d-md-inline ms-1">Add Rule</span>
               </button>
             </div>
           </div>
-          <!-- <div class="d-flex align-items-center gap-2 ms-auto order-actions flex-wrap">
-            <button type="button" class="btn btn-xs btn-outline-secondary px-2" [disabled]="!orderDirty()" (click)="resetOrder()" [attr.title]="orderDirty() ? 'Reset order to original' : 'No changes'">
-              <i class="feather icon-rotate-ccw"></i>
-              <span class="d-none d-md-inline ms-1" *ngIf="orderDirty()">Restore order</span>
-            </button>
-            <button type="button" class="btn btn-xs btn-primary d-inline-flex align-items-center px-2" [disabled]="!orderDirty()" (click)="saveOrder()" [attr.title]="orderDirty() ? 'Save new order' : 'No changes'">
-              <i class="feather icon-save"></i>
-              <span class="d-none d-md-inline ms-1" *ngIf="orderDirty()">Save changes</span>
-            </button>
-          </div> -->
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <div class="flex-grow-1 position-relative">
-            <input type="text" class="form-control form-control-sm ps-4" placeholder="Filter" [value]="filterText()" (input)="onFilterInput($any($event.target).value)" aria-label="Filter" />
-            <i class="feather icon-search position-absolute" style="left:10px; top:50%; transform:translateY(-50%); font-size:.8rem; opacity:.6;"></i>
+            <input
+              type="text"
+              class="form-control form-control-sm ps-4"
+              placeholder="Filter"
+              [value]="filterText()"
+              (input)="onFilterInput($any($event.target).value)"
+              aria-label="Filter"
+            />
+            <i
+              class="feather icon-search position-absolute"
+              style="
+                left: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                font-size: 0.8rem;
+                opacity: 0.6;
+              "
+            ></i>
           </div>
           <div class="small text-secondary d-flex align-items-center gap-2">
-            <!-- <span *ngIf="changedCount() > 0" class="badge bg-info-subtle text-info-emphasis border border-info-subtle" style="font-weight:500;">{{ changedCount() }} changed</span> -->
-            <span *ngIf="filterText()" class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle" style="font-weight:500;">Filtered</span>
+            <span
+              *ngIf="filterText()"
+              class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle"
+              style="font-weight: 500"
+              >Filtered</span
+            >
           </div>
         </div>
-        <div class="hint small text-secondary" style="line-height:1.2;">
-          <span>Drag cards to reorder. Use the filter to locate stages quickly.</span>
+        <div class="hint small text-secondary" style="line-height: 1.2">
+          <span
+            >Drag cards to reorder. Use the filter to locate stages
+            quickly.</span
+          >
         </div>
       </div>
-      <div class="stages-scroll" cdkDropList (cdkDropListDropped)="onStageDrop($event)">
+      <div
+        class="stages-scroll"
+        cdkDropList
+        (cdkDropListDropped)="onStageDrop($event)"
+      >
         <div
           class="status-card vertical"
           *ngFor="let s of filteredStages(); trackBy: trackStage; let i = index"
@@ -91,235 +183,692 @@
               <i class="feather icon-move"></i>
             </div>
             <div class="icon-box">
-              <i class="feather" [ngClass]="stageIcon(s.id_stage_type)" aria-hidden="true"></i>
+              <i
+                class="feather"
+                [ngClass]="stageIcon(s.id_stage_type)"
+                aria-hidden="true"
+              ></i>
             </div>
             <div class="status-block flex-grow-1">
-              <div class="status-text fw-semibold text-truncate">{{ s.name }}</div>
+              <div class="status-text fw-semibold text-truncate">
+                {{ s.name }}
+              </div>
               <div class="sub-status small">{{ s.type }}</div>
-              <div class="sub-status small" *ngIf="s.form_names">{{ s.form_names }} Form</div>
+              <div class="sub-status small" *ngIf="s.form_names">
+                {{ s.form_names }} Form
+              </div>
               <div class="meta small d-flex align-items-center gap-1 mt-1">
-                <i class="feather icon-user"></i><span>{{ s.applicants_count }}</span>
+                <i class="feather icon-user"></i
+                ><span>{{ s.applicants_count }}</span>
               </div>
             </div>
           </div>
         </div>
-        <div *ngIf="!hasStages() && !loading()" class="p-3 small text-secondary">No stages found.</div>
+        <div
+          *ngIf="!hasStages() && !loading()"
+          class="p-3 small text-secondary"
+        >
+          No stages found.
+        </div>
       </div>
     </aside>
 
     <!-- Right column placeholder -->
     <section class="editor-main flex-grow-1">
       <div class="px-3 pb-3 pt-3 d-flex flex-column gap-3">
-  <div *ngIf="!nonRulesVisible() && !rulesVisible(); else stageSpecificTpl" class="empty-state text-center py-5 px-2">
+        <div
+          *ngIf="!nonRulesVisible() && !rulesVisible(); else stageSpecificTpl"
+          class="empty-state text-center py-5 px-2"
+        >
           <div class="empty-icon-wrapper mx-auto mb-3">
             <div class="gradient-ring">
               <i class="feather icon-layers empty-main-icon"></i>
             </div>
           </div>
           <h5 class="empty-title mb-2">Workflow Configuration</h5>
-          <p class="empty-subtitle mb-4">Select a stage on the left to explore its settings and automation options.</p>
+          <p class="empty-subtitle mb-4">
+            Select a stage on the left to explore its settings and automation
+            options.
+          </p>
           <div class="d-flex flex-wrap justify-content-center gap-2">
-            <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" (click)="openAddStageModal()">
-              <i class="feather icon-git-commit" style="font-size:.9rem; line-height:1;" aria-hidden="true"></i>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+              (click)="openAddStageModal()"
+            >
+              <i
+                class="feather icon-git-commit"
+                style="font-size: 0.9rem; line-height: 1"
+                aria-hidden="true"
+              ></i>
               <span>Add Stage</span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" (click)="openAddRuleModal()">
-              <i class="feather icon-git-branch" style="font-size:.85rem;"></i>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+              (click)="openAddRuleModal()"
+            >
+              <i class="feather icon-git-branch" style="font-size: 0.85rem"></i>
               <span>Add Rule</span>
             </button>
           </div>
-          <div class="empty-hint mt-4 small text-secondary">Drag stages to refine their order at any time.</div>
+          <div class="empty-hint mt-4 small text-secondary">
+            Drag stages to refine their order at any time.
+          </div>
         </div>
         <ng-template #stageSpecificTpl>
           <!-- Non-Rules container (Data Collection, Custom, and others except Rules) -->
           <ng-container *ngIf="nonRulesVisible(); else rulesTpl">
-          <!-- Data Collection Form card: ONLY when Data Collection -->
-          <div class="card shadow-sm border-0 mt-3" *ngIf="dataCollectionVisible()">
-            <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
-              <h6 class="mb-0 fw-semibold">Data Collection Form</h6>
-              <span *ngIf="dataSectionLoading()" class="small text-secondary">Loading…</span>
-            </div>
-            <div class="card-body pt-3 pb-3 px-3" *ngIf="!dataSectionLoading(); else loadingDataSec">
-              <div *ngIf="dataSectionError()" class="alert alert-danger py-2 px-3 small mb-3">
-                {{ dataSectionError() }}
+            <!-- Data Collection Form card: ONLY when Data Collection -->
+            <div
+              class="card shadow-sm border-0 mt-3"
+              *ngIf="dataCollectionVisible()"
+            >
+              <div
+                class="card-header py-2 px-3 d-flex align-items-center justify-content-between"
+              >
+                <h6 class="mb-0 fw-semibold">Data Collection Form</h6>
+                <span *ngIf="dataSectionLoading()" class="small text-secondary"
+                  >Loading…</span
+                >
               </div>
-              <div class="form-switch-grid d-flex flex-column gap-3">
-                <div class="form-check form-switch m-0">
-                  <input class="form-check-input" type="checkbox" id="dc_show_tracker" [checked]="dc_show_stage_in_tracker()" (change)="toggleDataOption('show_stage_in_tracker', $any($event.target).checked)" />
-                  <label class="form-check-label small" for="dc_show_tracker">Show stage in applicant portal progress tracker</label>
+              <div
+                class="card-body pt-3 pb-3 px-3"
+                *ngIf="!dataSectionLoading(); else loadingDataSec"
+              >
+                <div
+                  *ngIf="dataSectionError()"
+                  class="alert alert-danger py-2 px-3 small mb-3"
+                >
+                  {{ dataSectionError() }}
                 </div>
-                <div class="form-check form-switch m-0">
-                  <input class="form-check-input" type="checkbox" id="dc_auto_advance" [checked]="dc_auto_advance_stage()" (change)="toggleDataOption('auto_advance_stage', $any($event.target).checked)" />
-                  <label class="form-check-label small" for="dc_auto_advance">Automatically move applicant to next stage after data is collected (recommended)</label>
-                </div>
-                <div class="form-check form-switch m-0">
-                  <input class="form-check-input" type="checkbox" id="dc_notify_owner" [checked]="dc_notify_owner_on_submit()" (change)="toggleDataOption('notify_owner_on_submit', $any($event.target).checked)" />
-                  <label class="form-check-label small" for="dc_notify_owner">Notify opening owner when data is submitted</label>
-                </div>
-                <div class="form-check form-switch m-0">
-                  <input class="form-check-input" type="checkbox" id="dc_show_one_q" [checked]="dc_show_one_question()" (change)="toggleDataOption('show_one_question', $any($event.target).checked)" />
-                  <label class="form-check-label small" for="dc_show_one_q">Show one question at a time</label>
-                </div>
-              </div>
-            </div>
-            <ng-template #loadingDataSec>
-              <div class="px-2 py-4 text-center small text-secondary">Loading settings…</div>
-            </ng-template>
-          </div>
-          <!-- Idle Move Rule Card (visible for Data Collection and Custom) -->
-          <div class="card shadow-sm border-0 mt-3 idle-move-card">
-            <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
-              <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2">Idle Move Rule
-                <span *ngIf="idleMoveLoading()" class="small text-secondary fw-normal">Loading…</span>
-              </h6>
-              <span *ngIf="idleMoveDirty()" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-weight:500;">Unsaved</span>
-            </div>
-            <div class="card-body pt-3 pb-3 px-3">
-              <p class="small mb-3 text-secondary">Automatically transfer idle applicants to a target stage</p>
-              <div *ngIf="idleMoveError()" class="alert alert-danger py-2 px-3 small mb-3">{{ idleMoveError() }}</div>
-              <div class="row g-3">
-                <div class="col-12 col-sm-6 col-lg-3">
-                  <div class="mb-1">
-                    <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Number of idle days</label>
-                    <input type="number" min="0" dwNonNegative class="form-control form-control-sm" [value]="idleMoveDays()" (input)="onIdleDaysChange($any($event.target).value)" />
-                  </div>
-                </div>
-                <div class="col-12 col-sm-6 col-lg-4">
-                  <div class="mb-1">
-                    <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Target stage</label>
-                    <select class="form-select form-select-sm" [value]="idleTargetStageId() ?? ''" (change)="onIdleTargetStageChange($any($event.target).value)">
-                      <option value="">Select stage</option>
-                      <option *ngFor="let st of stages()" [value]="st.id_stage">{{ st.name }}</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="col-12 d-flex align-items-center">
+                <div class="form-switch-grid d-flex flex-column gap-3">
                   <div class="form-check form-switch m-0">
-                    <input class="form-check-input" type="checkbox" id="idle_send_msgs" [checked]="idleSendAutomatedMessages()" (change)="toggleIdleSendAutomatedMessages($any($event.target).checked)" />
-                    <label class="form-check-label small" for="idle_send_msgs">Send automated messages associated with the target stage</label>
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="dc_show_tracker"
+                      [checked]="dc_show_stage_in_tracker()"
+                      (change)="
+                        toggleDataOption(
+                          'show_stage_in_tracker',
+                          $any($event.target).checked
+                        )
+                      "
+                    />
+                    <label class="form-check-label small" for="dc_show_tracker"
+                      >Show stage in applicant portal progress tracker</label
+                    >
                   </div>
-                </div>
-                <div class="col-12 d-flex align-items-center">
                   <div class="form-check form-switch m-0">
-                    <input class="form-check-input" type="checkbox" id="idle_ignore_action" [checked]="idleIgnoreApplicantAction()" (change)="toggleIdleIgnoreApplicantAction($any($event.target).checked)" />
-                    <label class="form-check-label small" for="idle_ignore_action">Ignore applicant action and consider idle period only</label>
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="dc_auto_advance"
+                      [checked]="dc_auto_advance_stage()"
+                      (change)="
+                        toggleDataOption(
+                          'auto_advance_stage',
+                          $any($event.target).checked
+                        )
+                      "
+                    />
+                    <label class="form-check-label small" for="dc_auto_advance"
+                      >Automatically move applicant to next stage after data is
+                      collected (recommended)</label
+                    >
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="dc_notify_owner"
+                      [checked]="dc_notify_owner_on_submit()"
+                      (change)="
+                        toggleDataOption(
+                          'notify_owner_on_submit',
+                          $any($event.target).checked
+                        )
+                      "
+                    />
+                    <label class="form-check-label small" for="dc_notify_owner"
+                      >Notify opening owner when data is submitted</label
+                    >
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="dc_show_one_q"
+                      [checked]="dc_show_one_question()"
+                      (change)="
+                        toggleDataOption(
+                          'show_one_question',
+                          $any($event.target).checked
+                        )
+                      "
+                    />
+                    <label class="form-check-label small" for="dc_show_one_q"
+                      >Show one question at a time</label
+                    >
                   </div>
                 </div>
-                <div class="col-12 d-flex align-items-center gap-2 flex-wrap pt-2">
-                  <button type="button" class="btn btn-sm btn-sm btn-primary d-inline-flex align-items-center gap-1" (click)="saveIdleMove()" [disabled]="idleMoveSaving() || !idleMoveDirty()" [attr.title]="!idleMoveDirty() ? 'No changes to save' : null">
-                    <ng-container *ngIf="!idleMoveSaving(); else savingIdleMove"><i class="feather" [ngClass]="idleMoveRecordId() ? 'icon-save' : 'icon-check'" style="font-size:.8rem;"></i> {{ idleMoveRecordId() ? 'Update' : 'Save' }}</ng-container>
-                  </button>
-                  <ng-template #savingIdleMove>
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                  </ng-template>
-                </div>
               </div>
+              <ng-template #loadingDataSec>
+                <div class="px-2 py-4 text-center small text-secondary">
+                  Loading settings…
+                </div>
+              </ng-template>
             </div>
-          </div>
-          <!-- Initial Message Card (visible for Data Collection and Custom) -->
-          <div class="card shadow-sm border-0 mt-3">
-            <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
-              <div class="d-flex flex-column">
-                <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2">Initial Message
+            <!-- Idle Move Rule Card (visible for Data Collection and Custom) -->
+            <div class="card shadow-sm border-0 mt-3 idle-move-card">
+              <div
+                class="card-header py-2 px-3 d-flex align-items-center justify-content-between"
+              >
+                <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2">
+                  Idle Move Rule
+                  <span
+                    *ngIf="idleMoveLoading()"
+                    class="small text-secondary fw-normal"
+                    >Loading…</span
+                  >
                 </h6>
-              </div>
-              <span *ngIf="initialMessageDirty()" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-weight:500;">Unsaved</span>
-            </div>
-            <div class="card-body pt-3 pb-3 px-3">
-              <p class="small mb-3 text-secondary">Send a message when the applicant lands on this stage</p>
-              <div *ngIf="initialMessageError()" class="alert alert-danger py-2 px-3 small mb-3">{{ initialMessageError() }}</div>
-              <div class="row g-3 align-items-start">
-                <div class="col-12 col-md-5 col-lg-4">
-                  <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Message Template</label>
-                  <select class="form-select form-select-sm" [class.is-invalid]="!selectedTemplateId() && initialMessageDirty()" [disabled]="initialMessageLoading()" [value]="selectedTemplateId() ?? ''" (focus)="ensureInitialMessageCatalogs()" (change)="onTemplateChange($any($event.target).value)">
-                    <option value="">Select template…</option>
-                    <option *ngFor="let t of notificationTemplates()" [value]="t.id">{{ t.description }}</option>
-                  </select>
-                </div>
-                <div class="col-12 col-md-4 col-lg-3">
-                  <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Delivery</label>
-                  <select class="form-select form-select-sm" [class.is-invalid]="!selectedDeliveryMethod() && initialMessageDirty()" [disabled]="initialMessageLoading()" [value]="selectedDeliveryMethod()" (focus)="ensureInitialMessageCatalogs()" (change)="onDeliveryMethodChange($any($event.target).value)">
-                    <option value="">Select channel…</option>
-                    <option *ngFor="let d of deliveryMethods()" [value]="d.value">{{ d.description }}</option>
-                  </select>
-                </div>
-                <div class="col-6 col-md-3 col-lg-2">
-                  <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Delay (min)</label>
-                  <input type="number" min="0" dwNonNegative class="form-control form-control-sm" [value]="initialMessageDelayMins()" (input)="onInitialMessageDelayChange($any($event.target).value)" />
-                </div>
-                <div class="col-12 d-flex align-items-center gap-3 flex-wrap">
-                  <div class="form-check form-switch m-0" title="Toggle active/disable">
-                    <input class="form-check-input" type="checkbox" id="im_disable" [checked]="!initialMessageDisabled()" (change)="toggleInitialMessageDisabled(!$any($event.target).checked)" />
-                    <label class="form-check-label small" for="im_disable">{{ initialMessageDisabled() ? 'Disable' : 'Active' }}</label>
-                  </div>
-                  <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" (click)="onAddInitialMessage()" [disabled]="initialMessageSaving() || !selectedTemplateId() || !selectedDeliveryMethod() || !initialMessageDirty()" [attr.title]="initialMessageSaveDisabledReason() || null">
-                    <ng-container *ngIf="!initialMessageSaving(); else savingIM">
-                      <i class="feather" [ngClass]="initialMessageRecordId() ? 'icon-save' : 'icon-check'" style="font-size:.8rem;"></i>
-                      {{ initialMessageRecordId() ? 'Update' : 'Save' }}
-                    </ng-container>
-                  </button>
-                  <ng-template #savingIM>
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                  </ng-template>
-                </div>
-              </div>
-            </div>
-          </div>
-            <!-- Follow-Up Messages Card (visible for Data Collection and Custom) -->
-            <div class="card shadow-sm border-0 mt-3 followup-messages-card">
-              <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
-                <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2">Follow-Up Messages
-                  <span *ngIf="followUpsLoading()" class="small text-secondary fw-normal">Loading…</span>
-                </h6>
-                <span *ngIf="followUpsDirty()" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-weight:500;">Unsaved</span>
+                <span
+                  *ngIf="idleMoveDirty()"
+                  class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"
+                  style="font-weight: 500"
+                  >Unsaved</span
+                >
               </div>
               <div class="card-body pt-3 pb-3 px-3">
-                <p class="small mb-3 text-secondary">Send a follow-up to remind idle applicants to take action. Follow up message will be skipped if there is no slot availability</p>
-                <div *ngIf="followUpsError()" class="alert alert-danger py-2 px-3 small mb-3">{{ followUpsError() }}</div>
+                <p class="small mb-3 text-secondary">
+                  Automatically transfer idle applicants to a target stage
+                </p>
+                <div
+                  *ngIf="idleMoveError()"
+                  class="alert alert-danger py-2 px-3 small mb-3"
+                >
+                  {{ idleMoveError() }}
+                </div>
+                <div class="row g-3">
+                  <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="mb-1">
+                      <label
+                        class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                        >Number of idle days</label
+                      >
+                      <input
+                        type="number"
+                        min="0"
+                        dwNonNegative
+                        class="form-control form-control-sm"
+                        [value]="idleMoveDays()"
+                        (input)="onIdleDaysChange($any($event.target).value)"
+                      />
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="mb-1">
+                      <label
+                        class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                        >Target stage</label
+                      >
+                      <select
+                        class="form-select form-select-sm"
+                        [value]="idleTargetStageId() ?? ''"
+                        (change)="
+                          onIdleTargetStageChange($any($event.target).value)
+                        "
+                      >
+                        <option value="">Select stage</option>
+                        <option
+                          *ngFor="let st of stages()"
+                          [value]="st.id_stage"
+                        >
+                          {{ st.name }}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="col-12 d-flex align-items-center">
+                    <div class="form-check form-switch m-0">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="idle_send_msgs"
+                        [checked]="idleSendAutomatedMessages()"
+                        (change)="
+                          toggleIdleSendAutomatedMessages(
+                            $any($event.target).checked
+                          )
+                        "
+                      />
+                      <label class="form-check-label small" for="idle_send_msgs"
+                        >Send automated messages associated with the target
+                        stage</label
+                      >
+                    </div>
+                  </div>
+                  <div class="col-12 d-flex align-items-center">
+                    <div class="form-check form-switch m-0">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="idle_ignore_action"
+                        [checked]="idleIgnoreApplicantAction()"
+                        (change)="
+                          toggleIdleIgnoreApplicantAction(
+                            $any($event.target).checked
+                          )
+                        "
+                      />
+                      <label
+                        class="form-check-label small"
+                        for="idle_ignore_action"
+                        >Ignore applicant action and consider idle period
+                        only</label
+                      >
+                    </div>
+                  </div>
+                  <div
+                    class="col-12 d-flex align-items-center gap-2 flex-wrap pt-2"
+                  >
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-sm btn-primary d-inline-flex align-items-center gap-1"
+                      (click)="saveIdleMove()"
+                      [disabled]="idleMoveSaving() || !idleMoveDirty()"
+                      [attr.title]="
+                        !idleMoveDirty() ? 'No changes to save' : null
+                      "
+                    >
+                      <ng-container
+                        *ngIf="!idleMoveSaving(); else savingIdleMove"
+                        ><i
+                          class="feather"
+                          [ngClass]="
+                            idleMoveRecordId() ? 'icon-save' : 'icon-check'
+                          "
+                          style="font-size: 0.8rem"
+                        ></i>
+                        {{
+                          idleMoveRecordId() ? "Update" : "Save"
+                        }}</ng-container
+                      >
+                    </button>
+                    <ng-template #savingIdleMove>
+                      <span
+                        class="spinner-border spinner-border-sm"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
+                    </ng-template>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Initial Message Card (visible for Data Collection and Custom) -->
+            <div class="card shadow-sm border-0 mt-3">
+              <div
+                class="card-header py-2 px-3 d-flex align-items-center justify-content-between"
+              >
+                <div class="d-flex flex-column">
+                  <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2">
+                    Initial Message
+                  </h6>
+                </div>
+                <span
+                  *ngIf="initialMessageDirty()"
+                  class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"
+                  style="font-weight: 500"
+                  >Unsaved</span
+                >
+              </div>
+              <div class="card-body pt-3 pb-3 px-3">
+                <p class="small mb-3 text-secondary">
+                  Send a message when the applicant lands on this stage
+                </p>
+                <div
+                  *ngIf="initialMessageError()"
+                  class="alert alert-danger py-2 px-3 small mb-3"
+                >
+                  {{ initialMessageError() }}
+                </div>
+                <div class="row g-3 align-items-start">
+                  <div class="col-12 col-md-5 col-lg-4">
+                    <label
+                      class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                      >Message Template</label
+                    >
+                    <select
+                      class="form-select form-select-sm"
+                      [class.is-invalid]="
+                        !selectedTemplateId() && initialMessageDirty()
+                      "
+                      [disabled]="initialMessageLoading()"
+                      [value]="selectedTemplateId() ?? ''"
+                      (focus)="ensureInitialMessageCatalogs()"
+                      (change)="onTemplateChange($any($event.target).value)"
+                    >
+                      <option value="">Select template…</option>
+                      <option
+                        *ngFor="let t of notificationTemplates()"
+                        [value]="t.id"
+                      >
+                        {{ t.description }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-4 col-lg-3">
+                    <label
+                      class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                      >Delivery</label
+                    >
+                    <select
+                      class="form-select form-select-sm"
+                      [class.is-invalid]="
+                        !selectedDeliveryMethod() && initialMessageDirty()
+                      "
+                      [disabled]="initialMessageLoading()"
+                      [value]="selectedDeliveryMethod()"
+                      (focus)="ensureInitialMessageCatalogs()"
+                      (change)="
+                        onDeliveryMethodChange($any($event.target).value)
+                      "
+                    >
+                      <option value="">Select channel…</option>
+                      <option
+                        *ngFor="let d of deliveryMethods()"
+                        [value]="d.value"
+                      >
+                        {{ d.description }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-3 col-lg-2">
+                    <label
+                      class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                      >Delay (min)</label
+                    >
+                    <input
+                      type="number"
+                      min="0"
+                      dwNonNegative
+                      class="form-control form-control-sm"
+                      [value]="initialMessageDelayMins()"
+                      (input)="
+                        onInitialMessageDelayChange($any($event.target).value)
+                      "
+                    />
+                  </div>
+                  <div class="col-12 d-flex align-items-center gap-3 flex-wrap">
+                    <div
+                      class="form-check form-switch m-0"
+                      title="Toggle active/disable"
+                    >
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="im_disable"
+                        [checked]="!initialMessageDisabled()"
+                        (change)="
+                          toggleInitialMessageDisabled(
+                            !$any($event.target).checked
+                          )
+                        "
+                      />
+                      <label class="form-check-label small" for="im_disable">{{
+                        initialMessageDisabled() ? "Disable" : "Active"
+                      }}</label>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1"
+                      (click)="onAddInitialMessage()"
+                      [disabled]="
+                        initialMessageSaving() ||
+                        !selectedTemplateId() ||
+                        !selectedDeliveryMethod() ||
+                        !initialMessageDirty()
+                      "
+                      [attr.title]="initialMessageSaveDisabledReason() || null"
+                    >
+                      <ng-container
+                        *ngIf="!initialMessageSaving(); else savingIM"
+                      >
+                        <i
+                          class="feather"
+                          [ngClass]="
+                            initialMessageRecordId()
+                              ? 'icon-save'
+                              : 'icon-check'
+                          "
+                          style="font-size: 0.8rem"
+                        ></i>
+                        {{ initialMessageRecordId() ? "Update" : "Save" }}
+                      </ng-container>
+                    </button>
+                    <ng-template #savingIM>
+                      <span
+                        class="spinner-border spinner-border-sm"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
+                    </ng-template>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Follow-Up Messages Card (visible for Data Collection and Custom) -->
+            <div class="card shadow-sm border-0 mt-3 followup-messages-card">
+              <div
+                class="card-header py-2 px-3 d-flex align-items-center justify-content-between"
+              >
+                <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2">
+                  Follow-Up Messages
+                  <span
+                    *ngIf="followUpsLoading()"
+                    class="small text-secondary fw-normal"
+                    >Loading…</span
+                  >
+                </h6>
+                <span
+                  *ngIf="followUpsDirty()"
+                  class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"
+                  style="font-weight: 500"
+                  >Unsaved</span
+                >
+              </div>
+              <div class="card-body pt-3 pb-3 px-3">
+                <p class="small mb-3 text-secondary">
+                  Send a follow-up to remind idle applicants to take action.
+                  Follow up message will be skipped if there is no slot
+                  availability
+                </p>
+                <div
+                  *ngIf="followUpsError()"
+                  class="alert alert-danger py-2 px-3 small mb-3"
+                >
+                  {{ followUpsError() }}
+                </div>
                 <div class="d-flex flex-column gap-4">
-                  <div *ngFor="let fu of followUps(); let i = index; trackBy: trackFollowUp" class="followup-form-block border rounded p-2 position-relative">
-                    <div class="position-absolute" style="top:4px; right:4px;">
-                      <button type="button" class="btn btn-xs btn-outline-danger" (click)="removeFollowUpForm(i)" [disabled]="fu.saving" title="Delete / disable">
-                        <i class="feather icon-trash-2" style="font-size:.65rem;"></i>
+                  <div
+                    *ngFor="
+                      let fu of followUps();
+                      let i = index;
+                      trackBy: trackFollowUp
+                    "
+                    class="followup-form-block border rounded p-2 position-relative"
+                  >
+                    <div class="position-absolute" style="top: 4px; right: 4px">
+                      <button
+                        type="button"
+                        class="btn btn-xs btn-outline-danger"
+                        (click)="removeFollowUpForm(i)"
+                        [disabled]="fu.saving"
+                        title="Delete / disable"
+                      >
+                        <i
+                          class="feather icon-trash-2"
+                          style="font-size: 0.65rem"
+                        ></i>
                       </button>
                     </div>
                     <div class="row g-3 align-items-start">
                       <div class="col-12 col-md-5 col-lg-4">
-                        <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Message Template</label>
-                        <select id="fu_tpl_{{i}}" class="form-select form-select-sm" [class.is-invalid]="!fu.templateId && fu.dirty" [disabled]="fu.saving || followUpsLoading()" [value]="fu.templateId ?? ''" (focus)="ensureInitialMessageCatalogs()" (change)="updateFollowUpField(i,'templateId', +($any($event.target).value)||null)">
+                        <label
+                          class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                          >Message Template</label
+                        >
+                        <select
+                          id="fu_tpl_{{ i }}"
+                          class="form-select form-select-sm"
+                          [class.is-invalid]="!fu.templateId && fu.dirty"
+                          [disabled]="fu.saving || followUpsLoading()"
+                          [value]="fu.templateId ?? ''"
+                          (focus)="ensureInitialMessageCatalogs()"
+                          (change)="
+                            updateFollowUpField(
+                              i,
+                              'templateId',
+                              +$any($event.target).value || null
+                            )
+                          "
+                        >
                           <option value="">Select template…</option>
-                          <option *ngFor="let t of notificationTemplates()" [value]="t.id">{{ t.description }}</option>
+                          <option
+                            *ngFor="let t of notificationTemplates()"
+                            [value]="t.id"
+                          >
+                            {{ t.description }}
+                          </option>
                         </select>
                       </div>
                       <div class="col-12 col-md-4 col-lg-3">
-                        <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Delivery</label>
-                        <select id="fu_del_{{i}}" class="form-select form-select-sm" [class.is-invalid]="!fu.delivery && fu.dirty" [disabled]="fu.saving || followUpsLoading()" [value]="fu.delivery || ''" (focus)="ensureInitialMessageCatalogs()" (change)="updateFollowUpField(i,'delivery', $any($event.target).value)">
+                        <label
+                          class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                          >Delivery</label
+                        >
+                        <select
+                          id="fu_del_{{ i }}"
+                          class="form-select form-select-sm"
+                          [class.is-invalid]="!fu.delivery && fu.dirty"
+                          [disabled]="fu.saving || followUpsLoading()"
+                          [value]="fu.delivery || ''"
+                          (focus)="ensureInitialMessageCatalogs()"
+                          (change)="
+                            updateFollowUpField(
+                              i,
+                              'delivery',
+                              $any($event.target).value
+                            )
+                          "
+                        >
                           <option value="">Select channel…</option>
-                          <option *ngFor="let d of deliveryMethods()" [value]="d.value">{{ d.description }}</option>
+                          <option
+                            *ngFor="let d of deliveryMethods()"
+                            [value]="d.value"
+                          >
+                            {{ d.description }}
+                          </option>
                         </select>
                       </div>
                       <div class="col-6 col-md-3 col-lg-2">
-                        <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Delay (days)</label>
-                        <input type="number" min="0" dwNonNegative class="form-control form-control-sm" [value]="fu.delayDays" (input)="updateFollowUpField(i,'delayDays',$any($event.target).value)" />
+                        <label
+                          class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                          >Delay (days)</label
+                        >
+                        <input
+                          type="number"
+                          min="0"
+                          dwNonNegative
+                          class="form-control form-control-sm"
+                          [value]="fu.delayDays"
+                          (input)="
+                            updateFollowUpField(
+                              i,
+                              'delayDays',
+                              $any($event.target).value
+                            )
+                          "
+                        />
                       </div>
-                      <div class="col-12 d-flex align-items-center gap-3 flex-wrap pt-1">
-                        <div class="form-check form-switch m-0" title="Toggle active/disable">
-                          <input class="form-check-input" type="checkbox" [id]="'fu_active_'+i" [checked]="fu.isActive" (change)="updateFollowUpField(i,'isActive',$any($event.target).checked)" />
-                          <label class="form-check-label small" [for]="'fu_active_'+i">{{ fu.isActive ? 'Active' : 'Disable' }}</label>
+                      <div
+                        class="col-12 d-flex align-items-center gap-3 flex-wrap pt-1"
+                      >
+                        <div
+                          class="form-check form-switch m-0"
+                          title="Toggle active/disable"
+                        >
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            [id]="'fu_active_' + i"
+                            [checked]="fu.isActive"
+                            (change)="
+                              updateFollowUpField(
+                                i,
+                                'isActive',
+                                $any($event.target).checked
+                              )
+                            "
+                          />
+                          <label
+                            class="form-check-label small"
+                            [for]="'fu_active_' + i"
+                            >{{ fu.isActive ? "Active" : "Disable" }}</label
+                          >
                         </div>
-                        <button type="button" class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1" (click)="saveFollowUp(i)" [disabled]="fu.saving || !fu.dirty || !fu.templateId || !fu.delivery" [attr.title]="!fu.dirty ? 'No changes' : (!fu.templateId || !fu.delivery ? 'Template & delivery required' : null)">
-                          <ng-container *ngIf="!fu.saving; else savingFU"><i class="feather" [ngClass]="fu.id ? 'icon-save' : 'icon-check'" style="font-size:.75rem;"></i> {{ fu.id ? 'Update' : 'Save' }}</ng-container>
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1"
+                          (click)="saveFollowUp(i)"
+                          [disabled]="
+                            fu.saving ||
+                            !fu.dirty ||
+                            !fu.templateId ||
+                            !fu.delivery
+                          "
+                          [attr.title]="
+                            !fu.dirty
+                              ? 'No changes'
+                              : !fu.templateId || !fu.delivery
+                              ? 'Template & delivery required'
+                              : null
+                          "
+                        >
+                          <ng-container *ngIf="!fu.saving; else savingFU"
+                            ><i
+                              class="feather"
+                              [ngClass]="fu.id ? 'icon-save' : 'icon-check'"
+                              style="font-size: 0.75rem"
+                            ></i>
+                            {{ fu.id ? "Update" : "Save" }}</ng-container
+                          >
                         </button>
                         <ng-template #savingFU>
-                          <span class="spinner-border spinner-border-sm" role="status"></span>
+                          <span
+                            class="spinner-border spinner-border-sm"
+                            role="status"
+                          ></span>
                         </ng-template>
-                        <span *ngIf="fu.error" class="text-danger small">{{ fu.error }}</span>
+                        <span *ngIf="fu.error" class="text-danger small">{{
+                          fu.error
+                        }}</span>
                       </div>
                     </div>
                   </div>
                   <div>
-                    <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" (click)="addFollowUpForm()">
-                      <i class="feather icon-plus" style="font-size:.85rem;"></i> Add Message
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                      (click)="addFollowUpForm()"
+                    >
+                      <i
+                        class="feather icon-plus"
+                        style="font-size: 0.85rem"
+                      ></i>
+                      Add Message
                     </button>
                   </div>
                 </div>
@@ -328,111 +877,366 @@
           </ng-container>
           <!-- Rules Template -->
           <ng-template #rulesTpl>
-            <div *ngIf="rulesVisible()" class="card shadow-sm border-0 rules-card">
-              <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+            <div
+              *ngIf="rulesVisible()"
+              class="card shadow-sm border-0 rules-card"
+            >
+              <div
+                class="card-header py-2 px-3 d-flex align-items-center justify-content-between"
+              >
                 <h6 class="mb-0 fw-semibold">Rules</h6>
                 <div class="d-flex align-items-center gap-2">
-                  <span *ngIf="rulesLoading()" class="small text-secondary">Loading…</span>
+                  <span *ngIf="rulesLoading()" class="small text-secondary"
+                    >Loading…</span
+                  >
                 </div>
               </div>
-              <div class="card-body pt-3 pb-3 px-3" *ngIf="!rulesLoading(); else loadingRulesTpl">
-                <div *ngIf="rulesError()" class="alert alert-danger py-2 px-3 small mb-3">{{ rulesError() }}</div>
+              <div
+                class="card-body pt-3 pb-3 px-3"
+                *ngIf="!rulesLoading(); else loadingRulesTpl"
+              >
+                <div
+                  *ngIf="rulesError()"
+                  class="alert alert-danger py-2 px-3 small mb-3"
+                >
+                  {{ rulesError() }}
+                </div>
                 <!-- Conditions Section -->
                 <div class="mb-3">
-                  <h6 class="small text-uppercase fw-semibold text-secondary mb-2 d-flex align-items-center gap-2">Conditions
-                    <span *ngIf="ruleRows().length===0" class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle" style="font-weight:500;">Empty</span>
+                  <h6
+                    class="small text-uppercase fw-semibold text-secondary mb-2 d-flex align-items-center gap-2"
+                  >
+                    Conditions
+                    <span
+                      *ngIf="ruleRows().length === 0"
+                      class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle"
+                      style="font-weight: 500"
+                      >Empty</span
+                    >
                   </h6>
                   <div class="d-flex flex-column gap-2">
-                    <ng-container *ngFor="let r of ruleRows(); let i = index; trackBy: trackRuleRow">
-                      <div *ngIf="r.origin==='C' || r.condition_type_id || r.datakey_id || r.operator_id || r.value" class="p-2 border rounded position-relative bg-light-subtle">
-                      <div class="position-absolute" style="top:4px; right:4px;">
-                        <button type="button" class="btn btn-xs btn-outline-danger" (click)="removeRuleRow(i)" [disabled]="r.saving" title="Delete / disable"><i class="feather icon-trash-2" style="font-size:.65rem;"></i></button>
-                      </div>
-                      <div class="row g-2 align-items-end">
-                        <div class="col-12 col-md-3">
-                          <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Condition Type</label>
-                          <select class="form-select form-select-sm" [value]="r.condition_type_id ?? ''" (change)="updateRuleRow(i,'condition_type_id', +($any($event.target).value)||null)">
-                            <option value="">Select…</option>
-                            <option *ngFor="let c of conditionTypes()" [value]="c.id_condition_type">{{ c.condition }}</option>
-                          </select>
+                    <ng-container
+                      *ngFor="
+                        let r of ruleRows();
+                        let i = index;
+                        trackBy: trackRuleRow
+                      "
+                    >
+                      <div
+                        *ngIf="
+                          r.origin === 'C' ||
+                          r.condition_type_id ||
+                          r.datakey_id ||
+                          r.operator_id ||
+                          r.value
+                        "
+                        class="p-2 border rounded position-relative bg-light-subtle"
+                      >
+                        <div
+                          class="position-absolute"
+                          style="top: 4px; right: 4px"
+                        >
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-outline-danger"
+                            (click)="removeRuleRow(i)"
+                            [disabled]="r.saving"
+                            title="Delete / disable"
+                          >
+                            <i
+                              class="feather icon-trash-2"
+                              style="font-size: 0.65rem"
+                            ></i>
+                          </button>
                         </div>
-                        <div class="col-12 col-md-2">
-                          <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Data Key</label>
-                          <select class="form-select form-select-sm" [value]="r.datakey_id ?? ''" (change)="updateRuleRow(i,'datakey_id', +($any($event.target).value)||null)">
-                            <option value="">Select…</option>
-                            <option *ngFor="let d of dataKeys()" [value]="d.id_datakey">{{ d.datakey }}</option>
-                          </select>
-                        </div>
-                        <div class="col-12 col-md-2">
-                          <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Operator</label>
-                          <select class="form-select form-select-sm" [value]="r.operator_id ?? ''" (change)="updateRuleRow(i,'operator_id', +($any($event.target).value)||null)">
-                            <option value="">Select…</option>
-                            <option *ngFor="let o of operators()" [value]="o.id_operator">{{ o.operator }}</option>
-                          </select>
-                        </div>
-                        <div class="col-12 col-md-2">
-                          <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Value</label>
-                          <input type="text" class="form-control form-control-sm" [value]="r.value" (input)="updateRuleRow(i,'value',$any($event.target).value)" />
-                        </div>
-                        <div class="col-12 col-md-2 d-flex align-items-center pt-3">
-                          <div class="form-check form-switch m-0" title="Toggle active/disable">
-                            <input class="form-check-input" type="checkbox" [id]="'rule_active_c_'+i" [checked]="r.isActive" (change)="updateRuleRow(i,'isActive',$any($event.target).checked)" />
-                            <label class="form-check-label small" [for]="'rule_active_c_'+i">{{ r.isActive ? 'Active' : 'Disable' }}</label>
+                        <div class="row g-2 align-items-end">
+                          <div class="col-12 col-md-3">
+                            <label
+                              class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                              >Condition Type</label
+                            >
+                            <select
+                              class="form-select form-select-sm"
+                              [value]="r.condition_type_id ?? ''"
+                              (change)="
+                                updateRuleRow(
+                                  i,
+                                  'condition_type_id',
+                                  +$any($event.target).value || null
+                                )
+                              "
+                            >
+                              <option value="">Select…</option>
+                              <option
+                                *ngFor="let c of conditionTypes()"
+                                [value]="c.id_condition_type"
+                              >
+                                {{ c.condition }}
+                              </option>
+                            </select>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <label
+                              class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                              >Data Key</label
+                            >
+                            <select
+                              class="form-select form-select-sm"
+                              [value]="r.datakey_id ?? ''"
+                              (change)="
+                                updateRuleRow(
+                                  i,
+                                  'datakey_id',
+                                  +$any($event.target).value || null
+                                )
+                              "
+                            >
+                              <option value="">Select…</option>
+                              <option
+                                *ngFor="let d of dataKeys()"
+                                [value]="d.id_datakey"
+                              >
+                                {{ d.datakey }}
+                              </option>
+                            </select>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <label
+                              class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                              >Operator</label
+                            >
+                            <select
+                              class="form-select form-select-sm"
+                              [value]="r.operator_id ?? ''"
+                              (change)="
+                                updateRuleRow(
+                                  i,
+                                  'operator_id',
+                                  +$any($event.target).value || null
+                                )
+                              "
+                            >
+                              <option value="">Select…</option>
+                              <option
+                                *ngFor="let o of operators()"
+                                [value]="o.id_operator"
+                              >
+                                {{ o.operator }}
+                              </option>
+                            </select>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <label
+                              class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                              >Value</label
+                            >
+                            <input
+                              type="text"
+                              class="form-control form-control-sm"
+                              [value]="r.value"
+                              (input)="
+                                updateRuleRow(
+                                  i,
+                                  'value',
+                                  $any($event.target).value
+                                )
+                              "
+                            />
+                          </div>
+                          <div
+                            class="col-12 col-md-2 d-flex align-items-center pt-3"
+                          >
+                            <div
+                              class="form-check form-switch m-0"
+                              title="Toggle active/disable"
+                            >
+                              <input
+                                class="form-check-input"
+                                type="checkbox"
+                                [id]="'rule_active_c_' + i"
+                                [checked]="r.isActive"
+                                (change)="
+                                  updateRuleRow(
+                                    i,
+                                    'isActive',
+                                    $any($event.target).checked
+                                  )
+                                "
+                              />
+                              <label
+                                class="form-check-label small"
+                                [for]="'rule_active_c_' + i"
+                                >{{ r.isActive ? "Active" : "Disable" }}</label
+                              >
+                            </div>
                           </div>
                         </div>
-                      </div>
-                          <div *ngIf="r.error" class="mt-1"><span class="text-danger small">{{ r.error }}</span></div>
+                        <div *ngIf="r.error" class="mt-1">
+                          <span class="text-danger small">{{ r.error }}</span>
+                        </div>
                       </div>
                     </ng-container>
                   </div>
                   <div class="pt-2">
-                    <button type="button" class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1" (click)="addConditionRow()"><i class="feather icon-plus" style="font-size:.7rem;"></i> Add Condition</button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1"
+                      (click)="addConditionRow()"
+                    >
+                      <i
+                        class="feather icon-plus"
+                        style="font-size: 0.7rem"
+                      ></i>
+                      Add Condition
+                    </button>
                   </div>
                 </div>
                 <!-- Actions Section -->
                 <div>
-                  <h6 class="small text-uppercase fw-semibold text-secondary mb-2 d-flex align-items-center gap-2">Actions
-                    <span *ngIf="ruleRows().length===0" class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle" style="font-weight:500;">Empty</span>
+                  <h6
+                    class="small text-uppercase fw-semibold text-secondary mb-2 d-flex align-items-center gap-2"
+                  >
+                    Actions
+                    <span
+                      *ngIf="ruleRows().length === 0"
+                      class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle"
+                      style="font-weight: 500"
+                      >Empty</span
+                    >
                   </h6>
                   <div class="d-flex flex-column gap-2">
-                    <ng-container *ngFor="let r of ruleRows(); let i = index; trackBy: trackRuleRow">
-                      <div *ngIf="r.origin==='A' || r.action_id || r.reason_id" class="p-2 border rounded position-relative bg-light-subtle">
-                      <div class="position-absolute" style="top:4px; right:4px;">
-                        <button type="button" class="btn btn-xs btn-outline-danger" (click)="removeRuleRow(i)" [disabled]="r.saving" title="Delete / disable"><i class="feather icon-trash-2" style="font-size:.65rem;"></i></button>
-                      </div>
-                      <div class="row g-2 align-items-end">
-                        <div class="col-12 col-md-3">
-                          <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Action</label>
-                          <select class="form-select form-select-sm" [value]="r.action_id ?? ''" (change)="updateRuleRow(i,'action_id', +($any($event.target).value)||null)">
-                            <option value="">Select action</option>
-                            <option *ngFor="let a of actionsCatalog()" [value]="a.id_action">{{ a.action }}</option>
-                          </select>
+                    <ng-container
+                      *ngFor="
+                        let r of ruleRows();
+                        let i = index;
+                        trackBy: trackRuleRow
+                      "
+                    >
+                      <div
+                        *ngIf="r.origin === 'A' || r.action_id || r.reason_id"
+                        class="p-2 border rounded position-relative bg-light-subtle"
+                      >
+                        <div
+                          class="position-absolute"
+                          style="top: 4px; right: 4px"
+                        >
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-outline-danger"
+                            (click)="removeRuleRow(i)"
+                            [disabled]="r.saving"
+                            title="Delete / disable"
+                          >
+                            <i
+                              class="feather icon-trash-2"
+                              style="font-size: 0.65rem"
+                            ></i>
+                          </button>
                         </div>
-                        <div class="col-12 col-md-3">
-                          <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">Reason</label>
-                          <select class="form-select form-select-sm" [value]="r.reason_id ?? ''" (change)="updateRuleRow(i,'reason_id', +($any($event.target).value)||null)">
-                            <option value="">Select reason</option>
-                            <option *ngFor="let rs of reasonsCatalog()" [value]="rs.id_reason">{{ rs.reason }}</option>
-                          </select>
-                        </div>
-                        <div class="col-6 col-md-2 d-flex align-items-center pt-3">
-                          <div class="form-check form-switch m-0" title="Toggle active/disable">
-                            <input class="form-check-input" type="checkbox" [id]="'rule_active_a_'+i" [checked]="r.isActive" (change)="updateRuleRow(i,'isActive',$any($event.target).checked)" />
-                            <label class="form-check-label small" [for]="'rule_active_a_'+i">{{ r.isActive ? 'Active' : 'Disable' }}</label>
+                        <div class="row g-2 align-items-end">
+                          <div class="col-12 col-md-3">
+                            <label
+                              class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                              >Action</label
+                            >
+                            <select
+                              class="form-select form-select-sm"
+                              [value]="r.action_id ?? ''"
+                              (change)="
+                                updateRuleRow(
+                                  i,
+                                  'action_id',
+                                  +$any($event.target).value || null
+                                )
+                              "
+                            >
+                              <option value="">Select action</option>
+                              <option
+                                *ngFor="let a of actionsCatalog()"
+                                [value]="a.id_action"
+                              >
+                                {{ a.action }}
+                              </option>
+                            </select>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <label
+                              class="form-label small text-uppercase fw-semibold text-secondary mb-1"
+                              >Reason</label
+                            >
+                            <select
+                              class="form-select form-select-sm"
+                              [value]="r.reason_id ?? ''"
+                              (change)="
+                                updateRuleRow(
+                                  i,
+                                  'reason_id',
+                                  +$any($event.target).value || null
+                                )
+                              "
+                            >
+                              <option value="">Select reason</option>
+                              <option
+                                *ngFor="let rs of reasonsCatalog()"
+                                [value]="rs.id_reason"
+                              >
+                                {{ rs.reason }}
+                              </option>
+                            </select>
+                          </div>
+                          <div
+                            class="col-6 col-md-2 d-flex align-items-center pt-3"
+                          >
+                            <div
+                              class="form-check form-switch m-0"
+                              title="Toggle active/disable"
+                            >
+                              <input
+                                class="form-check-input"
+                                type="checkbox"
+                                [id]="'rule_active_a_' + i"
+                                [checked]="r.isActive"
+                                (change)="
+                                  updateRuleRow(
+                                    i,
+                                    'isActive',
+                                    $any($event.target).checked
+                                  )
+                                "
+                              />
+                              <label
+                                class="form-check-label small"
+                                [for]="'rule_active_a_' + i"
+                                >{{ r.isActive ? "Active" : "Disable" }}</label
+                              >
+                            </div>
                           </div>
                         </div>
-                      </div>
-                          <div *ngIf="r.error" class="mt-1"><span class="text-danger small">{{ r.error }}</span></div>
+                        <div *ngIf="r.error" class="mt-1">
+                          <span class="text-danger small">{{ r.error }}</span>
+                        </div>
                       </div>
                     </ng-container>
                   </div>
                   <div class="pt-2">
-                    <button type="button" class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1" (click)="addActionRow()"><i class="feather icon-plus" style="font-size:.7rem;"></i> Add Action</button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1"
+                      (click)="addActionRow()"
+                    >
+                      <i
+                        class="feather icon-plus"
+                        style="font-size: 0.7rem"
+                      ></i>
+                      Add Action
+                    </button>
                   </div>
                 </div>
               </div>
               <ng-template #loadingRulesTpl>
-                <div class="px-2 py-4 text-center small text-secondary">Loading rule catalogs…</div>
+                <div class="px-2 py-4 text-center small text-secondary">
+                  Loading rule catalogs…
+                </div>
               </ng-template>
             </div>
           </ng-template>
@@ -447,58 +1251,153 @@
 </div>
 
 <!-- Add Stage Dialog (consistent style) -->
-<div *ngIf="showAddStageModal()" class="dw-acc-stage-dialog" aria-modal="true" role="dialog">
+<div
+  *ngIf="showAddStageModal()"
+  class="dw-acc-stage-dialog"
+  aria-modal="true"
+  role="dialog"
+>
   <div class="dw-acc-dialog-backdrop" (click)="closeAddStageModal()"></div>
   <div class="dw-acc-dialog card shadow-lg small">
-    <div class="card-header d-flex align-items-center justify-content-between py-2">
+    <div
+      class="card-header d-flex align-items-center justify-content-between py-2"
+    >
       <h6 class="mb-0 fw-semibold">Create New Stage</h6>
-      <button type="button" class="btn btn-sm btn-link text-secondary" (click)="closeAddStageModal()">×</button>
+      <button
+        type="button"
+        class="btn btn-sm btn-link text-secondary"
+        (click)="closeAddStageModal()"
+      >
+        ×
+      </button>
     </div>
     <div class="card-body py-3">
-  <form (ngSubmit)="confirmAddStage()" autocomplete="off" novalidate>
+      <form (ngSubmit)="confirmAddStage()" autocomplete="off" novalidate>
         <div class="row g-3">
           <div class="col-12">
-            <label class="form-label small fw-semibold">Name <span class="text-danger">*</span></label>
-            <input type="text" class="form-control form-control-sm" [value]="newStageName()" (input)="newStageName.set($any($event.target).value)" />
+            <label class="form-label small fw-semibold"
+              >Name <span class="text-danger">*</span></label
+            >
+            <input
+              type="text"
+              class="form-control form-control-sm"
+              [value]="newStageName()"
+              (input)="newStageName.set($any($event.target).value)"
+            />
           </div>
           <div class="col-12">
-            <label class="form-label small fw-semibold">Stage Type <span class="text-danger">*</span></label>
-            <select class="form-select form-select-sm" [value]="newStageTypeId() ?? ''" (focus)="ensureStageTypes()" (change)="newStageTypeId.set(+($any($event.target).value)||null); (isAddingDataCollection() ? ensureDcForms() : null)" [disabled]="stageTypesLoading()">
+            <label class="form-label small fw-semibold"
+              >Stage Type <span class="text-danger">*</span></label
+            >
+            <select
+              class="form-select form-select-sm"
+              [value]="newStageTypeId() ?? ''"
+              (focus)="ensureStageTypes()"
+              (change)="
+                newStageTypeId.set(+$any($event.target).value || null);
+                isAddingDataCollection() ? ensureDcForms() : null
+              "
+              [disabled]="stageTypesLoading()"
+            >
               <option value="">Select type…</option>
               <ng-container *ngFor="let st of stageTypeOptions()">
-                <option *ngIf="st.label !== 'Rules'" [value]="st.id">{{ st.label }}</option>
+                <option *ngIf="st.label !== 'Rules'" [value]="st.id">
+                  {{ st.label }}
+                </option>
               </ng-container>
             </select>
-            <div *ngIf="stageTypesLoading()" class="form-text small text-secondary">Loading types…</div>
-            <div *ngIf="stageTypesError()" class="form-text small text-danger">{{ stageTypesError() }}</div>
+            <div
+              *ngIf="stageTypesLoading()"
+              class="form-text small text-secondary"
+            >
+              Loading types…
+            </div>
+            <div *ngIf="stageTypesError()" class="form-text small text-danger">
+              {{ stageTypesError() }}
+            </div>
           </div>
           <!-- Conditional Form select for Data Collection type -->
           <div class="col-12" *ngIf="isAddingDataCollection()">
-            <label class="form-label small fw-semibold">Form <span class="text-danger">*</span></label>
-            <select class="form-select form-select-sm" [value]="newStageFormCode() ?? ''" (focus)="ensureDcForms()" (change)="newStageFormCode.set(($any($event.target).value)||null)" [disabled]="dcFormsLoading()">
+            <label class="form-label small fw-semibold"
+              >Form <span class="text-danger">*</span></label
+            >
+            <select
+              class="form-select form-select-sm"
+              [value]="newStageFormCode() ?? ''"
+              (focus)="ensureDcForms()"
+              (change)="newStageFormCode.set($any($event.target).value || null)"
+              [disabled]="dcFormsLoading()"
+            >
               <option value="">Select form…</option>
-              <option *ngFor="let f of dcFormOptions()" [value]="f.code">{{ f.name }}</option>
+              <option *ngFor="let f of dcFormOptions()" [value]="f.code">
+                {{ f.name }}
+              </option>
             </select>
-            <div *ngIf="dcFormsLoading()" class="form-text small text-secondary">Loading forms…</div>
-            <div *ngIf="dcFormsError()" class="form-text small text-danger">{{ dcFormsError() }}</div>
+            <div
+              *ngIf="dcFormsLoading()"
+              class="form-text small text-secondary"
+            >
+              Loading forms…
+            </div>
+            <div *ngIf="dcFormsError()" class="form-text small text-danger">
+              {{ dcFormsError() }}
+            </div>
           </div>
           <div class="col-12">
             <label class="form-label small fw-semibold">Stage Placement</label>
-            <select class="form-select form-select-sm" [value]="newStagePlacement()" (change)="newStagePlacement.set($any($event.target).value)" [disabled]="newStageSaving()">
+            <select
+              class="form-select form-select-sm"
+              [value]="newStagePlacement()"
+              (change)="newStagePlacement.set($any($event.target).value)"
+              [disabled]="newStageSaving()"
+            >
               <option value="top">At the top of the workflow</option>
               <option disabled>AFTER STAGE...</option>
-              <option *ngFor="let s of stages()" [value]="s.id_stage">{{ s.name }}</option>
+              <option *ngFor="let s of stages()" [value]="s.id_stage">
+                {{ s.name }}
+              </option>
             </select>
-            <div *ngIf="newStageSaving()" class="form-text small text-secondary d-flex align-items-center gap-1"><span class="spinner-border spinner-border-sm" style="width:14px; height:14px"></span> Creating…</div>
+            <div
+              *ngIf="newStageSaving()"
+              class="form-text small text-secondary d-flex align-items-center gap-1"
+            >
+              <span
+                class="spinner-border spinner-border-sm"
+                style="width: 14px; height: 14px"
+              ></span>
+              Creating…
+            </div>
           </div>
         </div>
         <div class="d-flex justify-content-end gap-2 mt-3">
-          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeAddStageModal()">Cancel</button>
-          <button type="submit" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" [disabled]="!newStageName().trim() || !newStageTypeId() || (isAddingDataCollection() && !newStageFormCode()) || newStageSaving()">
-            <ng-container *ngIf="!newStageSaving(); else addingStage">Add Stage</ng-container>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            (click)="closeAddStageModal()"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1"
+            [disabled]="
+              !newStageName().trim() ||
+              !newStageTypeId() ||
+              (isAddingDataCollection() && !newStageFormCode()) ||
+              newStageSaving()
+            "
+          >
+            <ng-container *ngIf="!newStageSaving(); else addingStage"
+              >Add Stage</ng-container
+            >
           </button>
           <ng-template #addingStage>
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating…
+            <span
+              class="spinner-border spinner-border-sm"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            Creating…
           </ng-template>
         </div>
       </form>
@@ -507,42 +1406,108 @@
 </div>
 
 <!-- Add Rule Dialog (consistent style) -->
-<div *ngIf="showAddRuleModal()" class="dw-acc-rule-dialog" aria-modal="true" role="dialog">
+<div
+  *ngIf="showAddRuleModal()"
+  class="dw-acc-rule-dialog"
+  aria-modal="true"
+  role="dialog"
+>
   <div class="dw-acc-dialog-backdrop" (click)="closeAddRuleModal()"></div>
-  <div class="dw-acc-dialog card shadow-lg small" style="width:420px; max-width:95%;">
-    <div class="card-header d-flex align-items-center justify-content-between py-2">
+  <div
+    class="dw-acc-dialog card shadow-lg small"
+    style="width: 420px; max-width: 95%"
+  >
+    <div
+      class="card-header d-flex align-items-center justify-content-between py-2"
+    >
       <h6 class="mb-0 fw-semibold">Create New Rule</h6>
-      <button type="button" class="btn btn-sm btn-link text-secondary" (click)="closeAddRuleModal()">×</button>
+      <button
+        type="button"
+        class="btn btn-sm btn-link text-secondary"
+        (click)="closeAddRuleModal()"
+      >
+        ×
+      </button>
     </div>
     <div class="card-body py-3">
-  <form (ngSubmit)="confirmAddRule()" autocomplete="off" novalidate>
+      <form (ngSubmit)="confirmAddRule()" autocomplete="off" novalidate>
         <div class="row g-3">
           <div class="col-12">
             <label class="form-label small fw-semibold">Title</label>
-            <input type="text" class="form-control form-control-sm" [value]="newRuleValue()" (input)="newRuleValue.set($any($event.target).value)" />
+            <input
+              type="text"
+              class="form-control form-control-sm"
+              [value]="newRuleValue()"
+              (input)="newRuleValue.set($any($event.target).value)"
+            />
           </div>
           <div class="col-12">
-            <label class="form-label small fw-semibold">Rule Type <span class="text-danger">*</span></label>
-            <select class="form-select form-select-sm" [value]="newRuleTypeId() ?? ''" (focus)="ensureRuleTypes()" (change)="newRuleTypeId.set(+($any($event.target).value)||null)" [disabled]="ruleTypesLoading()">
+            <label class="form-label small fw-semibold"
+              >Rule Type <span class="text-danger">*</span></label
+            >
+            <select
+              class="form-select form-select-sm"
+              [value]="newRuleTypeId() ?? ''"
+              (focus)="ensureRuleTypes()"
+              (change)="newRuleTypeId.set(+$any($event.target).value || null)"
+              [disabled]="ruleTypesLoading()"
+            >
               <option value="">Select type…</option>
-              <option *ngFor="let rt of ruleTypeOptions()" [value]="rt.id">{{ rt.name }}</option>
+              <option *ngFor="let rt of ruleTypeOptions()" [value]="rt.id">
+                {{ rt.name }}
+              </option>
             </select>
-            <div *ngIf="ruleTypesLoading()" class="form-text small text-secondary">Loading rule types…</div>
-            <div *ngIf="ruleTypesError()" class="form-text small text-danger">{{ ruleTypesError() }}</div>
+            <div
+              *ngIf="ruleTypesLoading()"
+              class="form-text small text-secondary"
+            >
+              Loading rule types…
+            </div>
+            <div *ngIf="ruleTypesError()" class="form-text small text-danger">
+              {{ ruleTypesError() }}
+            </div>
           </div>
-           <div class="col-12">
+          <div class="col-12">
             <label class="form-label small fw-semibold">Stage Placement</label>
-            <select class="form-select form-select-sm" [value]="newStagePlacement()" (change)="newStagePlacement.set($any($event.target).value)" [disabled]="newStageSaving()">
+            <select
+              class="form-select form-select-sm"
+              [value]="newStagePlacement()"
+              (change)="newStagePlacement.set($any($event.target).value)"
+              [disabled]="newStageSaving()"
+            >
               <option value="top">At the top of the workflow</option>
               <option disabled>AFTER STAGE...</option>
-              <option *ngFor="let s of stages()" [value]="s.id_stage">{{ s.name }}</option>
+              <option *ngFor="let s of stages()" [value]="s.id_stage">
+                {{ s.name }}
+              </option>
             </select>
-            <div *ngIf="newStageSaving()" class="form-text small text-secondary d-flex align-items-center gap-1"><span class="spinner-border spinner-border-sm" style="width:14px; height:14px"></span> Creating…</div>
+            <div
+              *ngIf="newStageSaving()"
+              class="form-text small text-secondary d-flex align-items-center gap-1"
+            >
+              <span
+                class="spinner-border spinner-border-sm"
+                style="width: 14px; height: 14px"
+              ></span>
+              Creating…
+            </div>
           </div>
         </div>
         <div class="d-flex justify-content-end gap-2 mt-3">
-          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeAddRuleModal()">Cancel</button>
-          <button type="submit" class="btn btn-sm btn-primary" [disabled]="!newRuleTypeId()">Add Rule</button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            (click)="closeAddRuleModal()"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="btn btn-sm btn-primary"
+            [disabled]="!newRuleTypeId()"
+          >
+            Add Rule
+          </button>
         </div>
       </form>
     </div>
@@ -550,29 +1515,69 @@
 </div>
 
 <!-- Clone Workflow Dialog -->
-<div *ngIf="showCloneModal()" class="dw-acc-clone-dialog" aria-modal="true" role="dialog">
+<div
+  *ngIf="showCloneModal()"
+  class="dw-acc-clone-dialog"
+  aria-modal="true"
+  role="dialog"
+>
   <div class="dw-acc-dialog-backdrop" (click)="closeCloneModal()"></div>
-  <div class="dw-acc-dialog card shadow-lg small" style="width:520px; max-width:95%;">
-    <div class="card-header d-flex align-items-center justify-content-between py-2">
+  <div
+    class="dw-acc-dialog card shadow-lg small"
+    style="width: 520px; max-width: 95%"
+  >
+    <div
+      class="card-header d-flex align-items-center justify-content-between py-2"
+    >
       <h6 class="mb-0 fw-semibold">Clone Workflow</h6>
-      <button type="button" class="btn btn-sm btn-link text-secondary" (click)="closeCloneModal()">×</button>
+      <button
+        type="button"
+        class="btn btn-sm btn-link text-secondary"
+        (click)="closeCloneModal()"
+      >
+        ×
+      </button>
     </div>
     <div class="card-body py-3">
       <form (ngSubmit)="confirmCloneWorkflow()" autocomplete="off" novalidate>
-        <div class="alert alert-info small" role="alert">
-          You are about to create a copy of this workflow and all its current stages and settings.
-        </div>
         <div class="mb-3">
-          <label class="form-label small fw-semibold">New workflow name <span class="text-danger">*</span></label>
-          <input type="text" class="form-control form-control-sm" [value]="cloneName()" (input)="cloneName.set($any($event.target).value)" placeholder="Enter new workflow name" />
+          <label class="form-label small fw-semibold"
+            >New workflow name <span class="text-danger">*</span></label
+          >
+          <input
+            type="text"
+            class="form-control form-control-sm"
+            [value]="cloneName()"
+            (input)="cloneName.set($any($event.target).value)"
+            placeholder="Enter new workflow name"
+          />
         </div>
+        <p class="small-text text-muted">You are about to create a copy of this workflow and all its current
+          stages and settings.</p>
         <div class="d-flex justify-content-end gap-2 mt-3">
-          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeCloneModal()">Cancel</button>
-          <button type="submit" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" [disabled]="!cloneName().trim() || cloning()">
-            <ng-container *ngIf="!cloning(); else cloningTpl">Clone workflow</ng-container>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            (click)="closeCloneModal()"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1"
+            [disabled]="!cloneName().trim() || cloning()"
+          >
+            <ng-container *ngIf="!cloning(); else cloningTpl"
+              >Clone workflow</ng-container
+            >
           </button>
           <ng-template #cloningTpl>
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Cloning…
+            <span
+              class="spinner-border spinner-border-sm"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            Cloning…
           </ng-template>
         </div>
       </form>

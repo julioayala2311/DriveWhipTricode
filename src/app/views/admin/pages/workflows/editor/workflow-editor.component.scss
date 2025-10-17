@@ -205,3 +205,7 @@ body.dark .dw-acc-dialog .card-header { border-color: rgba(255,255,255,.12); }
 .editor-header .editor-actions { right: .25rem; }
 .editor-header .editor-actions .dropdown-menu { box-shadow: 0 6px 24px -6px rgba(0,0,0,.2); padding:.25rem 0; }
 .editor-header .editor-actions .dropdown-item { font-size:.85rem; }
+
+.dropdown-menu{
+	position: relative!important;
+}

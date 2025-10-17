@@ -160,6 +160,25 @@ export class DriveWhipCoreService {
     );
   }
 
+  /**
+   * Send a chat SMS message for an applicant.
+   * POST {baseUrl}SMS/sendChat
+   * Body: { from: string, to: string, message: string, id_applicant: string }
+   */
+  sendChatSms(payload: { from: string; to: string; message: string; id_applicant: string }): Observable<any> {
+    const url = this.baseUrl + 'SMS/sendChat';
+    const body = {
+      from: payload.from ?? '',
+      to: payload.to ?? '',
+      message: payload.message ?? '',
+      id_applicant: payload.id_applicant ?? ''
+    };
+    return this.http.post(url, body, { headers: this.buildHeaders() }).pipe(
+      map(res => res),
+      catchError(err => this.handleError(err))
+    );
+  }
+
   clearCachedAuth(): void {
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);

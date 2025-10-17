@@ -21,6 +21,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   menuOpen = false;
   stageMenuOpen = false;
   @ViewChild('moreActionsWrapper', { static: false }) moreActionsWrapper?: ElementRef;
+  @ViewChild('messagesScroll', { static: false }) messagesScroll?: ElementRef<HTMLDivElement>;
   private authSession = inject(AuthSessionService);
   @Input() applicant: any;
   @Input() applicantId: string | null = null;
@@ -81,6 +82,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   viewerPanY = 0;
   private _panLastX = 0;
   private _panLastY = 0;
+
+  // Chat (SMS) state
+  chatLoading = false;
+  chatSending = false;
+  chatError: string | null = null;
+  chatPage = 1;
+  private chatLoadedForApplicantId: string | null = null;
 
   // Permission helpers - assumptions:
   // - authSession.user?.roles is an array of role strings (e.g. ['admin','reviewer']).
@@ -372,6 +380,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       if (this.activeTab === 'files' && id) {
         this.loadApplicantDocuments(id);
       }
+      // If Messages tab is active, load chat history
+      if (this.activeTab === 'messages' && id) {
+        this.loadChatHistory(id, 1);
+      }
     }
     if (changes['availableStages']) {
       this.stageMenuOpen = false;
@@ -382,6 +394,14 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       const id = (this.applicantId || idFromApplicant || null) as string | null;
       if (id) {
         this.loadApplicantDocuments(id);
+      }
+    }
+    // Load chat when switching into Messages tab
+    if (changes['activeTab'] && this.activeTab === 'messages') {
+      const idFromApplicant = this.resolveApplicantId(this.applicant);
+      const id = (this.applicantId || idFromApplicant || null) as string | null;
+      if (id) {
+        this.loadChatHistory(id, 1);
       }
     }
   }
@@ -476,6 +496,69 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   onDraftMessageChange(value: string) {
     this.draftMessage = value;
     this.draftMessageChange.emit(value);
+  }
+
+  /** Submit and send an SMS chat message via API, then reload chat history */
+  onSendMessage(ev: Event): void {
+    ev.preventDefault();
+    const text = (this.draftMessage || '').trim();
+    const id = this.resolveApplicantId(this.applicant) || this.applicantId;
+    const to = this.getApplicantPhone(this.applicant);
+    if (!text) { return; }
+    if (!id) { Utilities.showToast('Applicant id not found', 'warning'); return; }
+    if (!to) { Utilities.showToast('Applicant phone not found', 'warning'); return; }
+    if (this.chatSending) return;
+    // Optimistic message so user sees it immediately
+    const optimistic: ApplicantMessage = {
+      id: 'temp-' + Date.now(),
+      direction: 'outbound',
+      sender: 'You',
+      body: text,
+      timestamp: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date()),
+      channel: 'SMS',
+      status: 'sending',
+      statusLabel: 'Sending',
+      automated: false,
+      dayLabel: ''
+    };
+    this.messages = [...(this.messages ?? []), optimistic];
+    this.refreshResolvedMessages();
+    this.scrollMessagesToBottomSoon();
+
+    this.chatSending = true;
+    const fromNumber = '8774142766';
+    this.core.sendChatSms({ from: fromNumber, to, message: text, id_applicant: String(id) }).subscribe({
+      next: (_res) => {
+        // Clear composer, mark optimistic as delivered and refresh history (force) after a tiny delay
+        this.draftMessage = '';
+        this.markOptimisticDelivered(optimistic.id!);
+        this.scrollMessagesToBottomSoon();
+        setTimeout(() => {
+          this.loadChatHistory(String(id), 1, true);
+          // extra cleanup shortly after to catch late-arriving persistence
+          setTimeout(() => {
+            try {
+              const outboundBodies = new Set((this.messages || []).filter(m => (m.id||'').toString().startsWith('temp-') === false && m.direction==='outbound').map(m => (m.body||'').toString().trim()));
+              this.messages = (this.messages || []).filter(m => !( (m.id||'').toString().startsWith('temp-') && outboundBodies.has((m.body||'').toString().trim()) ));
+              this.refreshResolvedMessages();
+            } catch {}
+          }, 400);
+        }, 350);
+        Utilities.showToast('Message sent', 'success');
+      },
+      error: (err) => {
+        console.error('[ApplicantPanel] sendChatSms error', err);
+        Utilities.showToast('Failed to send message', 'error');
+        this.removeOptimistic(optimistic.id!);
+      },
+      complete: () => { this.chatSending = false; }
+    });
+  }
+
+  private getApplicantPhone(applicant: any): string | null {
+    if (!applicant) return null;
+    const phone = applicant.phone_number || applicant.phone || null;
+    return phone ? String(phone) : null;
   }
 
   get resolvedMessages(): ApplicantMessage[] {
@@ -866,6 +949,104 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       },
       complete: () => { this.docsLoading = false; }
     });
+  }
+
+  /** Load SMS chat history for the applicant using SP crm_applicant_chat_history */
+  private loadChatHistory(applicantId: string, page: number = 1, force: boolean = false): void {
+    if (!applicantId) return;
+    if (!force && this.chatLoadedForApplicantId === applicantId && this.chatPage === page && this._resolvedMessages.length) return;
+    this.chatLoading = true;
+    this.chatError = null;
+    this.chatPage = page;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_applicant_chat_history as any,
+      parameters: [applicantId, page]
+    } as any;
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        if (!res?.ok) {
+          this.chatError = String(res?.error || 'Failed to load chat');
+          this.messages = [];
+          this.refreshResolvedMessages();
+          return;
+        }
+        let rows: any[] = [];
+        let raw: any = res.data;
+        if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+        rows = Array.isArray(raw) ? raw : [];
+        // Normalize and reverse to chronological order (oldest first)
+        const normalized = rows.map(r => this.normalizeChatRecord(r));
+        const chronological = normalized.slice().reverse();
+        // Keep any optimistic messages that are still temp but only if there isn't a matching persisted outbound with same body
+        const optimistic = (this.messages || []).filter(m => (m.id || '').toString().startsWith('temp-'));
+        const outboundBodies = new Set(
+          chronological.filter(m => m.direction === 'outbound').map(m => (m.body || '').toString().trim())
+        );
+        const keepOptimistic = optimistic.filter(m => !outboundBodies.has((m.body || '').toString().trim()));
+        this.messages = [...chronological, ...keepOptimistic];
+        this.refreshResolvedMessages();
+        this.chatLoadedForApplicantId = applicantId;
+        this.scrollMessagesToBottomSoon();
+      },
+      error: (err) => {
+        console.error('[ApplicantPanel] loadChatHistory error', err);
+        this.chatError = 'Failed to load chat';
+        this.messages = [];
+        this.refreshResolvedMessages();
+      },
+      complete: () => { this.chatLoading = false; }
+    });
+  }
+
+  private normalizeChatRecord(r: any): ApplicantMessage {
+    const directionRaw = (r.Direction ?? r.message_direction ?? '').toString().toLowerCase();
+    const direction: 'inbound' | 'outbound' = directionRaw === 'outbound' ? 'outbound' : 'inbound';
+    const body = String(r.Message ?? r.message_text ?? '');
+    const sent = r.Sent ?? r.sent_at ?? r.create ?? r.created_at ?? null;
+    const ts = sent ? new Date(sent) : null;
+    const timeLabel = ts && !Number.isNaN(ts.getTime()) ? new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(ts) : '';
+    return {
+      id: String(r.ID ?? r.id_chat ?? ''),
+      direction,
+      // sender: direction === 'outbound' ? 'You' : (this.applicant?.first_name || 'Applicant'),
+      sender: direction === 'outbound' ? '' : (this.applicant?.first_name || 'Applicant'),
+      body,
+      timestamp: timeLabel,
+      channel: 'SMS',
+      status: undefined,
+      statusLabel: undefined,
+      automated: false,
+      dayLabel: ''
+    };
+  }
+
+  private markOptimisticDelivered(tempId: string): void {
+    if (!this.messages || !tempId) return;
+    this.messages = this.messages.map(m => (m.id === tempId ? { ...m, status: 'delivered' as any, statusLabel: 'Delivered' } : m));
+    // If a non-temp outbound with same body exists, drop the temp one to avoid duplicates
+    const temp = this.messages.find(m => m.id === tempId);
+    if (temp && temp.direction === 'outbound') {
+      const hasPersisted = this.messages.some(m => (m.id || '').toString().startsWith('temp-') === false && m.direction === 'outbound' && (m.body || '').toString().trim() === (temp.body || '').toString().trim());
+      if (hasPersisted) {
+        this.messages = this.messages.filter(m => m.id !== tempId);
+      }
+    }
+    this.refreshResolvedMessages();
+  }
+
+  private removeOptimistic(tempId: string): void {
+    if (!this.messages || !tempId) return;
+    this.messages = this.messages.filter(m => m.id !== tempId);
+    this.refreshResolvedMessages();
+  }
+
+  private scrollMessagesToBottomSoon(): void {
+    setTimeout(() => {
+      try {
+        const el = this.messagesScroll?.nativeElement;
+        if (el) el.scrollTop = el.scrollHeight;
+      } catch {}
+    }, 50);
   }
 
   private normalizeDocRecord(r: any): ApplicantDocument {

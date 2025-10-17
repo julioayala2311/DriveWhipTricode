@@ -182,6 +182,60 @@
               </div>
             </div>
           </li>
+          <!-- Promoted 'Create' top-level item (if present), placed before profile -->
+          <li class="nav-item" ngbDropdown *ngIf="topCreate as tc">
+            <a class="nav-link d-flex align-items-center" ngbDropdownToggle id="createTopDropdown" title="Create">
+              @if (tc.icon) {
+                <i class="link-icon" [attr.data-feather]="tc.icon" appFeatherIcon></i>
+              }
+              <span class="menu-title ms-1">{{ tc.label }}</span>
+              <i class="link-arrow ms-1"></i>
+            </a>
+            <div ngbDropdownMenu class="px-0" aria-labelledby="createTopDropdown">
+              @if (hasItems(tc)) {
+                <ul class="list-unstyled p-1 mb-0">
+                  @for (subMenu of tc.subMenus; track $index) {
+                    @for (subMenuItem of subMenu.subMenuItems; track subMenuItem.label) {
+                      @if (subMenuItem.isTitle) {
+                        <li class="category-heading px-3 py-1 text-secondary">{{ subMenuItem.label }}</li>
+                      }
+                      @else {
+                        <li>
+                          @if ($any(subMenuItem).action || $any(subMenuItem).code || isSpecialLink(subMenuItem.link)) {
+                            <button type="button" class="dropdown-item py-2 d-flex ms-0" [attr.data-menu-action]="$any(subMenuItem).action || 'special'" (click)="onSpecialMenu($any(subMenuItem), $event)">
+                              <span>{{ subMenuItem.label }}</span>
+                            </button>
+                          }
+                          @else {
+                            <a class="dropdown-item py-2 d-flex ms-0" [routerLink]="subMenuItem.link">
+                              <span>{{ subMenuItem.label }}</span>
+                            </a>
+                          }
+                          @if (subMenuItem.badge) { <span class="badge bg-{{subMenuItem.badge.variant}} ms-2">{{subMenuItem.badge.text}}</span> }
+                        </li>
+                      }
+                    }
+                  }
+                </ul>
+              }
+              @else {
+                <ul class="list-unstyled p-1 mb-0">
+                  <li>
+                    @if ($any(tc).action || $any(tc).code || isSpecialLink(tc.link)) {
+                      <button type="button" class="dropdown-item py-2 d-flex ms-0" [attr.data-menu-action]="$any(tc).action || 'special'" (click)="onSpecialMenu($any(tc), $event)">
+                        <span>{{ tc.label }}</span>
+                      </button>
+                    }
+                    @else {
+                      <a class="dropdown-item py-2 d-flex ms-0" [routerLink]="tc.link">
+                        <span>{{ tc.label }}</span>
+                      </a>
+                    }
+                  </li>
+                </ul>
+              }
+            </div>
+          </li>
           <li class="nav-item nav-profile" ngbDropdown>
             <a class="nav-link d-flex align-items-center" ngbDropdownToggle id="profileDropdown" title="Profile">
               <ng-container *ngIf="profileImageUrl; else initialsAvatar">
@@ -238,7 +292,7 @@
 		<div class="container">
 
       <!--- Menu -->
-			<ul class="nav page-navigation">
+			<ul class="nav page-navigation" (click)="onRootMenuClick($event)">
         @for (item of menuItems; track item.label) {
 
           <!-- Nav item with a mega menu -->
@@ -262,7 +316,12 @@
                           }
                           @else {
                             <li class="nav-item">
-                              <a class="nav-link" [routerLinkActive]="['active']" [routerLink]="subMenuItem.link">{{ subMenuItem.label }}</a>
+                              @if ($any(subMenuItem).action || $any(subMenuItem).code || isSpecialLink(subMenuItem.link)) {
+                                <button type="button" class="nav-link btn btn-link p-0 text-start w-100" [attr.data-menu-action]="$any(subMenuItem).action || 'special'" (click)="onSpecialMenu($any(subMenuItem), $event)">{{ subMenuItem.label }}</button>
+                              }
+                              @else {
+                                <a class="nav-link" [routerLinkActive]="['active']" [routerLink]="subMenuItem.link">{{ subMenuItem.label }}</a>
+                              }
                             </li>
                           }
                         }
@@ -296,10 +355,13 @@
                         }
                         @else {
                           <li class="nav-item">
-                            <a class="nav-link" [routerLinkActive]="['active']" [routerLink]="subMenuItem.link">{{ subMenuItem.label }}</a>
-                            @if (subMenuItem.badge) {
-                              <span class="badge bg-{{subMenuItem.badge.variant}}">{{subMenuItem.badge.text}}</span>
+                            @if ($any(subMenuItem).action || $any(subMenuItem).code || isSpecialLink(subMenuItem.link)) {
+                              <button type="button" class="nav-link btn btn-link py-2 text-start w-100" [attr.data-menu-action]="$any(subMenuItem).action || 'special'" (click)="onSpecialMenu($any(subMenuItem), $event)">{{ subMenuItem.label }}</button>
                             }
+                            @else {
+                              <a class="nav-link" [routerLinkActive]="['active']" [routerLink]="subMenuItem.link">{{ subMenuItem.label }}</a>
+                            }
+                            @if (subMenuItem.badge) { <span class="badge bg-{{subMenuItem.badge.variant}}">{{subMenuItem.badge.text}}</span> }
                           </li>
                         }
                       }
@@ -310,12 +372,22 @@
 
               <!-- Nav link with no submenu  -->
               @else {
-                <a class="nav-link" [routerLink]="item.link">
-                  @if (item.icon) {
-                    <i class="link-icon" [attr.data-feather]="item.icon" appFeatherIcon></i>
-                  }
-                  <span class="menu-title">{{ item.label }}</span>
-                </a>
+                @if ($any(item).action) {
+                  <button type="button" class="nav-link btn btn-link p-0 text-start w-100" [attr.data-menu-action]="$any(item).action" (click)="onSpecialMenu($any(item), $event)">
+                    @if (item.icon) {
+                      <i class="link-icon" [attr.data-feather]="item.icon" appFeatherIcon></i>
+                    }
+                    <span class="menu-title">{{ item.label }}</span>
+                  </button>
+                }
+                @else {
+                  <a class="nav-link" [routerLink]="item.link">
+                    @if (item.icon) {
+                      <i class="link-icon" [attr.data-feather]="item.icon" appFeatherIcon></i>
+                    }
+                    <span class="menu-title">{{ item.label }}</span>
+                  </a>
+                }
               }
 
             </li>
@@ -325,4 +397,18 @@
 			</ul>
 		</div>
 	</nav>
+</div>
+
+<!-- Lightweight modal overlay for iframe menu items -->
+<div class="iframe-modal-backdrop" *ngIf="iframeModalVisible" (click)="closeIframeModal()">
+  <div class="iframe-modal" (click)="$event.stopPropagation()">
+    <div class="iframe-modal-header d-flex align-items-center justify-content-between">
+      <h6 class="mb-0">{{ iframeModalTitle || 'Preview' }}</h6>
+      <button type="button" class="btn-close" aria-label="Close" (click)="closeIframeModal()"></button>
+    </div>
+    <div class="iframe-modal-body">
+      <div class="iframe-wrapper" [innerHTML]="iframeModalHtml"></div>
+    </div>
+  </div>
+  
 </div>

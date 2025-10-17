@@ -165,11 +165,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const payload = { ...this.editableApplicant };
     this.applicantSaving = true;
 
+   // console.log(payload);
+
     const fullName = (payload.name ?? '').toString().trim();
     const firstName = (payload.first_name ?? this.applicant?.first_name ?? fullName.split(' ').shift() ?? '').toString().trim();
     const lastName = (payload.last_name ?? this.applicant?.last_name ?? fullName.split(' ').slice(1).join(' ')).toString().trim();
     const email = (payload.email ?? this.applicant?.email ?? '').toString().trim();
-    const phone = (payload.phone_number ?? payload.phone ?? this.applicant?.phone ?? '').toString().trim();
+    const phone = (payload.phone ?? '').toString().trim();
     const referral = payload.referral_name ?? this.applicant?.referral_name ?? null;
     const acceptTerms = payload.accept_terms ?? this.applicant?.accept_terms ?? false;
     const allowMsgUpdates = payload.allow_msg_updates ?? this.applicant?.allow_msg_updates ?? false;

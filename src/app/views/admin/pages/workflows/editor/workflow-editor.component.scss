@@ -174,7 +174,7 @@ body.dark .empty-icon-wrapper .gradient-ring { background:linear-gradient(135deg
 
 
 /* Consistent dialog style (reuse pattern from workflows-dialog) */
-.dw-acc-stage-dialog, .dw-acc-rule-dialog { position:fixed; inset:0; z-index:1060; }
+.dw-acc-stage-dialog, .dw-acc-rule-dialog, .dw-acc-clone-dialog { position:fixed; inset:0; z-index:1060; }
 .dw-acc-dialog-backdrop { position:absolute; inset:0; background:rgba(0,0,0,.35); backdrop-filter:blur(2px); }
 .dw-acc-dialog { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:460px; max-width:95%; }
 .dw-acc-dialog .card-header { background:transparent; border-bottom:1px solid var(--bs-border-color,rgba(0,0,0,.08)); }

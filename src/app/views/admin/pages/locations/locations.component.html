@@ -16,7 +16,6 @@
           aria-live="polite"
           [attr.aria-busy]="loadingLocations"
         >
-          <!-- <i class="feather icon-map-pin dw-location-display__icon" aria-hidden="true"></i> -->
           <span
             class="dw-status-dot"
             [class.is-active]="!loadingLocations && (selectedLocationOption ? selectedLocationOption.isActive !== false : false)"
@@ -41,7 +40,6 @@
           aria-haspopup="listbox"
           [attr.aria-expanded]="locationDropdown.isOpen()"
         >
-          <!-- <i class="feather icon-chevron-down" aria-hidden="true"></i> -->
         </button>
         <div
           *ngIf="loadingLocations"
@@ -85,33 +83,6 @@
       {{ locationsError }}
     </div>
   </div>
-  <!-- <div class="d-flex align-items-center gap-2">
-    <button
-      type="button"
-      class="btn btn-sm btn-ghost"
-      aria-label="Share"
-      title="Share"
-    >
-      <i class="feather icon-link me-1"></i
-      ><span class="d-none d-sm-inline">Share</span>
-    </button>
-    <button
-      type="button"
-      class="btn btn-sm btn-ghost"
-      aria-label="Settings"
-      title="Settings"
-    >
-      <i class="feather icon-settings me-1"></i
-      ><span class="d-none d-sm-inline">Settings</span>
-    </button>
-    <button
-      type="button"
-      class="btn btn-sm btn-primary"
-      aria-label="Post to job boards"
-    >
-      <span>Post to Job Boards</span>
-    </button>
-  </div> -->
 </div>
 
 <ng-container *ngIf="stages.length > 0; else noStagesTpl">
@@ -213,6 +184,7 @@
     [selectedStage]="selectedStageDetails"
     [stageIconClass]="selectedStageDetails ? stageIcon(selectedStageDetails.id_stage_type) : 'icon-layers'"
     [stageOptions]="stages"
+    [selectedWorkflowId]="selectedWorkflowId"
     #applicantsGrid
     (stageMoved)="onApplicantStageMoved($event)"
   ></app-applicants-grid>

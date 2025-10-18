@@ -300,13 +300,13 @@
                     <span class="dot">•</span>
                     <span>{{ message.channel }}</span>
                     <span class="dot" *ngIf="message.statusLabel">•</span>
-                    <!-- <span
+                    <span
                       *ngIf="message.statusLabel"
                       [ngClass]="statusMetaClass(message.status)"
                       class="d-inline-flex align-items-center gap-1"
                     >
                       <i class="feather" [ngClass]="statusMetaIcon(message.status)"></i>{{ message.statusLabel }}
-                    </span> -->
+                    </span>
                     <button
                       type="button"
                       class="btn btn-link btn-xxs px-1 text-secondary"

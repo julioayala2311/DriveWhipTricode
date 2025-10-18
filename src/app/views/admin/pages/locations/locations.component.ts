@@ -367,7 +367,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
   
     this.driveWhipCore.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
       next: res => {
-
+        console.log(res);
         if (!res.ok) {
           this.stages = [];
           this.stagesLoading = false;

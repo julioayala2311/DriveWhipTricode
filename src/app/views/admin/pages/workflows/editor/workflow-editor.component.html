@@ -1343,6 +1343,7 @@
               {{ dcFormsError() }}
             </div>
           </div>
+          <p class="mt-2 text-muted">Upon landing on a Data Collection stage, applicants will receive a message with a link asking them to complete a form (and upload files/answer questions). This information will be securely appended to their applicant profile.</p>
           <div class="col-12">
             <label class="form-label small fw-semibold">Stage Placement</label>
             <select
@@ -1467,6 +1468,7 @@
               {{ ruleTypesError() }}
             </div>
           </div>
+          <p class="mt-2 text-muted">This rule type can be used to fast-track, auto-reject, or update an applicant's data when matching certain criteria.</p>
           <div class="col-12">
             <label class="form-label small fw-semibold">Stage Placement</label>
             <select
@@ -1522,10 +1524,7 @@
   role="dialog"
 >
   <div class="dw-acc-dialog-backdrop" (click)="closeCloneModal()"></div>
-  <div
-    class="dw-acc-dialog card shadow-lg small"
-    style="width: 520px; max-width: 95%"
-  >
+  <div class="dw-acc-dialog card shadow-lg small">
     <div
       class="card-header d-flex align-items-center justify-content-between py-2"
     >
@@ -1552,8 +1551,36 @@
             placeholder="Enter new workflow name"
           />
         </div>
-        <p class="small-text text-muted">You are about to create a copy of this workflow and all its current
-          stages and settings.</p>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold"
+            >Location <span class="text-danger">*</span></label
+          >
+          <div *ngIf="cloneLocationsLoading()" class="form-text">
+            Loading locations…
+          </div>
+          <div *ngIf="cloneLocationsError()" class="text-danger small">
+            {{ cloneLocationsError() }}
+          </div>
+          <select
+            class="form-select form-select-sm"
+            name="cloneLocation"
+            [ngModelOptions]="{ standalone: true }"
+            [disabled]="cloning() || cloneLocationsLoading()"
+            [ngModel]="cloneLocationId()"
+            (ngModelChange)="cloneLocationId.set($event)"
+          >
+            <option [ngValue]="null" disabled>Select a location</option>
+            <option
+              *ngFor="let loc of cloneLocationOptions()"
+              [ngValue]="loc.id"
+            >
+              {{ loc.name }}
+            </option>
+          </select>
+        </div>
+        <p class="small-text text-muted">
+          Cloning a stage will copy all messages and settings that aren't associated with a specific stage. This includes workflow-specific items like move rules, which will not be copied since they depend on the entire workflow.
+        </p>
         <div class="d-flex justify-content-end gap-2 mt-3">
           <button
             type="button"
@@ -1565,7 +1592,7 @@
           <button
             type="submit"
             class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1"
-            [disabled]="!cloneName().trim() || cloning()"
+            [disabled]="!cloneName().trim() || !cloneLocationId() || cloning()"
           >
             <ng-container *ngIf="!cloning(); else cloningTpl"
               >Clone workflow</ng-container

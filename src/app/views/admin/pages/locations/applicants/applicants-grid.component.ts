@@ -109,6 +109,7 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
   @Input() selectedStage: StageMeta | null = null;
   @Input() stageIconClass = 'icon-layers';
   @Input() stageOptions: StageMeta[] = [];
+  @Input() selectedWorkflowId: number | null = null; // workflow id required by SP
 
   // Pagination
   pageSize = 10;
@@ -180,6 +181,10 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     if (changes['cardId'] && !changes['cardId'].firstChange) {
       if (this.cardId) this.loadApplicants(); else { this.rowData = []; this.refreshGrid(); }
     }
+    // If workflow changes while a stage is selected, refresh to include correct parameter
+    if (changes['selectedWorkflowId'] && !changes['selectedWorkflowId'].firstChange) {
+      if (this.cardId) this.loadApplicants();
+    }
     if (changes['locationName'] && !changes['locationName'].firstChange) {
       this.applyLocationToRows();
     }
@@ -207,7 +212,11 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     this.error = null;
     const api: IDriveWhipCoreAPI = {
       commandName: DriveWhipAdminCommand.crm_applicants_X_crm_stages,
-      parameters: [ this.cardId ]
+      // SP requires: p_id_stage, p_id_workflow
+      parameters: [ 
+                    this.cardId, 
+                    // this.selectedWorkflowId 
+                  ]
     };
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
       next: res => {

@@ -126,10 +126,19 @@ export class WorkflowEditorComponent implements OnInit {
   readonly showCloneModal = signal(false);
   readonly cloneName = signal('');
   readonly cloning = signal(false);
+  // Clone destination location options
+  readonly cloneLocationsLoading = signal(false);
+  readonly cloneLocationsError = signal<string | null>(null);
+  readonly cloneLocationOptions = signal<Array<{ id: number; name: string }>>([]);
+  readonly cloneLocationId = signal<number | null>(null);
 
   openCloneModal(): void {
     this.closeActionsMenu();
     this.cloneName.set("");
+    // Default selection to current workflow's location
+    this.cloneLocationId.set(this.workflowLocationId ?? null);
+    // Load locations list (one-time)
+    this.ensureCloneLocations();
     this.showCloneModal.set(true);
   }
   closeCloneModal(): void { this.showCloneModal.set(false); }
@@ -139,8 +148,9 @@ export class WorkflowEditorComponent implements OnInit {
     if (!name) { Utilities.showToast('Enter a name for the new workflow','warning'); return; }
     if (!this.workflowId) { Utilities.showToast('Workflow ID missing','error'); return; }
     if (this.cloning()) return;
-    const currentUser = this.authSession.user?.user || 'system';
-    const params: any[] = [ this.workflowId, name, currentUser ];
+  const currentUser = this.authSession.user?.user || 'system';
+  const targetLocationId = this.cloneLocationId() ?? this.workflowLocationId;
+  const params: any[] = [ this.workflowId, name, targetLocationId, currentUser ];
     const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_workflow_clonate as any, parameters: params };
     this.cloning.set(true);
     this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.cloning.set(false))).subscribe({
@@ -184,6 +194,50 @@ export class WorkflowEditorComponent implements OnInit {
       error: err => { Utilities.showToast('Clone failed','error'); }
     });
   }
+
+  /** Load locations list for the Clone modal (id + name) */
+  private ensureCloneLocations(): void {
+    if (this.cloneLocationOptions().length > 0 || this.cloneLocationsLoading()) return;
+    this.cloneLocationsLoading.set(true);
+    this.cloneLocationsError.set(null);
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_locations_dropdown, parameters: [] };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.cloneLocationsLoading.set(false))).subscribe({
+      next: res => {
+        try {
+          if (!res.ok) { this.cloneLocationsError.set(String(res.error || 'Failed to load locations')); this.cloneLocationOptions.set([]); return; }
+          let raw: any[] = [];
+          if (Array.isArray(res.data)) {
+            const top = res.data as any[];
+            raw = (top.length > 0 && Array.isArray(top[0])) ? top[0] : top;
+          }
+          const mapped: Array<{ id: number; name: string }> = [];
+          for (const r of (raw || [])) {
+            const idRaw = r?.id_location ?? r?.ID_LOCATION ?? r?.id ?? r?.ID ?? r?.value ?? r?.val;
+            const nameRaw = r?.name ?? r?.NAME ?? r?.label ?? r?.LABEL ?? '';
+            const name = this._parseString(nameRaw);
+            if (idRaw === undefined || idRaw === null || !name) continue;
+            const idNum = typeof idRaw === 'number' ? idRaw : Number(String(idRaw));
+            if (!Number.isFinite(idNum)) continue;
+            mapped.push({ id: idNum, name });
+          }
+          mapped.sort((a,b)=> a.name.localeCompare(b.name));
+          this.cloneLocationOptions.set(mapped);
+          // If no current selection, pick first option
+          if (!this.cloneLocationId() && mapped.length) this.cloneLocationId.set(mapped[0].id);
+        } catch (e) {
+          this.cloneLocationsError.set('Failed to parse locations');
+          this.cloneLocationOptions.set([]);
+        }
+      },
+      error: err => {
+        this.cloneLocationsError.set('Failed to load locations');
+        this.cloneLocationOptions.set([]);
+      }
+    });
+  }
+
+  // Small helper to normalize strings
+  private _parseString(v: unknown): string | undefined { if (v === null || v === undefined) return undefined; const s = String(v).trim(); return s || undefined; }
 
   
   private route = inject(ActivatedRoute);

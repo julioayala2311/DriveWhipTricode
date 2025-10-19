@@ -172,7 +172,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
           this.menuItems = (topOrder && orderByFullPath) ? this.sortMenuByRoutes(filtered, topOrder, orderByFullPath) : filtered;
           // Promote a top-level 'Create' entry (if present) to the top navbar and hide it from bottom menu
           this.extractTopCreate();
-         console.log(this.menuItems);
         } else {
           this.menuItems = MENU;
           this.extractTopCreate();

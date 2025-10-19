@@ -41,7 +41,10 @@ export enum DriveWhipAdminCommand {
     crm_applicants_documents_crud = "crm_applicants_documents_crud",
     crm_locations_workflows_list = "crm_locations_workflows_list",
     crm_workflow_clonate = "crm_workflow_clonate",
-    crm_applicant_chat_history = "crm_applicant_chat_history"
+    crm_applicant_chat_history = "crm_applicant_chat_history",
+    crm_applicant_event_read = "crm_applicant_event_read",
+    crm_applicant_event_options = "crm_applicant_event_options",
+    crm_applicant_event_detail = "crm_applicant_event_detail"
 }
 
 export enum DriveWhipAplicantsCommand {

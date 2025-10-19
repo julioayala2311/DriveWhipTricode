@@ -1,468 +1,1719 @@
 <div class="applicant-panel-backdrop" (click)="closeMenus(); closePanel.emit()">
-    <aside class="applicant-panel" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
-      <header class="panel-header">
-        <div class="d-flex align-items-center gap-1">
-          <button type="button" class="btn btn-link btn-sm text-secondary px-2" (click)="closeMenus(); closePanel.emit()" aria-label="Close panel">
-            <i class="feather icon-x"></i>
-          </button>
-          <button type="button" class="btn btn-link btn-sm panel-nav px-2" (click)="goToPrevious.emit()" [disabled]="!hasPrevious" aria-label="Previous applicant">
-            <i class="feather icon-chevron-left"></i> Prev
-          </button>
-          <button type="button" class="btn btn-link btn-sm panel-nav px-2" (click)="goToNext.emit()" [disabled]="!hasNext" aria-label="Next applicant">
-            <i class="feather icon-chevron-right"></i> Next
-          </button>
-        </div>
-        <div class="panel-tabs">
-          <button type="button" class="panel-tab" [class.active]="activeTab==='messages'" (click)="setTab.emit('messages')"><i class="feather icon-message-circle me-1"></i>Messages</button>
-          <button type="button" class="panel-tab" [class.active]="activeTab==='history'" (click)="setTab.emit('history')"><i class="feather icon-clock me-1"></i>History</button>
-          <button type="button" class="panel-tab" [class.active]="activeTab==='files'" (click)="setTab.emit('files')"><i class="feather icon-file-text me-1"></i>Files</button>
-        </div>
-      </header>
-      <div class="panel-body" *ngIf="applicant">
-        <section class="panel-column panel-info">
-          <div class="panel-scroll">
-            <h5 class="panel-title mb-1">{{ applicant.first_name }} {{ applicant.last_name }}</h5>
-            <div class="panel-accordion">
-              <div class="accordion-item" [class.open]="isSectionOpen('info')">
-                <button type="button" class="accordion-toggle" (click)="toggleSection('info')">
-                  <span>Information</span>
-                  <i class="feather" [ngClass]="isSectionOpen('info') ? 'icon-chevron-up' : 'icon-chevron-down'"></i>
-                </button>
-                <div class="accordion-body" *ngIf="isSectionOpen('info')">
-                  <ul class="list-unstyled panel-list mb-2">
-                    <li *ngIf="applicantDetailsLoading" class="d-flex align-items-center text-secondary small mb-2">
-                      <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Loading applicant details...
-                    </li>
-                    <li *ngIf="!applicantDetailsLoading && applicantDetailsError" class="text-warning small mb-2">
-                      {{ applicantDetailsError }}
-                    </li>
-                    <!-- Editable applicant fields -->
-                    <li *ngIf="isEditingApplicant">
-                      <div class="mb-2">
-                        <div class="row g-2 mb-1">
-                          <div class="col-12 col-sm-6">
-                            <input class="form-control form-control-sm" [(ngModel)]="editableApplicant.first_name" name="editFirstName" placeholder="First name" />
-                          </div>
-                          <div class="col-12 col-sm-6">
-                            <input class="form-control form-control-sm" [(ngModel)]="editableApplicant.last_name" name="editLastName" placeholder="Last name" />
-                          </div>
+  <aside
+    class="applicant-panel"
+    [class.menu-open]="menuOpen"
+    role="dialog"
+    aria-modal="true"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="panel-header">
+      <div class="d-flex align-items-center gap-1">
+        <button
+          type="button"
+          class="btn btn-link btn-sm text-secondary px-2"
+          (click)="closeMenus(); closePanel.emit()"
+          aria-label="Close panel"
+        >
+          <i class="feather icon-x"></i>
+        </button>
+        <button
+          type="button"
+          class="btn btn-link btn-sm panel-nav px-2"
+          (click)="goToPrevious.emit()"
+          [disabled]="!hasPrevious"
+          aria-label="Previous applicant"
+        >
+          <i class="feather icon-chevron-left"></i> Prev
+        </button>
+        <button
+          type="button"
+          class="btn btn-link btn-sm panel-nav px-2"
+          (click)="goToNext.emit()"
+          [disabled]="!hasNext"
+          aria-label="Next applicant"
+        >
+          <i class="feather icon-chevron-right"></i> Next
+        </button>
+      </div>
+      <div class="panel-tabs">
+        <button
+          type="button"
+          class="panel-tab"
+          [class.active]="activeTab === 'messages'"
+          (click)="setTab.emit('messages')"
+        >
+          <i class="feather icon-message-circle me-1"></i>Messages
+        </button>
+        <button
+          type="button"
+          class="panel-tab"
+          [class.active]="activeTab === 'history'"
+          (click)="setTab.emit('history')"
+        >
+          <i class="feather icon-clock me-1"></i>History
+        </button>
+        <button
+          type="button"
+          class="panel-tab"
+          [class.active]="activeTab === 'files'"
+          (click)="setTab.emit('files')"
+        >
+          <i class="feather icon-file-text me-1"></i>Files
+        </button>
+      </div>
+    </header>
+    <div class="panel-body" *ngIf="applicant">
+      <section class="panel-column panel-info">
+        <div class="panel-scroll">
+          <h5 class="panel-title mb-1">
+            {{ applicant.first_name }} {{ applicant.last_name }}
+          </h5>
+          <div class="panel-accordion">
+            <div class="accordion-item" [class.open]="isSectionOpen('info')">
+              <button
+                type="button"
+                class="accordion-toggle"
+                (click)="toggleSection('info')"
+              >
+                <span>Information</span>
+                <i
+                  class="feather"
+                  [ngClass]="
+                    isSectionOpen('info')
+                      ? 'icon-chevron-up'
+                      : 'icon-chevron-down'
+                  "
+                ></i>
+              </button>
+              <div class="accordion-body" *ngIf="isSectionOpen('info')">
+                <ul class="list-unstyled panel-list mb-2">
+                  <li
+                    *ngIf="applicantDetailsLoading"
+                    class="d-flex align-items-center text-secondary small mb-2"
+                  >
+                    <span
+                      class="spinner-border spinner-border-sm me-2"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
+                    Loading applicant details...
+                  </li>
+                  <li
+                    *ngIf="!applicantDetailsLoading && applicantDetailsError"
+                    class="text-warning small mb-2"
+                  >
+                    {{ applicantDetailsError }}
+                  </li>
+                  <!-- Editable applicant fields -->
+                  <li *ngIf="isEditingApplicant">
+                    <div class="mb-2">
+                      <div class="row g-2 mb-1">
+                        <div class="col-12 col-sm-6">
+                          <input
+                            class="form-control form-control-sm"
+                            [(ngModel)]="editableApplicant.first_name"
+                            name="editFirstName"
+                            placeholder="First name"
+                          />
                         </div>
-                        <input class="form-control form-control-sm mb-1" [(ngModel)]="editableApplicant.email" name="editEmail" placeholder="Email" />
-                        <input class="form-control form-control-sm" [(ngModel)]="editableApplicant.phone" name="editPhone" placeholder="Phone" />
+                        <div class="col-12 col-sm-6">
+                          <input
+                            class="form-control form-control-sm"
+                            [(ngModel)]="editableApplicant.last_name"
+                            name="editLastName"
+                            placeholder="Last name"
+                          />
+                        </div>
                       </div>
-                      <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-primary btn-sm" (click)="saveApplicant()" [disabled]="applicantSaving">
-                          <span *ngIf="applicantSaving" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                          Save
-                        </button>
-                        <button type="button" class="btn btn-link btn-sm" (click)="cancelEditApplicant()">Cancel</button>
-                      </div>
-                    </li>
-
-                    <li *ngIf="!isEditingApplicant && applicant.email">
-                      <i class="feather icon-mail me-2 text-primary"></i>
-                      <a [href]="'mailto:' + applicant.email" class="text-decoration-none">{{ applicant.email }}</a>
-                      <button type="button" class="btn btn-link btn-xxs text-secondary ms-2" (click)="copyToClipboard(applicant.email, 'email')" aria-label="Copy email">
-                        <i class="feather icon-copy"></i>
-                        <span class="visually-hidden">Copy</span>
-                      </button>
-                      <span class="copy-feedback ms-2 small text-success" *ngIf="copyFeedbackKey==='email'">Copied!</span>
-                    </li>
-                    <li *ngIf="applicant.phone">
-                      <i class="feather icon-phone me-2 text-primary"></i>
-                      <a [href]="'tel:' + applicant.phone" class="text-decoration-none">{{ applicant.phone }}</a>
-                      <button type="button" class="btn btn-link btn-xxs text-secondary ms-2" (click)="copyToClipboard(applicant.phone, 'phone')" aria-label="Copy phone">
-                        <i class="feather icon-copy"></i>
-                        <span class="visually-hidden">Copy</span>
-                      </button>
-                      <span class="copy-feedback ms-2 small text-success" *ngIf="copyFeedbackKey==='phone'">Copied!</span>
-                    </li>
-                    <li *ngIf="displayLocation">
-                      <i class="feather icon-map-pin me-2 text-primary"></i>{{ displayLocation }}
-                    </li>
-                    <li *ngIf="displayStage">
-                      <i class="feather me-2 text-primary" [ngClass]="stageIconClass"></i>{{ displayStage }}
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <div class="accordion-item" [class.open]="isSectionOpen('status')">
-                <button type="button" class="accordion-toggle" (click)="toggleSection('status')">
-                  <span>Status</span>
-                  <i class="feather" [ngClass]="isSectionOpen('status') ? 'icon-chevron-up' : 'icon-chevron-down'"></i>
-                </button>
-                <div class="accordion-body" *ngIf="isSectionOpen('status')">
-                  <ng-container *ngIf="resolvedStatuses?.length; else singleStatus">
-                    <div class="d-flex flex-wrap gap-1">
-                      <span class="badge d-inline-flex align-items-center gap-1"
-                            *ngFor="let st of resolvedStatuses"
-                            [ngClass]="statusBadgeClass(st)">
-                        <i class="feather" [ngClass]="statusBadgeIcon(st)"></i>
-                        <span>{{ st.stage || 'Stage' }} - {{ (st.statusName || 'incomplete') | titlecase }}</span>
-                      </span>
+                      <input
+                        class="form-control form-control-sm mb-1"
+                        [(ngModel)]="editableApplicant.email"
+                        name="editEmail"
+                        placeholder="Email"
+                      />
+                      <input
+                        class="form-control form-control-sm"
+                        [(ngModel)]="editableApplicant.phone"
+                        name="editPhone"
+                        placeholder="Phone"
+                      />
                     </div>
-                  </ng-container>
-                  <ng-template #singleStatus>
-                    <span class="status-chip badge d-inline-flex align-items-center gap-1"
-                          [ngClass]="statusBadgeClass(resolvedStatus)">
-                      <i class="feather" [ngClass]="statusBadgeIcon(resolvedStatus)"></i>
-                      <span>{{ resolvedStatus?.stage || 'Stage' }} - {{ (resolvedStatus?.statusName || 'incomplete') | titlecase }}</span>
+                    <div class="d-flex gap-2">
+                      <button
+                        type="button"
+                        class="btn btn-primary btn-sm"
+                        (click)="saveApplicant()"
+                        [disabled]="applicantSaving"
+                      >
+                        <span
+                          *ngIf="applicantSaving"
+                          class="spinner-border spinner-border-sm me-1"
+                          role="status"
+                          aria-hidden="true"
+                        ></span>
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-link btn-sm"
+                        (click)="cancelEditApplicant()"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </li>
+
+                  <li *ngIf="!isEditingApplicant && applicant.email">
+                    <i class="feather icon-mail me-2 text-primary"></i>
+                    <a
+                      [href]="'mailto:' + applicant.email"
+                      class="text-decoration-none"
+                      >{{ applicant.email }}</a
+                    >
+                    <button
+                      type="button"
+                      class="btn btn-link btn-xxs text-secondary ms-2"
+                      (click)="copyToClipboard(applicant.email, 'email')"
+                      aria-label="Copy email"
+                    >
+                      <i class="feather icon-copy"></i>
+                      <span class="visually-hidden">Copy</span>
+                    </button>
+                    <span
+                      class="copy-feedback ms-2 small text-success"
+                      *ngIf="copyFeedbackKey === 'email'"
+                      >Copied!</span
+                    >
+                  </li>
+                  <li *ngIf="applicant.phone">
+                    <i class="feather icon-phone me-2 text-primary"></i>
+                    <a
+                      [href]="'tel:' + applicant.phone"
+                      class="text-decoration-none"
+                      >{{ applicant.phone }}</a
+                    >
+                    <button
+                      type="button"
+                      class="btn btn-link btn-xxs text-secondary ms-2"
+                      (click)="copyToClipboard(applicant.phone, 'phone')"
+                      aria-label="Copy phone"
+                    >
+                      <i class="feather icon-copy"></i>
+                      <span class="visually-hidden">Copy</span>
+                    </button>
+                    <span
+                      class="copy-feedback ms-2 small text-success"
+                      *ngIf="copyFeedbackKey === 'phone'"
+                      >Copied!</span
+                    >
+                  </li>
+                  <li *ngIf="displayLocation">
+                    <i class="feather icon-map-pin me-2 text-primary"></i
+                    >{{ displayLocation }}
+                  </li>
+                  <li *ngIf="displayStage">
+                    <i
+                      class="feather me-2 text-primary"
+                      [ngClass]="stageIconClass"
+                    ></i
+                    >{{ displayStage }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="accordion-item" [class.open]="isSectionOpen('status')">
+              <button
+                type="button"
+                class="accordion-toggle"
+                (click)="toggleSection('status')"
+              >
+                <span>Status</span>
+                <i
+                  class="feather"
+                  [ngClass]="
+                    isSectionOpen('status')
+                      ? 'icon-chevron-up'
+                      : 'icon-chevron-down'
+                  "
+                ></i>
+              </button>
+              <div class="accordion-body" *ngIf="isSectionOpen('status')">
+                <ng-container
+                  *ngIf="resolvedStatuses?.length; else singleStatus"
+                >
+                  <div class="d-flex flex-wrap gap-1">
+                    <span
+                      class="badge d-inline-flex align-items-center gap-1"
+                      *ngFor="let st of resolvedStatuses"
+                      [ngClass]="statusBadgeClass(st)"
+                    >
+                      <i class="feather" [ngClass]="statusBadgeIcon(st)"></i>
+                      <span
+                        >{{ st.stage || "Stage" }} -
+                        {{ st.statusName || "incomplete" | titlecase }}</span
+                      >
                     </span>
-                  </ng-template>
-                  <div class="text-secondary small mt-2">Stage completion</div>
-                </div>
-              </div>
-              <div class="accordion-item" [class.open]="isSectionOpen('notes')">
-                <button type="button" class="accordion-toggle" (click)="toggleSection('notes')">
-                  <span>Notes</span>
-                  <i class="feather" [ngClass]="isSectionOpen('notes') ? 'icon-chevron-up' : 'icon-chevron-down'"></i>
-                </button>
-                <div class="accordion-body" *ngIf="isSectionOpen('notes')">
-                  <!-- Notes list (minimal, elegant) -->
-                  <div *ngIf="notesLoading" class="small text-secondary mb-2">
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    Loading notes...
                   </div>
+                </ng-container>
+                <ng-template #singleStatus>
+                  <span
+                    class="status-chip badge d-inline-flex align-items-center gap-1"
+                    [ngClass]="statusBadgeClass(resolvedStatus)"
+                  >
+                    <i
+                      class="feather"
+                      [ngClass]="statusBadgeIcon(resolvedStatus)"
+                    ></i>
+                    <span
+                      >{{ resolvedStatus?.stage || "Stage" }} -
+                      {{
+                        resolvedStatus?.statusName || "incomplete" | titlecase
+                      }}</span
+                    >
+                  </span>
+                </ng-template>
+                <div class="text-secondary small mt-2">Stage completion</div>
+              </div>
+            </div>
+            <div class="accordion-item" [class.open]="isSectionOpen('notes')">
+              <button
+                type="button"
+                class="accordion-toggle"
+                (click)="toggleSection('notes')"
+              >
+                <span>Notes</span>
+                <i
+                  class="feather"
+                  [ngClass]="
+                    isSectionOpen('notes')
+                      ? 'icon-chevron-up'
+                      : 'icon-chevron-down'
+                  "
+                ></i>
+              </button>
+              <div class="accordion-body" *ngIf="isSectionOpen('notes')">
+                <!-- Notes list (minimal, elegant) -->
+                <div *ngIf="notesLoading" class="small text-secondary mb-2">
+                  <span
+                    class="spinner-border spinner-border-sm"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Loading notes...
+                </div>
 
-                  <ul class="list-unstyled note-list mb-2" *ngIf="!notesLoading && notes?.length">
-                    <li *ngFor="let n of notes" class="note-item">
-                      <div class="note-row">
-                        <div class="note-avatar">{{ (n.created_by || 'U') | slice:0:1 }}</div>
-                        <div class="note-main">
-                          <div class="d-flex align-items-start justify-content-between">
-                            <div class="note-meta">
-                              <strong class="note-author">{{ n.created_by }}</strong>
-                              <span class="note-time ms-2">{{ n.created_at | date:'MM/dd/yyyy h:mm a' }}</span>
-                            </div>
-                            <div class="note-actions" *ngIf="!isEditingNote(n)">
-                              <button type="button" class="btn btn-link btn-xxs text-secondary" (click)="startEditNote(n)" aria-label="Edit note"><i class="feather icon-edit-2"></i></button>
-                              <button type="button" class="btn btn-link btn-xxs text-danger" (click)="deleteNote(n)" aria-label="Delete note"><i class="feather icon-trash-2"></i></button>
-                            </div>
+                <ul
+                  class="list-unstyled note-list mb-2"
+                  *ngIf="!notesLoading && notes?.length"
+                >
+                  <li *ngFor="let n of notes" class="note-item">
+                    <div class="note-row">
+                      <div class="note-avatar">
+                        {{ n.created_by || "U" | slice : 0 : 1 }}
+                      </div>
+                      <div class="note-main">
+                        <div
+                          class="d-flex align-items-start justify-content-between"
+                        >
+                          <div class="note-meta">
+                            <strong class="note-author">{{
+                              n.created_by
+                            }}</strong>
+                            <span class="note-time ms-2">{{
+                              n.created_at | date : "MM/dd/yyyy h:mm a"
+                            }}</span>
                           </div>
+                          <div class="note-actions" *ngIf="!isEditingNote(n)">
+                            <button
+                              type="button"
+                              class="btn btn-link btn-xxs text-secondary"
+                              (click)="startEditNote(n)"
+                              aria-label="Edit note"
+                            >
+                              <i class="feather icon-edit-2"></i>
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-link btn-xxs text-danger"
+                              (click)="deleteNote(n)"
+                              aria-label="Delete note"
+                            >
+                              <i class="feather icon-trash-2"></i>
+                            </button>
+                          </div>
+                        </div>
 
-                          <div *ngIf="!isEditingNote(n)" class="note-body mt-1">{{ n.note }}</div>
+                        <div *ngIf="!isEditingNote(n)" class="note-body mt-1">
+                          {{ n.note }}
+                        </div>
 
-                          <div *ngIf="isEditingNote(n)" class="note-edit mt-2">
-                            <textarea class="form-control form-control-sm" [(ngModel)]="editingNoteText" rows="3"></textarea>
-                            <div class="mt-2 d-flex gap-2">
-                              <button type="button" class="btn btn-primary btn-sm" (click)="saveEditedNote(n)" [disabled]="notesSaving">Save</button>
-                              <button type="button" class="btn btn-link btn-sm" (click)="cancelEdit()">Cancel</button>
-                            </div>
+                        <div *ngIf="isEditingNote(n)" class="note-edit mt-2">
+                          <textarea
+                            class="form-control form-control-sm"
+                            [(ngModel)]="editingNoteText"
+                            rows="3"
+                          ></textarea>
+                          <div class="mt-2 d-flex gap-2">
+                            <button
+                              type="button"
+                              class="btn btn-primary btn-sm"
+                              (click)="saveEditedNote(n)"
+                              [disabled]="notesSaving"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-link btn-sm"
+                              (click)="cancelEdit()"
+                            >
+                              Cancel
+                            </button>
                           </div>
                         </div>
                       </div>
-                    </li>
-                  </ul>
-
-                  <div *ngIf="!notesLoading && (!notes || notes.length === 0)" class="text-secondary small mb-2">No notes yet.</div>
-
-                  <!-- Add note form -->
-                  <form class="add-note-form" (submit)="onAddNote($event)">
-                    <div class="input-group">
-                      <input type="text" class="form-control form-control-sm" placeholder="Add a note..." [(ngModel)]="newNoteText" name="newNote" />
-                      <button type="submit" class="btn btn-primary btn-sm" [disabled]="!newNoteText.trim() || notesSaving">Add</button>
                     </div>
-                  </form>
+                  </li>
+                </ul>
+
+                <div
+                  *ngIf="!notesLoading && (!notes || notes.length === 0)"
+                  class="text-secondary small mb-2"
+                >
+                  No notes yet.
                 </div>
-              </div>
-              <div class="accordion-item" [class.open]="isSectionOpen('details')">
-                <button type="button" class="accordion-toggle" (click)="toggleSection('details')">
-                  <span>Details</span>
-                  <i class="feather" [ngClass]="isSectionOpen('details') ? 'icon-chevron-up' : 'icon-chevron-down'"></i>
-                </button>
-                <div class="accordion-body" *ngIf="isSectionOpen('details')">
-                  <!-- Answers from crm_applicants_answers_registration -->
-                  <div *ngIf="answersLoading" class="small text-secondary mb-2 d-flex align-items-center gap-2">
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    Loading answers...
-                  </div>
-                  <div *ngIf="!answersLoading && answersError" class="alert alert-warning py-1 px-2 small mb-2">{{ answersError }}</div>
-                  <ul class="list-unstyled mb-2" *ngIf="!answersLoading && !answersError">
-                    <li *ngFor="let a of (showAllAnswers ? answers : (answers | slice:0:5))" class="mb-2">
-                      <i class="feather icon-file-text me-2 text-primary"></i>
-                      <span>{{ a.answer_text }}</span>
-                    </li>
-                    <li *ngIf="answers && answers.length === 0" class="text-secondary small">No answers yet.</li>
-                  </ul>
-                  <div *ngIf="answers && answers.length > 5" class="mt-1">
-                    <button type="button" class="btn btn-link btn-sm px-0" (click)="showAllAnswers = !showAllAnswers">
-                      {{ showAllAnswers ? 'Show less' : 'Show all (' + answers.length + ')' }}
+
+                <!-- Add note form -->
+                <form class="add-note-form" (submit)="onAddNote($event)">
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      class="form-control form-control-sm"
+                      placeholder="Add a note..."
+                      [(ngModel)]="newNoteText"
+                      name="newNote"
+                    />
+                    <button
+                      type="submit"
+                      class="btn btn-primary btn-sm"
+                      [disabled]="!newNoteText.trim() || notesSaving"
+                    >
+                      Add
                     </button>
                   </div>
+                </form>
+              </div>
+            </div>
+            <div class="accordion-item" [class.open]="isSectionOpen('details')">
+              <button
+                type="button"
+                class="accordion-toggle"
+                (click)="toggleSection('details')"
+              >
+                <span>Details</span>
+                <i
+                  class="feather"
+                  [ngClass]="
+                    isSectionOpen('details')
+                      ? 'icon-chevron-up'
+                      : 'icon-chevron-down'
+                  "
+                ></i>
+              </button>
+              <div class="accordion-body" *ngIf="isSectionOpen('details')">
+                <!-- Answers from crm_applicants_answers_registration -->
+                <div
+                  *ngIf="answersLoading"
+                  class="small text-secondary mb-2 d-flex align-items-center gap-2"
+                >
+                  <span
+                    class="spinner-border spinner-border-sm"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Loading answers...
+                </div>
+                <div
+                  *ngIf="!answersLoading && answersError"
+                  class="alert alert-warning py-1 px-2 small mb-2"
+                >
+                  {{ answersError }}
+                </div>
+                <ul
+                  class="list-unstyled mb-2"
+                  *ngIf="!answersLoading && !answersError"
+                >
+                  <li
+                    *ngFor="
+                      let a of showAllAnswers
+                        ? answers
+                        : (answers | slice : 0 : 5)
+                    "
+                    class="mb-2"
+                  >
+                    <i class="feather icon-file-text me-2 text-primary"></i>
+                    <span>{{ a.answer_text }}</span>
+                  </li>
+                  <li
+                    *ngIf="answers && answers.length === 0"
+                    class="text-secondary small"
+                  >
+                    No answers yet.
+                  </li>
+                </ul>
+                <div *ngIf="answers && answers.length > 5" class="mt-1">
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm px-0"
+                    (click)="showAllAnswers = !showAllAnswers"
+                  >
+                    {{
+                      showAllAnswers
+                        ? "Show less"
+                        : "Show all (" + answers.length + ")"
+                    }}
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-          <div class="panel-actions">
-            <button type="button" class = "btn btn-primary btn-sm" (click)="moveToNextStage()" [disabled]="movingStage">
-              <span *ngIf="movingStage" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-              Move to next stage
+        </div>
+        <div class="panel-actions">
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="moveToNextStage()"
+            [disabled]="movingStage"
+          >
+            <span
+              *ngIf="movingStage"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            Move to next stage
+          </button>
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            (click)="rejectApplicant()"
+            [disabled]="movingStage"
+          >
+            <span
+              *ngIf="movingStage"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            Reject
+          </button>
+          <div
+            class="dropdown-wrapper"
+            #moreActionsWrapper
+            (click)="$event.stopPropagation()"
+          >
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              (click)="toggleMenu(); $event.stopPropagation()"
+            >
+              More actions
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="rejectApplicant()" [disabled]="movingStage">
-              <span *ngIf="movingStage" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-              Reject
-            </button>
-            <div class="dropdown-wrapper" #moreActionsWrapper (click)="$event.stopPropagation()">
-              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="toggleMenu(); $event.stopPropagation()">More actions</button>
-              <div class="actions-menu shadow-lg" *ngIf="menuOpen" (click)="$event.stopPropagation()">
-                <div class="menu-section">
-                  <button type="button" class="menu-item">
-                    <span class="icon"><i class="feather icon-mail"></i></span>
-                    <span>Send Email</span>
-                  </button>
-                  <button type="button" class="menu-item">
-                    <span class="icon"><i class="feather icon-smartphone"></i></span>
-                    <span>Send Text/SMS</span>
-                  </button>
-                  <button type="button" class="menu-item">
-                    <span class="icon"><i class="feather icon-repeat"></i></span>
-                    <span>Resend Message</span>
-                  </button>
-                </div>
-                <div class="menu-divider"></div>
-                <div class="menu-section">
-                  <div class="menu-item has-submenu" (mouseenter)="stageMenuOpen = true" (mouseleave)="stageMenuOpen = false">
-                    <span class="icon"><i class="feather icon-corner-up-right"></i></span>
-                    <span>Move to Stage...</span>
-                    <i class="feather icon-chevron-right ms-auto"></i>
-                      <div class="submenu" *ngIf="stageMenuOpen" (click)="$event.stopPropagation()">
-                      <div class="submenu-title">Move to Stage</div>
-                      <button
-                        type="button"
-                        class="submenu-item"
-                        *ngFor="let stage of stageMenuOptions"
-                        [class.current]="stage.id === currentStageId"
-                        [disabled]="stage.id === currentStageId"
-                        (click)="canMove() && moveToStage(stage.id)"
-                      >
-                        <span>{{ stage.name }}</span>
-                        <span class="stage-type">{{ stage.type }}</span>
-                      </button>
-                    </div>
+            <div
+              class="actions-menu shadow-lg"
+              *ngIf="menuOpen"
+              (click)="$event.stopPropagation()"
+            >
+              <div class="menu-section">
+                <button
+                  type="button"
+                  class="menu-item"
+                  (click)="openEmailSidebar()"
+                >
+                  <span class="icon"><i class="feather icon-mail"></i></span>
+                  <span>Send Email</span>
+                </button>
+                <button type="button" class="menu-item" (click)="openSmsSidebar()">
+                  <span class="icon"
+                    ><i class="feather icon-smartphone"></i
+                  ></span>
+                  <span>Send Text/SMS</span>
+                </button>
+                <button type="button" class="menu-item" [class.disabled]="!canResendMessage()" [disabled]="!canResendMessage()" (click)="canResendMessage() && resendLastMessage()">
+                  <span class="icon"><i class="feather icon-repeat"></i></span>
+                  <span>Resend Message</span>
+                </button>
+              </div>
+              <div class="menu-divider"></div>
+              <div class="menu-section">
+                <div
+                  class="menu-item has-submenu"
+                  (mouseenter)="onStageMenuEnter()"
+                  (mouseleave)="onStageMenuLeave()"
+                >
+                  <span class="icon"
+                    ><i class="feather icon-corner-up-right"></i
+                  ></span>
+                  <span>Move to Stage...</span>
+                  <i class="feather icon-chevron-right ms-auto"></i>
+                  <div
+                    class="submenu"
+                    *ngIf="stageMenuOpen"
+                    (mouseenter)="onStageMenuEnter()"
+                    (mouseleave)="onStageMenuLeave()"
+                    (click)="$event.stopPropagation()"
+                  >
+                    <div class="submenu-title">Move to Stage</div>
+                    <button
+                      type="button"
+                      class="submenu-item"
+                      *ngFor="let stage of stageMenuOptions"
+                      [class.current]="
+                        currentStageIdNum !== null &&
+                        stage.id === currentStageIdNum
+                      "
+                      [disabled]="
+                        currentStageIdNum !== null &&
+                        stage.id === currentStageIdNum
+                      "
+                      (click)="$event.stopPropagation(); onStageClick(stage.id)"
+                    >
+                      <span>{{ stage.name }}</span>
+                      <span class="stage-type">{{ stage.type }}</span>
+                    </button>
                   </div>
-                  <button type="button" class="menu-item" (click)="canMove() && moveToNextStage()" [class.disabled]="!canMove()" *ngIf="canMove()">
-                    <span class="icon"><i class="feather icon-trending-up"></i></span>
-                    <span>Move to Next Stage</span>
-                  </button>
-                  <button type="button" class="menu-item">
-                    <span class="icon"><i class="feather icon-share-2"></i></span>
-                    <span>Move to...</span>
-                  </button>
-                  <button type="button" class="menu-item text-danger" (click)="canMove() && rejectApplicant()" [class.disabled]="!canMove()" *ngIf="canMove()">
-                    <span class="icon"><i class="feather icon-alert-octagon"></i></span>
-                    <span>Reject</span>
-                  </button>
                 </div>
-                <div class="menu-divider"></div>
-                <div class="menu-section">
-                  <!-- <button type="button" class="menu-item">
+                <button
+                  type="button"
+                  class="menu-item"
+                  (click)="canMove() && moveToNextStage()"
+                  [class.disabled]="!canMove()"
+                  *ngIf="canMove()"
+                >
+                  <span class="icon"
+                    ><i class="feather icon-trending-up"></i
+                  ></span>
+                  <span>Move to Next Stage</span>
+                </button>
+                <button type="button" class="menu-item">
+                  <span class="icon"><i class="feather icon-share-2"></i></span>
+                  <span>Move to...</span>
+                </button>
+                <button
+                  type="button"
+                  class="menu-item text-danger"
+                  (click)="canMove() && rejectApplicant()"
+                  [class.disabled]="!canMove()"
+                  *ngIf="canMove()"
+                >
+                  <span class="icon"
+                    ><i class="feather icon-alert-octagon"></i
+                  ></span>
+                  <span>Reject</span>
+                </button>
+              </div>
+              <div class="menu-divider"></div>
+              <div class="menu-section">
+                <!-- <button type="button" class="menu-item">
                     <span class="icon"><i class="feather icon-award"></i></span>
                     <span>Score Applicant</span>
                   </button> -->
-                  <button type="button" class="menu-item">
-                    <span class="icon"><i class="feather icon-upload"></i></span>
-                    <span>Upload File</span>
-                  </button>
+                <button type="button" class="menu-item">
+                  <span class="icon"><i class="feather icon-upload"></i></span>
+                  <span>Upload File</span>
+                </button>
+              </div>
+              <div class="menu-divider"></div>
+              <div class="menu-section">
+                <button
+                  type="button"
+                  class="menu-item"
+                  *ngIf="canEditApplicant()"
+                  (click)="startEditApplicant(); $event.stopPropagation()"
+                >
+                  <span class="icon"><i class="feather icon-edit-3"></i></span>
+                  <span>Edit Applicant</span>
+                </button>
+                <button
+                  type="button"
+                  class="menu-item text-danger"
+                  *ngIf="canDeleteApplicant()"
+                >
+                  <span class="icon"><i class="feather icon-trash-2"></i></span>
+                  <span>Delete Applicant</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="panel-column panel-chat">
+        <div
+          class="panel-chat-body messages"
+          *ngIf="activeTab === 'messages'"
+          #messagesScroll
+        >
+          <div
+            *ngIf="!resolvedMessages || resolvedMessages.length === 0"
+            class="chat-empty-state empty-state text-center py-5 px-3 mx-auto"
+          >
+            <div class="empty-icon-wrapper mx-auto mb-3">
+              <div class="gradient-ring">
+                <i class="feather icon-message-circle empty-main-icon"></i>
+              </div>
+            </div>
+            <h5 class="empty-title mb-2">No chat history yet</h5>
+            <p class="empty-subtitle mb-0">
+              Start the conversation by sending a message.
+            </p>
+          </div>
+          <ng-container *ngFor="let message of resolvedMessages; let i = index">
+            <div
+              class="chat-day text-secondary small"
+              *ngIf="message.dayLabel && shouldRenderDay(message.dayLabel, i)"
+            >
+              {{ message.dayLabel }}
+            </div>
+            <div class="chat-message" [ngClass]="message.direction">
+              <!-- <div class="chat-avatar" *ngIf="message.avatar">
+                <span>{{ message.avatar }}</span>
+              </div> -->
+              <div class="chat-content">
+                <div class="chat-bubble" [ngClass]="message.direction">
+                  <div class="chat-text" [innerHTML]="message.body"></div>
                 </div>
-                <div class="menu-divider"></div>
-                <div class="menu-section">
-                  <button type="button" class="menu-item" *ngIf="canEditApplicant()" (click)="startEditApplicant(); $event.stopPropagation()">
-                    <span class="icon"><i class="feather icon-edit-3"></i></span>
-                    <span>Edit Applicant</span>
-                  </button>
-                  <button type="button" class="menu-item text-danger" *ngIf="canDeleteApplicant()">
-                    <span class="icon"><i class="feather icon-trash-2"></i></span>
-                    <span>Delete Applicant</span>
+                <div class="chat-meta small">
+                  <span>{{ message.timestamp }}</span>
+                  <span class="dot">•</span>
+                  <span>{{ message.channel }}</span>
+                  <span class="dot" *ngIf="message.statusLabel">•</span>
+                  <span
+                    *ngIf="message.statusLabel"
+                    [ngClass]="statusMetaClass(message.status)"
+                    class="d-inline-flex align-items-center gap-1"
+                  >
+                    <i
+                      class="feather"
+                      [ngClass]="statusMetaIcon(message.status)"
+                    ></i
+                    >{{ message.statusLabel }}
+                  </span>
+                  <button
+                    type="button"
+                    class="btn btn-link btn-xxs px-1 text-secondary"
+                    *ngIf="message.automated"
+                  >
+                    Hide automated messages
                   </button>
                 </div>
               </div>
             </div>
+          </ng-container>
+        </div>
+        <div
+          class="panel-chat-body history-view"
+          *ngIf="activeTab === 'history'"
+        >
+          <div
+            class="d-flex align-items-center gap-2 px-3 py-2 border-bottom small"
+            role="toolbar"
+            aria-label="History filters"
+          >
+            <div class="d-flex align-items-center gap-2">
+              <i class="feather icon-filter text-secondary"></i>
+              <select
+                class="form-select form-select-sm"
+                style="min-width: 200px"
+                [ngModel]="selectedEventPrefix"
+                (ngModelChange)="onEventPrefixChange($event)"
+                [disabled]="eventOptionsLoading"
+              >
+                <option
+                  *ngFor="let opt of eventOptions"
+                  [ngValue]="opt.event_type"
+                >
+                  {{ opt.description }}
+                </option>
+              </select>
+            </div>
+            <div class="text-secondary" *ngIf="eventOptionsLoading">
+              <span
+                class="spinner-border spinner-border-sm me-1"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              Loading filters...
+            </div>
+            <div
+              class="text-warning"
+              *ngIf="!eventOptionsLoading && eventOptionsError"
+            >
+              {{ eventOptionsError }}
+            </div>
           </div>
-        </section>
-        <section class="panel-column panel-chat">
-          <div class="panel-chat-body messages" *ngIf="activeTab==='messages'" #messagesScroll>
-            <ng-container *ngFor="let message of resolvedMessages; let i = index">
-              <div class="chat-day text-secondary small" *ngIf="message.dayLabel && shouldRenderDay(message.dayLabel, i)">
-                {{ message.dayLabel }}
-              </div>
-              <div class="chat-message" [ngClass]="message.direction">
-                <div class="chat-avatar" *ngIf="message.direction === 'inbound'">
-                  <span>{{ message.avatar ?? (message.sender | slice:0:1) }}</span>
-                </div>
-                <div class="chat-content">
-                  <div class="chat-bubble" [ngClass]="message.direction">
-                    <div class="chat-title fw-semibold mb-1" *ngIf="message.sender">{{ message.sender }}</div>
-                    <div class="chat-text" [innerHTML]="message.body"></div>
+          <div class="timeline-wrapper h-100">
+            <div
+              *ngIf="!groupedHistoryItems || !groupedHistoryItems.length"
+              class="text-secondary small p-4 text-center"
+            >
+              <ng-container *ngIf="historyLoading; else noHistory">
+                <span
+                  class="spinner-border spinner-border-sm me-1"
+                  role="status"
+                  aria-hidden="true"
+                ></span>
+                Loading history...
+              </ng-container>
+              <ng-template #noHistory> No history available yet. </ng-template>
+            </div>
+            <div class="timeline-day" *ngFor="let group of groupedHistoryItems">
+              <div class="timeline-day-label">{{ group.dayLabel }}</div>
+              <ul class="timeline list-unstyled m-0 p-0">
+                <li
+                  *ngFor="let ev of group.events"
+                  class="timeline-item"
+                  [class.clickable]="ev.with_detail"
+                  (click)="ev.with_detail && openEventSidebar(ev)"
+                >
+                  <div class="timeline-line"></div>
+                  <div
+                    class="timeline-marker"
+                    [ngClass]="timelineMarkerClass(ev.type)"
+                  >
+                    <i class="feather" [ngClass]="timelineIcon(ev.type)"></i>
                   </div>
-                  <div class="chat-meta small">
-                    <span>{{ message.timestamp }}</span>
-                    <span class="dot">•</span>
-                    <span>{{ message.channel }}</span>
-                    <span class="dot" *ngIf="message.statusLabel">•</span>
-                    <span
-                      *ngIf="message.statusLabel"
-                      [ngClass]="statusMetaClass(message.status)"
-                      class="d-inline-flex align-items-center gap-1"
+                  <div class="timeline-card">
+                    <div class="timeline-text" [innerHTML]="ev.text"></div>
+                    <div class="timeline-meta">
+                      <span class="timeline-time">{{
+                        timelineDisplayTime(ev)
+                      }}</span>
+                      <span
+                        *ngIf="ev.actorName"
+                        class="timeline-actor"
+                        [ngClass]="timelineActorBadgeClass(ev.actorRole)"
+                      >
+                        {{ ev.actorName }} ·
+                        {{ timelineActorLabel(ev.actorRole) }}
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="panel-chat-body files-view" *ngIf="activeTab === 'files'">
+          <div class="files-wrapper">
+            <div
+              *ngIf="docsLoading"
+              class="small text-secondary d-flex align-items-center gap-2"
+            >
+              <span
+                class="spinner-border spinner-border-sm"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              Loading files...
+            </div>
+            <div
+              *ngIf="!docsLoading && docsError"
+              class="alert alert-warning py-1 px-2 small"
+            >
+              {{ docsError }}
+            </div>
+            <div
+              *ngIf="
+                !docsLoading &&
+                !docsError &&
+                (!documentGroups || documentGroups.length === 0)
+              "
+              class="files-empty-state empty-state text-center py-5 px-3 mx-auto"
+            >
+              <div class="empty-icon-wrapper mx-auto mb-3">
+                <div class="gradient-ring">
+                  <i class="feather icon-file-text empty-main-icon"></i>
+                </div>
+              </div>
+              <h5 class="empty-title mb-2">No files uploaded yet</h5>
+              <p class="empty-subtitle mb-3">
+                This applicant hasn’t uploaded any documents for review.
+              </p>
+              <div class="empty-hint text-secondary">
+                You can proceed with other actions or check back later.
+              </div>
+            </div>
+
+            <ng-container *ngFor="let group of documentGroups">
+              <div class="card shadow-sm border-0">
+                <div
+                  class="card-header d-flex align-items-center justify-content-between"
+                >
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="feather icon-folder text-primary"></i>
+                    <span class="fw-semibold">{{ group.dataKey }}</span>
+                  </div>
+                  <span
+                    class="badge rounded-pill"
+                    *ngIf="group.items && group.items.length"
+                    [ngClass]="docStatusClass(group.items[0])"
+                    >{{ docStatusLabel(group.items[0]) }}</span
+                  >
+                </div>
+                <div class="card-body">
+                  <div
+                    class="position-relative"
+                    *ngIf="group.items && group.items.length; else emptyGroup"
+                  >
+                    <div
+                      class="ratio ratio-16x9 bg-secondary border rounded d-flex align-items-center justify-content-center"
                     >
-                      <i class="feather" [ngClass]="statusMetaIcon(message.status)"></i>{{ message.statusLabel }}
-                    </span>
+                      <img
+                        *ngIf="group.items[0].url"
+                        [src]="group.items[0].url"
+                        [alt]="group.items[0].document_name"
+                        class="img-fluid rounded"
+                        (error)="refreshDocUrl(group.items[0])"
+                      />
+                    </div>
                     <button
                       type="button"
-                      class="btn btn-link btn-xxs px-1 text-secondary"
-                      *ngIf="message.automated"
+                      class="btn btn-secondary btn-sm position-absolute bottom-0 end-0 m-2"
+                      title="View"
+                      (click)="openImageViewer(group, group.items[0], $event)"
+                      *ngIf="
+                        group.items[0] &&
+                        (group.items[0].document_name | lowercase).match(
+                          '\\.png|\\.jpg|\\.jpeg|\\.gif|\\.webp|\\.bmp|\\.svg'
+                        )
+                      "
                     >
-                      Hide automated messages
+                      <i class="feather icon-maximize"></i>
                     </button>
                   </div>
+                  <ng-template #emptyGroup>
+                    <div class="text-secondary small py-4 text-center w-100">
+                      No files in this section.
+                    </div>
+                  </ng-template>
+
+                  <div
+                    class="mt-3 d-flex flex-wrap align-items-center gap-2"
+                    *ngIf="group.items && group.items.length"
+                  >
+                    <div class="btn-group btn-group-sm" role="group">
+                      <button
+                        type="button"
+                        class="btn btn-outline-primary"
+                        (click)="approveDocument(group.items[0])"
+                        [disabled]="docsLoading"
+                      >
+                        <i class="feather icon-check me-1"></i>Approve
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        (click)="disapproveDocument(group.items[0])"
+                        [disabled]="docsLoading"
+                      >
+                        <i class="feather icon-x me-1"></i>Disapprove
+                      </button>
+                    </div>
+                  </div>
+
+                  <ul
+                    class="list-group list-group-flush mt-3"
+                    *ngIf="group.items && group.items.length > 1"
+                  >
+                    <li
+                      class="list-group-item d-flex align-items-center justify-content-between py-2"
+                      *ngFor="let doc of group.items | slice : 1"
+                    >
+                      <div class="d-flex align-items-center gap-2">
+                        <i class="feather icon-file-text text-primary"></i>
+                        <a
+                          href="#"
+                          (click)="openDocument(doc, $event)"
+                          class="fw-medium"
+                          >{{ doc.document_name }}</a
+                        >
+                        <span class="text-muted small">•</span>
+                        <span
+                          class="badge rounded-pill"
+                          [ngClass]="docStatusClass(doc)"
+                          >{{ docStatusLabel(doc) }}</span
+                        >
+                      </div>
+                      <button
+                        type="button"
+                        class="btn btn-link btn-sm text-secondary"
+                        (click)="downloadDocument(doc)"
+                      >
+                        Download
+                      </button>
+                    </li>
+                  </ul>
                 </div>
               </div>
             </ng-container>
           </div>
-            <div class="panel-chat-body history-view" *ngIf="activeTab==='history'">
-              <div class="timeline-wrapper h-100">
-                <div *ngIf="(!groupedHistoryItems || !groupedHistoryItems.length)" class="text-secondary small p-4 text-center">No history available yet.</div>
-                <div class="timeline-day" *ngFor="let group of groupedHistoryItems">
-                  <div class="timeline-day-label">{{ group.dayLabel }}</div>
-                  <ul class="timeline list-unstyled m-0 p-0">
-                    <li *ngFor="let ev of group.events" class="timeline-item" (click)="openTimelineEvent(ev)">
-                      <div class="timeline-line"></div>
-                      <div class="timeline-marker" [ngClass]="timelineMarkerClass(ev.type)">
-                        <i class="feather" [ngClass]="timelineIcon(ev.type)"></i>
-                      </div>
-                      <div class="timeline-card">
-                        <div class="timeline-text" [innerHTML]="ev.text"></div>
-                        <div class="timeline-meta">
-                          <span class="timeline-time">{{ timelineDisplayTime(ev) }}</span>
-                          <span *ngIf="ev.actorName" class="timeline-actor" [ngClass]="timelineActorBadgeClass(ev.actorRole)">
-                            {{ ev.actorName }} · {{ timelineActorLabel(ev.actorRole) }}
-                          </span>
-                        </div>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
+        </div>
+        <!-- Image Viewer Overlay -->
+        <div
+          class="image-viewer-backdrop"
+          *ngIf="imageViewerOpen"
+          (click)="closeImageViewer()"
+        >
+          <div class="image-viewer" (click)="$event.stopPropagation()">
+            <div
+              class="viewer-toolbar d-flex align-items-center justify-content-between"
+            >
+              <div class="d-flex align-items-center gap-2">
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm"
+                  (click)="prevImage()"
+                  [disabled]="viewerDocs.length < 2"
+                >
+                  <i class="feather icon-chevron-left"></i>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm"
+                  (click)="nextImage()"
+                  [disabled]="viewerDocs.length < 2"
+                >
+                  <i class="feather icon-chevron-right"></i>
+                </button>
+                <span class="small text-secondary" *ngIf="viewerDocs.length"
+                  >{{ viewerIndex + 1 }} / {{ viewerDocs.length }}</span
+                >
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm"
+                  (click)="zoomOut()"
+                >
+                  <i class="feather icon-zoom-out"></i>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm"
+                  (click)="resetZoom()"
+                >
+                  <i class="feather icon-minimize-2"></i>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm"
+                  (click)="zoomIn()"
+                >
+                  <i class="feather icon-zoom-in"></i>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm"
+                  (click)="rotateClockwise()"
+                >
+                  <i class="feather icon-rotate-cw"></i>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  (click)="downloadDocument(viewerDocs[viewerIndex])"
+                >
+                  <i class="feather icon-download"></i>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm"
+                  (click)="closeImageViewer()"
+                >
+                  <i class="feather icon-x"></i>
+                </button>
               </div>
             </div>
-          <div class="panel-chat-body files-view" *ngIf="activeTab==='files'">
-            <div class="files-wrapper">
-              <div *ngIf="docsLoading" class="small text-secondary d-flex align-items-center gap-2">
-                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                Loading files...
-              </div>
-              <div *ngIf="!docsLoading && docsError" class="alert alert-warning py-1 px-2 small">{{ docsError }}</div>
-              <div *ngIf="!docsLoading && !docsError && (!documentGroups || documentGroups.length === 0)" class="files-empty-state empty-state text-center py-5 px-3 mx-auto">
-                <div class="empty-icon-wrapper mx-auto mb-3">
-                  <div class="gradient-ring">
-                    <i class="feather icon-file-text empty-main-icon"></i>
-                  </div>
-                </div>
-                <h5 class="empty-title mb-2">No files uploaded yet</h5>
-                <p class="empty-subtitle mb-3">This applicant hasn’t uploaded any documents for review.</p>
-                <div class="empty-hint text-secondary">You can proceed with other actions or check back later.</div>
-              </div>
-
-              <ng-container *ngFor="let group of documentGroups">
-                <div class="card shadow-sm border-0">
-                  <div class="card-header d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center gap-2">
-                      <i class="feather icon-folder text-primary"></i>
-                      <span class="fw-semibold">{{ group.dataKey }}</span>
-                    </div>
-                    <span class="badge rounded-pill" *ngIf="group.items && group.items.length" [ngClass]="docStatusClass(group.items[0])">{{ docStatusLabel(group.items[0]) }}</span>
-                  </div>
-                  <div class="card-body">
-                    <div class="position-relative" *ngIf="group.items && group.items.length; else emptyGroup">
-                      <div class="ratio ratio-16x9 bg-light border rounded d-flex align-items-center justify-content-center">
-                        <img *ngIf="group.items[0].url"
-                             [src]="group.items[0].url"
-                             [alt]="group.items[0].document_name"
-                             class="img-fluid rounded"
-                             (error)="refreshDocUrl(group.items[0])" />
-                      </div>
-                      <button type="button" class="btn btn-light btn-sm position-absolute bottom-0 end-0 m-2" title="View"
-                              (click)="openImageViewer(group, group.items[0], $event)" *ngIf="group.items[0] && (group.items[0].document_name | lowercase).match('\\.png|\\.jpg|\\.jpeg|\\.gif|\\.webp|\\.bmp|\\.svg')">
-                        <i class="feather icon-maximize"></i>
-                      </button>
-                    </div>
-                    <ng-template #emptyGroup>
-                      <div class="text-secondary small py-4 text-center w-100">No files in this section.</div>
-                    </ng-template>
-
-                    <div class="mt-3 d-flex flex-wrap align-items-center gap-2" *ngIf="group.items && group.items.length">
-                      <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-outline-primary" (click)="approveDocument(group.items[0])" [disabled]="docsLoading">
-                          <i class="feather icon-check me-1"></i>Approve
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" (click)="disapproveDocument(group.items[0])" [disabled]="docsLoading">
-                          <i class="feather icon-x me-1"></i>Disapprove
-                        </button>
-                      </div>
-                    </div>
-
-                    <ul class="list-group list-group-flush mt-3" *ngIf="group.items && group.items.length > 1">
-                      <li class="list-group-item d-flex align-items-center justify-content-between py-2" *ngFor="let doc of (group.items | slice:1)">
-                        <div class="d-flex align-items-center gap-2">
-                          <i class="feather icon-file-text text-primary"></i>
-                          <a href="#" (click)="openDocument(doc, $event)" class="fw-medium">{{ doc.document_name }}</a>
-                          <span class="text-muted small">•</span>
-                          <span class="badge rounded-pill" [ngClass]="docStatusClass(doc)">{{ docStatusLabel(doc) }}</span>
-                        </div>
-                        <button type="button" class="btn btn-link btn-sm text-secondary" (click)="downloadDocument(doc)">Download</button>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </ng-container>
-            </div>
-          </div>
-          <!-- Image Viewer Overlay -->
-          <div class="image-viewer-backdrop" *ngIf="imageViewerOpen" (click)="closeImageViewer()">
-            <div class="image-viewer" (click)="$event.stopPropagation()">
-              <div class="viewer-toolbar d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center gap-2">
-                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="prevImage()" [disabled]="viewerDocs.length < 2"><i class="feather icon-chevron-left"></i></button>
-                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="nextImage()" [disabled]="viewerDocs.length < 2"><i class="feather icon-chevron-right"></i></button>
-                  <span class="small text-secondary" *ngIf="viewerDocs.length">{{ viewerIndex + 1 }} / {{ viewerDocs.length }}</span>
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="zoomOut()"><i class="feather icon-zoom-out"></i></button>
-                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="resetZoom()"><i class="feather icon-minimize-2"></i></button>
-                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="zoomIn()"><i class="feather icon-zoom-in"></i></button>
-                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="rotateClockwise()"><i class="feather icon-rotate-cw"></i></button>
-                  <button type="button" class="btn btn-outline-primary btn-sm" (click)="downloadDocument(viewerDocs[viewerIndex])"><i class="feather icon-download"></i></button>
-                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeImageViewer()"><i class="feather icon-x"></i></button>
-                </div>
-              </div>
-              <div class="viewer-canvas" (mousedown)="onViewerMouseDown($event)" (touchstart)="onViewerTouchStart($event)" (touchmove)="onViewerTouchMove($event)" (touchend)="onViewerTouchEnd($event)">
-                <div class="viewer-stage" [style.transform]="'scale(' + viewerZoom + ') rotate(' + viewerRotate + 'deg)'"></div>
-                <img *ngIf="viewerCurrentUrl"
-                     [src]="viewerCurrentUrl"
-                     [alt]="viewerDocs[viewerIndex].document_name"
-                     [style.transform]="'translate(' + viewerPanX + 'px,' + viewerPanY + 'px) scale(' + viewerZoom + ') rotate(' + viewerRotate + 'deg)'
-                     " (error)="loadViewerUrl()" />
-                <div class="viewer-loading" *ngIf="viewerLoading">
-                  <span class="spinner-border" role="status" aria-hidden="true"></span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <form class="chat-input" (submit)="onSendMessage($event)" *ngIf="activeTab==='messages'">
-            <div class="composer">
-              <button type="button" class="attach-btn" aria-label="Add attachment"><i class="feather icon-plus"></i></button>
-              <input
-                type="text"
-                class="composer-control"
-                placeholder="Enter your messages"
-                [(ngModel)]="draftMessage"
-                (ngModelChange)="onDraftMessageChange($event)"
-                name="messageInput"
-                autocomplete="off"
+            <div
+              class="viewer-canvas"
+              (mousedown)="onViewerMouseDown($event)"
+              (touchstart)="onViewerTouchStart($event)"
+              (touchmove)="onViewerTouchMove($event)"
+              (touchend)="onViewerTouchEnd($event)"
+            >
+              <div
+                class="viewer-stage"
+                [style.transform]="
+                  'scale(' + viewerZoom + ') rotate(' + viewerRotate + 'deg)'
+                "
+              ></div>
+              <img
+                *ngIf="viewerCurrentUrl"
+                [src]="viewerCurrentUrl"
+                [alt]="viewerDocs[viewerIndex].document_name"
+                [style.transform]="
+                  'translate(' +
+                  viewerPanX +
+                  'px,' +
+                  viewerPanY +
+                  'px) scale(' +
+                  viewerZoom +
+                  ') rotate(' +
+                  viewerRotate +
+                  'deg)'
+                "
+                (error)="loadViewerUrl()"
               />
-              <button type="submit" class="btn btn-primary send-btn" [disabled]="!draftMessage.trim() || chatSending">Send</button>
+              <div class="viewer-loading" *ngIf="viewerLoading">
+                <span
+                  class="spinner-border"
+                  role="status"
+                  aria-hidden="true"
+                ></span>
+              </div>
             </div>
-          </form>
-        </section>
+          </div>
+        </div>
+        <form
+          class="chat-input"
+          (submit)="onSendMessage($event)"
+          *ngIf="activeTab === 'messages'"
+        >
+          <div class="composer">
+            <button
+              type="button"
+              class="attach-btn"
+              aria-label="Add attachment"
+            >
+              <i class="feather icon-plus"></i>
+            </button>
+            <input
+              type="text"
+              class="composer-control"
+              placeholder="Enter your messages"
+              [(ngModel)]="draftMessage"
+              (ngModelChange)="onDraftMessageChange($event)"
+              name="messageInput"
+              autocomplete="off"
+            />
+            <button
+              type="submit"
+              class="btn btn-primary send-btn"
+              [disabled]="!draftMessage.trim() || chatSending"
+            >
+              Send
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <!-- Inline Event Detail Sidebar overlay (within applicant panel) -->
+    <div
+      class="event-sidebar-backdrop"
+      *ngIf="eventSidebarOpen"
+      (click)="closeEventSidebar()"
+    ></div>
+    <aside
+      class="event-sidebar"
+      *ngIf="eventSidebarOpen"
+      (click)="$event.stopPropagation()"
+      aria-label="Event details"
+    >
+      <header class="event-sidebar-header">
+        <div class="d-flex align-items-center gap-2">
+          <div class="event-icon">
+            <i
+              class="feather"
+              [ngClass]="timelineIcon(selectedHistoryEvent?.type)"
+            ></i>
+          </div>
+          <div class="d-flex flex-column">
+            <div class="event-title text-truncate">
+              {{
+                selectedHistoryEvent?.text ||
+                  (selectedHistoryEvent?.type | titlecase)
+              }}
+            </div>
+            <div class="event-subtitle small text-secondary">
+              {{ timelineDisplayTime(selectedHistoryEvent) }}
+              <span class="mx-1">•</span>
+              <span
+                class="badge rounded-pill"
+                [ngClass]="
+                  timelineActorBadgeClass(selectedHistoryEvent?.actorRole)
+                "
+                >{{ timelineActorLabel(selectedHistoryEvent?.actorRole) }}</span
+              >
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="btn btn-link btn-sm text-secondary px-2"
+          (click)="closeEventSidebar()"
+          aria-label="Close event details"
+        >
+          <i class="feather icon-x"></i>
+        </button>
+      </header>
+      <div class="event-sidebar-body">
+        <div
+          *ngIf="eventDetailLoading"
+          class="small text-secondary mb-3 d-flex align-items-center gap-2"
+        >
+          <span
+            class="spinner-border spinner-border-sm"
+            role="status"
+            aria-hidden="true"
+          ></span>
+          Loading details...
+        </div>
+        <div
+          *ngIf="!eventDetailLoading && eventDetailError"
+          class="alert alert-warning py-1 px-2 small mb-3"
+        >
+          {{ eventDetailError }}
+        </div>
+
+        <div class="event-meta mb-3">
+          <div class="meta-row">
+            <span class="label">Type</span
+            ><span class="value text-capitalize">{{
+              selectedHistoryEvent?.type || "event"
+            }}</span>
+          </div>
+          <div class="meta-row" *ngIf="selectedHistoryEvent?.channel">
+            <span class="label">Channel</span
+            ><span class="value">{{ selectedHistoryEvent?.channel }}</span>
+          </div>
+          <div class="meta-row" *ngIf="selectedHistoryEvent?.actorName">
+            <span class="label">By</span
+            ><span class="value">{{ selectedHistoryEvent?.actorName }}</span>
+          </div>
+          <div class="meta-row" *ngIf="selectedHistoryEvent?.event_table">
+            <span class="label">Source</span
+            ><span class="value">{{ selectedHistoryEvent?.event_table }}</span>
+          </div>
+          <div
+            class="meta-row"
+            *ngIf="
+              selectedHistoryEvent?.previousStage || selectedHistoryEvent?.from
+            "
+          >
+            <span class="label">From</span
+            ><span class="value">{{
+              selectedHistoryEvent?.previousStage || selectedHistoryEvent?.from
+            }}</span>
+          </div>
+          <div
+            class="meta-row"
+            *ngIf="selectedHistoryEvent?.newStage || selectedHistoryEvent?.to"
+          >
+            <span class="label">To</span
+            ><span class="value">{{
+              selectedHistoryEvent?.newStage || selectedHistoryEvent?.to
+            }}</span>
+          </div>
+        </div>
+
+        <div class="event-content">
+          <!-- Document preview (for document-type events) -->
+          <ng-container
+            *ngIf="
+              selectedHistoryEvent?.type === 'document' ||
+              (selectedHistoryEvent?.event_table || '')
+                .toLowerCase()
+                .startsWith('documents')
+            "
+          >
+            <div
+              *ngIf="eventDocLoading"
+              class="small text-secondary mb-3 d-flex align-items-center gap-2"
+            >
+              <span
+                class="spinner-border spinner-border-sm"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              Loading file preview...
+            </div>
+            <div
+              *ngIf="
+                !eventDocLoading &&
+                eventDocError &&
+                (!eventDoc || !eventDoc.url)
+              "
+              class="alert alert-warning py-1 px-2 small mb-3"
+            >
+              {{ eventDocError }}
+            </div>
+            <!-- Inline large preview for images (no click required) -->
+            <div
+              *ngIf="!eventDocLoading && eventDoc && isImageDocument(eventDoc)"
+              class="mb-3"
+            >
+              <div
+                class="border rounded position-relative"
+                style="
+                  min-height: 220px;
+                  background: var(--bs-body-bg);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                "
+              >
+                <img
+                  [src]="eventDoc.url"
+                  [alt]="eventDoc.document_name"
+                  (error)="refreshDocUrl(eventDoc)"
+                  style="max-width: 100%; max-height: 420px; border-radius: 8px"
+                />
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm position-absolute bottom-0 end-0 m-2"
+                  title="Expand"
+                  (click)="openDocument(eventDoc, $event)"
+                >
+                  <i class="feather icon-maximize"></i>
+                </button>
+              </div>
+            </div>
+            <div
+              *ngIf="!eventDocLoading && eventDoc as d"
+              class="doc-preview card shadow-sm border-0 mb-3"
+              [hidden]="isImageDocument(d)"
+            >
+              <div class="card-body p-2">
+                <div class="d-flex gap-2 align-items-center">
+                  <div class="doc-thumb flex-shrink-0">
+                    <img
+                      *ngIf="d.url && isImageDocument(d)"
+                      [src]="d.url"
+                      alt="preview"
+                      (error)="refreshDocUrl(d)"
+                    />
+                    <div
+                      *ngIf="!d.url || !isImageDocument(d)"
+                      class="thumb-fallback d-flex align-items-center justify-content-center"
+                    >
+                      <i class="feather icon-file-text"></i>
+                    </div>
+                  </div>
+                  <div class="flex-grow-1 min-w-0">
+                    <div class="text-truncate fw-medium">
+                      {{ d.document_name }}
+                    </div>
+                    <div class="small text-secondary">
+                      {{ docStatusLabel(d) }}
+                    </div>
+                  </div>
+                  <div class="d-flex gap-1">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary"
+                      (click)="openDocument(d, $event)"
+                    >
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-secondary"
+                      (click)="downloadDocument(d)"
+                    >
+                      Download
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ng-container>
+
+          <div
+            class="content-title small text-secondary"
+            *ngIf="eventDetailText"
+          >
+            Details
+          </div>
+          <pre class="content-pre" *ngIf="eventDetailText as detail">{{
+            detail
+          }}</pre>
+          <div
+            class="text-secondary small"
+            *ngIf="!eventDetailLoading && !eventDetailText"
+          >
+            No additional details.
+          </div>
+        </div>
       </div>
     </aside>
-  </div>
+
+    <!-- Email Composer Sidebar -->
+    <div
+      class="event-sidebar-backdrop"
+      *ngIf="emailSidebarOpen"
+      (click)="closeEmailSidebar()"
+    ></div>
+    <aside
+      class="event-sidebar email-composer"
+      *ngIf="emailSidebarOpen"
+      (click)="$event.stopPropagation()"
+      aria-label="Send Email"
+    >
+      <header class="event-sidebar-header">
+        <div class="d-flex align-items-center gap-2">
+          <div class="event-icon"><i class="feather icon-mail"></i></div>
+          <div class="d-flex flex-column">
+            <div class="event-title">Send Email</div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button
+            class="btn btn-light btn-xs"
+            type="button"
+            [class.active]="emailPreviewMode === 'mobile'"
+            (click)="setEmailPreviewMode('mobile')"
+            title="Mobile preview"
+          >
+            <i class="feather icon-smartphone"></i>
+          </button>
+          <button
+            class="btn btn-light btn-xs"
+            type="button"
+            [class.active]="emailPreviewMode === 'desktop'"
+            (click)="setEmailPreviewMode('desktop')"
+            title="Desktop preview"
+          >
+            <i class="feather icon-monitor"></i>
+          </button>
+          <button
+            type="button"
+            class="btn btn-link btn-sm text-secondary px-2"
+            (click)="closeEmailSidebar()"
+            aria-label="Close email composer"
+          >
+            <i class="feather icon-x"></i>
+          </button>
+        </div>
+      </header>
+      <div class="event-sidebar-body">
+        <div class="row g-3 align-items-start">
+          <div class="col-12 col-lg-7">
+            <!-- <div class="mb-2">
+              <label class="form-label small">Send From</label>
+              <ng-container *ngIf="emailFromOptions?.length; else fromInput">
+                <select
+                  class="form-select form-select-sm"
+                  [ngModel]="emailFrom"
+                  (ngModelChange)="emailFrom = $event"
+                >
+                  <option *ngFor="let opt of emailFromOptions" [ngValue]="opt">
+                    {{ opt }}
+                  </option>
+                </select>
+              </ng-container>
+              <ng-template #fromInput>
+                <input
+                  class="form-control form-control-sm"
+                  [ngModel]="emailFrom"
+                  (ngModelChange)="emailFrom = $event"
+                  placeholder="your@email.com"
+                />
+              </ng-template>
+            </div> -->
+            <div class="mb-2">
+              <label class="form-label small">To</label>
+              <input
+                class="form-control form-control-sm"
+                [ngModel]="emailTo"
+                (ngModelChange)="emailTo = $event"
+                [readonly]="true"
+              />
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Email subject</label>
+              <input
+                class="form-control form-control-sm"
+                [ngModel]="emailSubject"
+                (ngModelChange)="emailSubject = $event"
+                placeholder="ex. Hello {{ applicant?.first_name }}"
+              />
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Email Content</label>
+              <div class="d-flex align-items-center gap-1 mb-1 flex-wrap">
+                <select
+                  class="form-select form-select-sm"
+                  style="width: auto"
+                  (change)="emailExec('formatBlock', $any($event.target).value)"
+                >
+                  <option value="P" selected>Normal</option>
+                  <option value="H1">Heading 1</option>
+                  <option value="H2">Heading 2</option>
+                  <option value="H3">Heading 3</option>
+                </select>
+                <span class="mx-1"></span>
+                <button
+                  class="btn btn-light btn-xs"
+                  type="button"
+                  (click)="emailExec('bold')"
+                  title="Bold"
+                >
+                  <i class="feather icon-bold"></i>
+                </button>
+                <button
+                  class="btn btn-light btn-xs"
+                  type="button"
+                  (click)="emailExec('italic')"
+                  title="Italic"
+                >
+                  <i class="feather icon-italic"></i>
+                </button>
+                <button
+                  class="btn btn-light btn-xs"
+                  type="button"
+                  (click)="emailExec('underline')"
+                  title="Underline"
+                >
+                  <i class="feather icon-underline"></i>
+                </button>
+                <span class="mx-1"></span>
+                <button
+                  class="btn btn-light btn-xs"
+                  type="button"
+                  (click)="emailExec('insertUnorderedList')"
+                  title="Bulleted list"
+                >
+                  <i class="feather icon-list"></i>
+                </button>
+                <button
+                  class="btn btn-light btn-xs"
+                  type="button"
+                  (click)="emailExec('insertOrderedList')"
+                  title="Numbered list"
+                >
+                  <i class="feather icon-list"></i>
+                </button>
+                <span class="mx-1"></span>
+                <button
+                  class="btn btn-light btn-xs"
+                  type="button"
+                  (click)="emailExec('justifyLeft')"
+                  title="Align left"
+                >
+                  <i class="feather icon-align-left"></i>
+                </button>
+                <button
+                  class="btn btn-light btn-xs"
+                  type="button"
+                  (click)="emailExec('justifyCenter')"
+                  title="Align center"
+                >
+                  <i class="feather icon-align-center"></i>
+                </button>
+                <button
+                  class="btn btn-light btn-xs"
+                  type="button"
+                  (click)="emailExec('justifyRight')"
+                  title="Align right"
+                >
+                  <i class="feather icon-align-right"></i>
+                </button>
+                <span class="mx-1"></span>
+                <button
+                  class="btn btn-light btn-xs"
+                  type="button"
+                  (click)="emailInsertLink()"
+                  title="Insert link"
+                >
+                  <i class="feather icon-link-2"></i>
+                </button>
+                <button
+                  class="btn btn-light btn-xs"
+                  type="button"
+                  (click)="toggleEmailSource()"
+                  title="Source"
+                >
+                  <i class="feather icon-code"></i>
+                </button>
+              </div>
+              <ng-container *ngIf="!emailSourceMode; else sourceMode">
+                <div
+                  class="form-control"
+                  style="min-height: 220px"
+                  contenteditable="true"
+                  (input)="onEmailEditorInput($event)"
+                ></div>
+              </ng-container>
+              <ng-template #sourceMode>
+                <textarea
+                  class="form-control"
+                  style="min-height: 220px"
+                  [(ngModel)]="emailContent"
+                ></textarea>
+              </ng-template>
+            </div>
+            <div class="form-check mt-2">
+              <input
+                id="delay-send"
+                class="form-check-input"
+                type="checkbox"
+                [ngModel]="emailDelay"
+                (ngModelChange)="emailDelay = $event"
+              />
+              <label class="form-check-label small" for="delay-send"
+                >Delay sending message</label
+              >
+            </div>
+          </div>
+          <div class="col-12 col-lg-5">
+            <!-- Vista Desktop (Mac) -->
+            <div
+              *ngIf="emailPreviewMode === 'desktop'"
+              class="device device-mac"
+            >
+              <div class="device-screen">
+                <div class="preview-email">
+                  <div class="small text-secondary">
+                    {{ emailSubject || "[Email subject]" }}
+                  </div>
+                  <!-- <div class="small">
+                    From:
+                    <span class="text-primary">{{
+                      emailFrom || "you@example.com"
+                    }}</span>
+                  </div> -->
+                  <div class="small">
+                    To:
+                    <span class="text-primary">{{
+                      emailTo || applicant?.email || "applicant@example.com"
+                    }}</span>
+                  </div>
+                  <hr />
+                  <div [innerHTML]="emailContent || '[Message]'"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Vista Mobile (iPhone) -->
+            <div
+              *ngIf="emailPreviewMode === 'mobile'"
+              class="device device-iphone"
+            >
+              <div class="device-notch"></div>
+              <div class="device-screen">
+                <div class="preview-email" style="padding: 12px">
+                  <div class="small text-secondary">
+                    {{ emailSubject || "[Subject]" }}
+                  </div>
+                  <!-- <div class="small">
+                    From:
+                    <span class="text-primary">{{
+                      emailFrom || "you@example.com"
+                    }}</span>
+                  </div> -->
+                  <div class="small">
+                    To:
+                    <span class="text-primary">{{
+                      emailTo || applicant?.email || "applicant@example.com"
+                    }}</span>
+                  </div>
+                  <hr />
+                  <div
+                    [innerHTML]="emailContent || '[Message]'"
+                    style="font-size: 0.95rem"
+                  ></div>
+                </div>
+              </div>
+            </div>
+    
+          </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            (click)="closeEmailSidebar()"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="sendEmail()"
+            [disabled]="emailSending"
+          >
+            <span
+              *ngIf="emailSending"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            Send
+          </button>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- SMS Composer Sidebar -->
+    <div class="event-sidebar-backdrop" *ngIf="smsSidebarOpen" (click)="closeSmsSidebar()"></div>
+    <aside class="event-sidebar email-composer" *ngIf="smsSidebarOpen" (click)="$event.stopPropagation()" aria-label="Send SMS">
+      <header class="event-sidebar-header">
+        <div class="d-flex align-items-center gap-2">
+          <div class="event-icon"><i class="feather icon-smartphone"></i></div>
+          <div class="d-flex flex-column">
+            <div class="event-title">Send SMS</div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-link btn-sm text-secondary px-2" (click)="closeSmsSidebar()" aria-label="Close SMS composer">
+            <i class="feather icon-x"></i>
+          </button>
+        </div>
+      </header>
+      <div class="event-sidebar-body">
+        <div class="row g-3 align-items-start">
+          <div class="col-12 col-lg-7">
+            <div class="mb-2">
+              <label class="form-label small">Send From</label>
+              <div class="small"><a href="javascript:void(0)">+{{ smsFrom | slice:0:1 }}{{ smsFrom | slice:1 }}</a></div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Message</label>
+              <textarea class="form-control" style="min-height: 160px;" [ngModel]="smsMessage" (ngModelChange)="onSmsInput($event)" placeholder="Enter your message"></textarea>
+              <div class="d-flex justify-content-between small mt-1 text-secondary">
+                <span>{{ smsCharCount }}/1000 Characters</span>
+                <span>Segments: {{ smsSegments }}</span>
+              </div>
+            </div>
+            <div class="form-check mt-2">
+              <input id="delay-sms" class="form-check-input" type="checkbox" [ngModel]="smsDelay" (ngModelChange)="smsDelay=$event"/>
+              <label class="form-check-label small" for="delay-sms">Delay sending message</label>
+            </div>
+            <div class="text-secondary small mt-1">This message may be broken into multiple segments. Messages may be queued to prevent carriers from blocking.</div>
+          </div>
+          <div class="col-12 col-lg-5">
+            <div class="d-flex align-items-center justify-content-center">
+              <div class="device device-iphone">
+                <div class="device-notch"></div>
+                <div class="device-screen">
+                  <div class="text-center small py-2" style="background:#eef2ff; border-radius: 20px 20px 0 0;">{{ '+' + smsFrom }}</div>
+                  <div class="d-flex justify-content-end p-2">
+                    <span class="badge bg-primary">{{ smsMessage || '[Message]' }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeSmsSidebar()">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" (click)="sendSms()" [disabled]="smsSending || !smsMessage.trim()">
+            <span *ngIf="smsSending" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            Send
+          </button>
+        </div>
+      </div>
+    </aside>
+  </aside>
+</div>

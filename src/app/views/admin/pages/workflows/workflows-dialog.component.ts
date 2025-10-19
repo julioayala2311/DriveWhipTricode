@@ -199,8 +199,6 @@ export class WorkflowsDialogComponent implements OnInit, OnChanges {
           const list: LocationRecord[] = Array.isArray(raw) ? raw : [];
         
           this._locations.set(list);
-
-          console.log(this._locations());
         },
     error: () => { /* ignore roles load error to avoid breaking accounts UI */ }
       });

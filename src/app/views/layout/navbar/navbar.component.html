@@ -189,7 +189,7 @@
                 <i class="link-icon" [attr.data-feather]="tc.icon" appFeatherIcon></i>
               }
               <span class="menu-title ms-1">{{ tc.label }}</span>
-              <i class="link-arrow ms-1"></i>
+              <i class="link-icon ms-1"></i>
             </a>
             <div ngbDropdownMenu class="px-0" aria-labelledby="createTopDropdown">
               @if (hasItems(tc)) {
@@ -303,7 +303,7 @@
                   <i class="link-icon" [attr.data-feather]="item.icon" appFeatherIcon></i>
                 }
                 <span class="menu-title">{{ item.label }}</span>
-                <i class="link-arrow"></i>
+                <i class="link-icon"></i>
               </a>
               <div class="submenu">
                 <div class="row">
@@ -344,7 +344,7 @@
                     <i class="link-icon" [attr.data-feather]="item.icon" appFeatherIcon></i>
                   }
                   <span class="menu-title">{{ item.label }}</span>
-                  <i class="link-arrow"></i>
+                  <i class="link-icon"></i>
                 </a>
                 <div class="submenu">
                   @for (subMenu of item.subMenus; track $index) {

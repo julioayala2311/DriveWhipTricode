@@ -240,7 +240,7 @@ body.dark .dw-location-option.is-active {
 .carousel-viewport {
 	width:100%;
 	overflow:hidden; /* prevent scrollbars while keeping slide clean */
-	padding: 16px 12px; /* extra vertical room so halo effects remain visible */
+	padding: 5px 12px; /* extra vertical room so halo effects remain visible */
 	-ms-overflow-style: none; /* hide scrollbar in IE */
 	scrollbar-width: none; /* hide scrollbar in Firefox */
 }

@@ -88,6 +88,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
     (sendMessage)="onSendMessage($event)"
     (stageMoved)="onStageMoved($event)"
     (applicantSaved)="onApplicantSaved($event)"
+    (applicantDeleted)="onApplicantDeleted($event)"
   ></app-applicant-panel>
   `,
   styles: [`
@@ -464,6 +465,20 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
       this.activeApplicant = { ...this.activeApplicant, ...(evt.payload ?? {}) };
     }
     // Refresh the grid data so applicant row reflects latest info
+    this.loadApplicants();
+  }
+
+  onApplicantDeleted(applicantId: string): void {
+    if (!applicantId) {
+      this.loadApplicants();
+      return;
+    }
+    if (this.activeApplicant?.id === applicantId) {
+      this.closePanel();
+    }
+    // Remove any cached references to the deleted applicant before reloading
+    this.recentApplicants = this.recentApplicants.filter((row) => row.id !== applicantId);
+    this.rowData = this.rowData.filter((row) => row.id !== applicantId);
     this.loadApplicants();
   }
 

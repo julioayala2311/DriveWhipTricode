@@ -12,6 +12,7 @@ import {
   HostListener,
   inject,
 } from "@angular/core";
+import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { Subscription } from 'rxjs';
 import Swal from "sweetalert2";
 import { CommonModule } from "@angular/common";
@@ -37,12 +38,14 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   openSections = new Set<string>(this.defaultSectionIds);
   menuOpen = false;
   stageMenuOpen = false;
-  private _stageMenuCloseTimer: any = null;
   @ViewChild("moreActionsWrapper", { static: false })
   moreActionsWrapper?: ElementRef;
   @ViewChild("messagesScroll", { static: false })
   messagesScroll?: ElementRef<HTMLDivElement>;
+  @ViewChild("emailEditorRef", { static: false })
+  emailEditorRef?: ElementRef<HTMLDivElement>;
   private authSession = inject(AuthSessionService);
+  private sanitizer = inject(DomSanitizer);
   @Input() applicant: any;
   @Input() applicantId: string | null = null;
   @Input() activeTab: "messages" | "history" | "files" = "messages";
@@ -73,6 +76,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     toStageId: number;
   }>();
   @Output() applicantSaved = new EventEmitter<any>();
+  @Output() applicantDeleted = new EventEmitter<string>();
 
   // Notes state
   notes: Array<any> = [];
@@ -403,6 +407,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   isEditingApplicant: boolean = false;
   editableApplicant: any = {};
   applicantSaving: boolean = false;
+  applicantDeleting: boolean = false;
 
   constructor(private core: DriveWhipCoreService) {}
 
@@ -529,6 +534,99 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       console.error("[ApplicantPanel] saveApplicant unexpected error", e);
       Utilities.showToast("Failed to save applicant", "error");
       this.applicantSaving = false;
+    }
+  }
+
+  onDeleteApplicantClick(): void {
+    this.closeMenus();
+    if (!this.canDeleteApplicant()) {
+      Utilities.showToast(
+        "You do not have permission to delete applicants",
+        "warning"
+      );
+      return;
+    }
+    const id = this.resolveApplicantId(this.applicant) || this.applicantId;
+    if (!id) {
+      Utilities.showToast("Applicant id not found", "warning");
+      return;
+    }
+    if (this.applicantDeleting) return;
+    this.confirmDeleteApplicant(String(id));
+  }
+
+  private confirmDeleteApplicant(applicantId: string): void {
+    Swal.fire({
+      title: "Delete applicant?",
+      text: "This action cannot be undone. Are you sure you want to delete this applicant?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#d33",
+      focusCancel: true,
+      reverseButtons: true,
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.performDeleteApplicant(applicantId);
+      }
+    });
+  }
+
+  private performDeleteApplicant(applicantId: string): void {
+    try {
+      this.applicantDeleting = true;
+      const params: any[] = [
+        "D",
+        applicantId,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ];
+      const api: IDriveWhipCoreAPI = {
+        commandName: DriveWhipAdminCommand.crm_applicants_crud as any,
+        parameters: params,
+      } as any;
+      this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
+        next: (res) => {
+          if (!res.ok) {
+            const err = String(res.error || "Failed to delete applicant");
+            Utilities.showToast(err, "error");
+            this.applicantDeleting = false;
+            return;
+          }
+          Utilities.showToast("Applicant deleted", "success");
+          this.isEditingApplicant = false;
+          this.applicantDeleted.emit(applicantId);
+          this.closePanel.emit();
+        },
+        error: (err) => {
+          console.error("[ApplicantPanel] deleteApplicant error", err);
+          Utilities.showToast("Failed to delete applicant", "error");
+          this.applicantDeleting = false;
+        },
+        complete: () => {
+          this.applicantDeleting = false;
+        },
+      });
+    } catch (e) {
+      console.error("[ApplicantPanel] deleteApplicant unexpected error", e);
+      Utilities.showToast("Failed to delete applicant", "error");
+      this.applicantDeleting = false;
     }
   }
 
@@ -723,23 +821,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
   }
 
-  onStageMenuEnter(): void {
-    if (this._stageMenuCloseTimer) {
-      clearTimeout(this._stageMenuCloseTimer);
-      this._stageMenuCloseTimer = null;
+  toggleStageMenu(ev?: Event): void {
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
     }
-    this.stageMenuOpen = true;
-  }
-
-  onStageMenuLeave(): void {
-    if (this._stageMenuCloseTimer) {
-      clearTimeout(this._stageMenuCloseTimer);
-    }
-    // small delay to avoid closing before click mouseup fires
-    this._stageMenuCloseTimer = setTimeout(() => {
-      this.stageMenuOpen = false;
-      this._stageMenuCloseTimer = null;
-    }, 180);
+    // Simple toggle for click/keyboard interactions
+    this.stageMenuOpen = !this.stageMenuOpen;
   }
 
   // Email composer open/close
@@ -757,7 +845,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.emailContent = '';
     this.emailDelay = false;
     this.emailPreviewMode = 'desktop';
+    this.emailSourceMode = false;
     this.emailSidebarOpen = true;
+    setTimeout(() => this.syncEmailEditorFromContent(), 0);
   }
 
   closeEmailSidebar(): void {
@@ -769,22 +859,53 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     try {
       document.execCommand(cmd, false, value);
     } catch {}
+    if (!this.emailSourceMode) {
+      this.captureEmailContentFromEditor();
+    }
   }
 
   toggleEmailSource(): void {
-    this.emailSourceMode = !this.emailSourceMode;
+    if (!this.emailSourceMode) {
+      this.captureEmailContentFromEditor();
+      this.emailSourceMode = true;
+    } else {
+      this.emailSourceMode = false;
+      setTimeout(() => this.syncEmailEditorFromContent(), 0);
+    }
   }
 
   emailInsertLink(): void {
     const url = prompt('Enter URL');
     if (url && url.trim()) {
-      try { document.execCommand('createLink', false, url.trim()); } catch {}
+      try {
+        document.execCommand('createLink', false, url.trim());
+      } catch {}
+      if (!this.emailSourceMode) {
+        this.captureEmailContentFromEditor();
+      }
     }
   }
 
   onEmailEditorInput(ev: Event): void {
     const el = ev.target as HTMLElement;
     this.emailContent = el?.innerHTML || '';
+  }
+
+  get emailPreviewHtml(): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.emailContent || '');
+  }
+
+  private captureEmailContentFromEditor(): void {
+    const editor = this.emailEditorRef?.nativeElement;
+    if (!editor) return;
+    this.emailContent = editor.innerHTML || '';
+  }
+
+  private syncEmailEditorFromContent(): void {
+    if (this.emailSourceMode) return;
+    const editor = this.emailEditorRef?.nativeElement;
+    if (!editor) return;
+    editor.innerHTML = this.emailContent || '';
   }
 
   setEmailPreviewMode(mode: 'desktop'|'mobile'): void { this.emailPreviewMode = mode; }
@@ -2754,6 +2875,32 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     });
   }
 
+  get stageMenuViewOptions(): StageMenuViewOption[] {
+    return this.stageMenuOptions.map((option) => ({
+      ...option,
+      typeLabel: this.formatStageTypeLabel(option.type),
+    }));
+  }
+
+  private formatStageTypeLabel(type: string): string {
+    const trimmed = (type ?? "").toString().trim();
+    if (!trimmed) return "Stages";
+    const withSpaces = trimmed
+      .replace(/[_-]+/g, " ")
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/\s+/g, " ")
+      .trim();
+    const words = withSpaces.split(" ").filter(Boolean);
+    if (!words.length) return "Stages";
+    return words
+      .map((word) => {
+        const upper = word.toUpperCase();
+        if (word.length <= 3 && word === upper) return upper;
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
+      .join(" ");
+  }
+
   // Normalize currentStageId to a number when possible for safe comparisons in template
   get currentStageIdNum(): number | null {
     const v: any = this.currentStageId;
@@ -3342,6 +3489,10 @@ interface StageMenuOption {
   id: number;
   name: string;
   type: string;
+}
+
+interface StageMenuViewOption extends StageMenuOption {
+  typeLabel: string;
 }
 
 interface ApplicantDocument {

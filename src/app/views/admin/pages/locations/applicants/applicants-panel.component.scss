@@ -108,6 +108,83 @@
 .panel-list i {
   font-size: 0.95rem;
 }
+.edit-applicant-block {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+.edit-card {
+  background: var(--bs-body-bg);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 14px 32px -24px rgba(15, 23, 42, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.edit-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.edit-card-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.edit-card-subtitle {
+  font-size: 0.75rem;
+  color: rgba(15, 23, 42, 0.55);
+  margin-top: 0.15rem;
+}
+.edit-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.edit-card-body .form-label {
+  font-weight: 600;
+  color: rgba(15, 23, 42, 0.58);
+  letter-spacing: 0.2px;
+}
+.edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.edit-actions .btn {
+  min-width: 120px;
+}
+.edit-actions .btn-outline-secondary {
+  border-color: rgba(15, 23, 42, 0.12);
+  color: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.02);
+}
+.edit-actions .btn-outline-secondary:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.2);
+}
+.edit-actions .btn-primary {
+  box-shadow: 0 8px 16px -12px rgba(var(--bs-primary-rgb, 13, 110, 253), 0.75);
+}
+@media (max-width: 575.98px) {
+  .edit-card {
+    padding: 0.85rem;
+  }
+  .edit-card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .edit-actions {
+    justify-content: stretch;
+  }
+  .edit-actions .btn {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
 .stage-pill {
   display: inline-flex;
   align-items: center;
@@ -191,6 +268,7 @@
   gap: 0.5rem;
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.08));
+  position: relative;
   background: var(--bs-body-bg);
 }
 .panel-chat {
@@ -206,7 +284,6 @@
   background: linear-gradient(
     180deg,
     rgba(17, 24, 39, 0.03) 0%,
-    rgba(17, 24, 39, 0) 120px
   );
 }
 .panel-chat-body.messages {
@@ -255,7 +332,7 @@
   align-items: flex-end;
 }
 .chat-message.outbound .chat-bubble {
-  background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.08);
+  background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.05);
   color: var(--bs-body-color);
   border-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.18);
   box-shadow: 0 8px 18px -12px rgba(15, 23, 42, 0.25);
@@ -273,7 +350,8 @@
   gap: 0.5rem;
 }
 .chat-bubble {
-  background: var(--bs-body-bg);
+  background: var(--bs-primary);
+  color: white;
   border-radius: 16px;
   padding: 0.5rem 1rem;
   box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.25),
@@ -439,7 +517,7 @@ body.dark .chat-input .composer:focus-within {
 }
 .dropdown-wrapper {
   position: relative;
-  z-index: 200; /* above event sidebar/backdrop */
+  z-index: 2500; /* keep menus above any sidebars/backdrops */
 }
 .actions-menu {
   position: absolute;
@@ -454,7 +532,7 @@ body.dark .chat-input .composer:focus-within {
   flex-direction: column;
   gap: 0.35rem;
   padding: 0.5rem;
-  z-index: 200; /* above event sidebar (110) and its backdrop (100) */
+  z-index: 2500; /* above event sidebar (110) and its backdrop (100) */
   pointer-events: auto;
 }
 .actions-menu::before {
@@ -487,11 +565,13 @@ body.dark .chat-input .composer:focus-within {
   padding: 0.45rem 0.55rem;
   border-radius: 10px;
   transition: background 0.18s ease;
+  cursor: pointer;
 }
 .menu-item .icon {
   width: 24px;
   display: flex;
   justify-content: center;
+  color: var(--bs-primary, #0d6efd);
 }
 .menu-item.disabled {
   cursor: default;
@@ -501,10 +581,11 @@ body.dark .chat-input .composer:focus-within {
   opacity: 0.6;
 }
 .menu-item.has-submenu {
-  position: relative;
+  justify-content: space-between;
 }
 .menu-item:not(.disabled):hover {
   background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.07);
+  color: var(--bs-primary, #0d6efd);
 }
 /* Use Bootstrap's .text-danger; no explicit color set here to respect theme */
 .menu-divider {
@@ -512,72 +593,115 @@ body.dark .chat-input .composer:focus-within {
   background: rgba(15, 23, 42, 0.08);
   margin: 0.25rem;
 }
+
 .submenu {
   position: absolute;
-  left: 100%;
   top: 0;
-  margin-left: -2px; /* slight overlap to avoid hover flicker */
+  left: calc(100% + 12px);
   min-width: 280px;
-  background: var(--bs-body-bg);
+  padding: 0.75rem 0.85rem 0.9rem;
   border-radius: 14px;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  padding: 0.45rem;
+  background: var(--bs-body-bg);
+  box-shadow: 0 16px 36px -24px rgba(15, 23, 42, 0.48);
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  box-shadow: 0 20px 40px -24px rgba(15, 23, 42, 0.45);
-  z-index: 210; /* above actions-menu and right column */
-  pointer-events: auto;
+  gap: 0.65rem;
+  z-index: 1055;
 }
+
+.submenu::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: -10px;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  border-left: 1px solid rgba(15, 23, 42, 0.1);
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
+  transform: rotate(45deg);
+}
+
 .submenu-title {
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  padding: 0.35rem 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
+  color: var(--bs-secondary-color, rgba(0, 0, 0, 0.62));
 }
+
+
+.submenu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
 .submenu-item {
   border: none;
   background: transparent;
+  color: var(--bs-body-color, #1f2937);
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: start;
   padding: 0.45rem 0.6rem;
   border-radius: 10px;
-  font-size: 0.7rem;
-  transition: background 0.18s ease;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-align: left;
   cursor: pointer;
-}
-/* .submenu-item.current keeps default text color to respect theme */
-.stage-type {
-  font-size: 0.7rem;
-  margin-left: 1.5rem;
+  transition: background 0.18s ease, color 0.18s ease;
 }
 
-/* Hover effect for stage submenu items: use primary tint and color like the main menu */
-.submenu-item:not(.current):hover {
+.submenu-item-name {
+  display: block;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.submenu-item:not(:disabled):hover {
   background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.07);
-}
-.submenu-item:not(.current):hover .stage-type {
-  opacity: 0.85;
+  color: var(--bs-primary, #0d6efd);
 }
 
-@media (max-width: 992px) {
-  :host {
-    justify-content: center;
-  }
-  .applicant-panel {
-    width: 100%;
-    border-radius: 0;
-  }
-  .panel-body {
-    flex-direction: column;
-  }
-  .panel-column {
-    flex-basis: auto;
-  }
-  .panel-info {
-    border-right: none;
-    border-bottom: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.08));
-  }
+.submenu-item:focus-visible {
+  outline: none;
+  background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.09);
+  color: var(--bs-primary, #0d6efd);
+}
+
+.submenu-item.current {
+  background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.12);
+  color: var(--bs-primary, #0d6efd);
+  font-weight: 600;
+}
+
+.submenu-item:disabled {
+  cursor: default;
+  opacity: 0.6;
+  color: var(--bs-secondary-color, rgba(0, 0, 0, 0.55));
+  background: transparent;
+}
+
+.submenu-item-type {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--bs-secondary-color, rgba(0, 0, 0, 0.55));
+  margin-left: 1rem;
+  white-space: nowrap;
+}
+
+.submenu-item:not(:disabled):hover .submenu-item-type,
+.submenu-item:focus-visible .submenu-item-type,
+.submenu-item.current .submenu-item-type {
+  color: inherit;
+}
+
+.submenu-item:disabled .submenu-item-type {
+  color: inherit;
 }
 
 body.dark .applicant-panel {
@@ -738,6 +862,8 @@ body.dark .submenu {
 .timeline-wrapper {
   height: 100%;
   overflow: auto;
+  /* Avoid layout shifts when scrollbars appear/disappear (Windows) */
+  scrollbar-gutter: stable both-edges;
 }
 .timeline-day {
   margin-bottom: 2rem;
@@ -773,12 +899,23 @@ body.dark .submenu {
   transition: transform 0.12s ease, box-shadow 0.12s ease,
     border-color 0.12s ease;
   will-change: transform, box-shadow;
+  cursor: pointer;
+  /* Isolate painting to reduce hover flicker */
+  contain: paint;
 }
 /* Trigger hover effects from the li so the hitbox stays stable and avoids flicker */
 .timeline-item.clickable:hover .timeline-card {
-  transform: translateY(-1px);
+  /* Avoid vertical shift to prevent hover flicker */
+  transform: none;
   box-shadow: 0 8px 20px -14px rgba(0, 0, 0, 0.25);
 }
+/* Prevent child interactive elements from stealing clicks when the whole item is clickable */
+.timeline-item.clickable .timeline-card a,
+.timeline-item.clickable .timeline-card button,
+.timeline-item.clickable .timeline-card [role="button"] {
+  pointer-events: none;
+}
+.timeline-item.clickable { user-select: none; }
 .timeline-line {
   position: absolute;
   left: 15px;
@@ -970,6 +1107,21 @@ body.dark .timeline-marker {
   .panel-chat-body.files-view {
     padding: 1rem;
   }
+  .submenu {
+    position: static;
+    margin-top: 0.6rem;
+    left: 0;
+    min-width: 0;
+    width: 100%;
+    padding: 0.75rem;
+    box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.4);
+  }
+  .submenu::before {
+    display: none;
+  }
+  .submenu-list {
+    gap: 0.35rem;
+  }
 }
 
 /* Empty state (match Locations component styling) */
@@ -1013,7 +1165,6 @@ body.dark .timeline-marker {
 }
 .empty-subtitle {
   font-size: 0.8rem;
-  color: var(--bs-secondary-color, rgba(0, 0, 0, 0.58));
   letter-spacing: 0.25px;
   margin: 0 auto;
   max-width: 420px;
@@ -1156,13 +1307,22 @@ body.dark .image-viewer .viewer-toolbar {
 }
 .event-meta .label {
   min-width: 80px;
-/* When the actions menu is open, allow it to receive pointer events over the sidebar */
-.applicant-panel.menu-open .event-sidebar-backdrop,
-.applicant-panel.menu-open .event-sidebar {
-  pointer-events: none;
-}
   color: var(--bs-secondary-color, rgba(0, 0, 0, 0.6));
   font-weight: 600;
+}
+
+/* When the actions menu is open, allow it to receive pointer events over the sidebar */
+.applicant-panel.menu-open .event-sidebar-backdrop,
+.applicant-panel.menu-open .event-sidebar,
+.applicant-panel.menu-open .event-sidebar.email-composer {
+  pointer-events: none;
+}
+
+/* Ensure the dropdown stack stays interactive while menu-open is applied */
+.applicant-panel.menu-open .dropdown-wrapper,
+.applicant-panel.menu-open .actions-menu,
+.applicant-panel.menu-open .submenu {
+  pointer-events: auto;
 }
 .event-meta .value {
   color: var(--bs-body-color);

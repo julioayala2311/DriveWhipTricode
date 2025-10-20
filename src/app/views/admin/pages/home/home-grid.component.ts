@@ -71,7 +71,7 @@ export class HomeGridComponent implements OnChanges {
   constructor(private router: Router) {}
 
   columnDefs: ColDef[] = [
-    { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
+    // { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
 
     // LOCATION as SPA "link"
     {
@@ -86,6 +86,7 @@ export class HomeGridComponent implements OnChanges {
         return `<span class="grid-link" role="link" aria-label="Open locations">${name}</span>`;
       }
     },
+    { headerName: 'Workflow', field: 'workflow_name', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'git-branch' } },
 
     { headerName: 'Address', field: 'market_address', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
 

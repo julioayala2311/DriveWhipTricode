@@ -49,3 +49,28 @@
 .bottom-navbar .page-navigation .submenu .nav-item .nav-link.btn.btn-link {
 	padding: .375rem 1rem;
 }
+
+.top-navbar .nav-item .dropdown-caret {
+	font-size: .9rem;
+	opacity: .6;
+	transition: transform .2s ease, opacity .2s ease;
+}
+
+.top-navbar .nav-item.show .dropdown-caret,
+.top-navbar .nav-item.ngb-dirty .dropdown-caret,
+.top-navbar .nav-item[aria-expanded="true"] .dropdown-caret {
+	transform: rotate(180deg);
+	opacity: 1;
+}
+
+.bottom-navbar .page-navigation .nav-link .dropdown-caret {
+	font-size: .85rem;
+	opacity: .6;
+	transition: transform .2s ease, opacity .2s ease;
+}
+
+.bottom-navbar .page-navigation .nav-item.show-submenu > .nav-link .dropdown-caret,
+.bottom-navbar .page-navigation .nav-item:hover > .nav-link .dropdown-caret {
+	transform: rotate(180deg);
+	opacity: 1;
+}

@@ -105,61 +105,84 @@
                     {{ applicantDetailsError }}
                   </li>
                   <!-- Editable applicant fields -->
-                  <li *ngIf="isEditingApplicant">
-                    <div class="mb-2">
-                      <div class="row g-2 mb-1">
-                        <div class="col-12 col-sm-6">
-                          <input
-                            class="form-control form-control-sm"
-                            [(ngModel)]="editableApplicant.first_name"
-                            name="editFirstName"
-                            placeholder="First name"
-                          />
-                        </div>
-                        <div class="col-12 col-sm-6">
-                          <input
-                            class="form-control form-control-sm"
-                            [(ngModel)]="editableApplicant.last_name"
-                            name="editLastName"
-                            placeholder="Last name"
-                          />
+                  <li *ngIf="isEditingApplicant" class="edit-applicant-block">
+                    <div class="edit-card">
+                      <div class="edit-card-header">
+                        <div>
+                          <div class="edit-card-title">Edit applicant</div>
+                          <div class="edit-card-subtitle">
+                            Update the applicant's contact details and save your changes.
+                          </div>
                         </div>
                       </div>
-                      <input
-                        class="form-control form-control-sm mb-1"
-                        [(ngModel)]="editableApplicant.email"
-                        name="editEmail"
-                        placeholder="Email"
-                      />
-                      <input
-                        class="form-control form-control-sm"
-                        [(ngModel)]="editableApplicant.phone"
-                        name="editPhone"
-                        placeholder="Phone"
-                      />
-                    </div>
-                    <div class="d-flex gap-2">
-                      <button
-                        type="button"
-                        class="btn btn-primary btn-sm"
-                        (click)="saveApplicant()"
-                        [disabled]="applicantSaving"
-                      >
-                        <span
-                          *ngIf="applicantSaving"
-                          class="spinner-border spinner-border-sm me-1"
-                          role="status"
-                          aria-hidden="true"
-                        ></span>
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-link btn-sm"
-                        (click)="cancelEditApplicant()"
-                      >
-                        Cancel
-                      </button>
+                      <div class="edit-card-body">
+                        <div class="row g-3">
+                          <div class="col-12 col-sm-6">
+                            <label class="form-label small" for="editFirstName">First name</label>
+                            <input
+                              id="editFirstName"
+                              class="form-control form-control-sm"
+                              [(ngModel)]="editableApplicant.first_name"
+                              name="editFirstName"
+                              placeholder="First name"
+                            />
+                          </div>
+                          <div class="col-12 col-sm-6">
+                            <label class="form-label small" for="editLastName">Last name</label>
+                            <input
+                              id="editLastName"
+                              class="form-control form-control-sm"
+                              [(ngModel)]="editableApplicant.last_name"
+                              name="editLastName"
+                              placeholder="Last name"
+                            />
+                          </div>
+                          <div class="col-12 col-sm-6">
+                            <label class="form-label small" for="editEmail">Email</label>
+                            <input
+                              id="editEmail"
+                              class="form-control form-control-sm"
+                              [(ngModel)]="editableApplicant.email"
+                              name="editEmail"
+                              placeholder="Email"
+                            />
+                          </div>
+                          <div class="col-12 col-sm-6">
+                            <label class="form-label small" for="editPhone">Phone</label>
+                            <input
+                              id="editPhone"
+                              class="form-control form-control-sm"
+                              [(ngModel)]="editableApplicant.phone"
+                              name="editPhone"
+                              placeholder="Phone"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div class="edit-actions">
+                        <button
+                          type="button"
+                          class="btn btn-outline-secondary btn-sm"
+                          (click)="cancelEditApplicant()"
+                          [disabled]="applicantSaving"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-primary btn-sm"
+                          (click)="saveApplicant()"
+                          [disabled]="applicantSaving"
+                        >
+                          <span
+                            *ngIf="applicantSaving"
+                            class="spinner-border spinner-border-sm me-1"
+                            role="status"
+                            aria-hidden="true"
+                          ></span>
+                          Save changes
+                        </button>
+                      </div>
                     </div>
                   </li>
 
@@ -546,28 +569,34 @@
               </div>
               <div class="menu-divider"></div>
               <div class="menu-section">
-                <div
+                <button
+                  type="button"
                   class="menu-item has-submenu"
-                  (mouseenter)="onStageMenuEnter()"
-                  (mouseleave)="onStageMenuLeave()"
+                  (click)="toggleStageMenu($event)"
+                  (keydown.enter)="toggleStageMenu($event)"
+                  (keydown.space)="toggleStageMenu($event)"
+                  [attr.aria-expanded]="stageMenuOpen"
                 >
                   <span class="icon"
                     ><i class="feather icon-corner-up-right"></i
                   ></span>
                   <span>Move to Stage...</span>
-                  <i class="feather icon-chevron-right ms-auto"></i>
-                  <div
-                    class="submenu"
-                    *ngIf="stageMenuOpen"
-                    (mouseenter)="onStageMenuEnter()"
-                    (mouseleave)="onStageMenuLeave()"
-                    (click)="$event.stopPropagation()"
-                  >
-                    <div class="submenu-title">Move to Stage</div>
+                  <i
+                    class="feather ms-auto"
+                    [ngClass]="stageMenuOpen ? 'icon-chevron-up' : 'icon-chevron-right'"
+                  ></i>
+                </button>
+                <div
+                  class="submenu"
+                  *ngIf="stageMenuOpen"
+                  (click)="$event.stopPropagation()"
+                >
+                  <div class="submenu-title">Move to Stage</div>
+                  <div class="submenu-list">
                     <button
                       type="button"
                       class="submenu-item"
-                      *ngFor="let stage of stageMenuOptions"
+                      *ngFor="let stage of stageMenuViewOptions"
                       [class.current]="
                         currentStageIdNum !== null &&
                         stage.id === currentStageIdNum
@@ -578,8 +607,8 @@
                       "
                       (click)="$event.stopPropagation(); onStageClick(stage.id)"
                     >
-                      <span>{{ stage.name }}</span>
-                      <span class="stage-type">{{ stage.type }}</span>
+                      <span class="submenu-item-name">{{ stage.name }}</span>
+                      <span class="submenu-item-type">{{ stage.typeLabel }}</span>
                     </button>
                   </div>
                 </div>
@@ -638,6 +667,9 @@
                   type="button"
                   class="menu-item text-danger"
                   *ngIf="canDeleteApplicant()"
+                  (click)="onDeleteApplicantClick()"
+                  [disabled]="applicantDeleting"
+                  [class.disabled]="applicantDeleting"
                 >
                   <span class="icon"><i class="feather icon-trash-2"></i></span>
                   <span>Delete Applicant</span>
@@ -754,7 +786,7 @@
           <div class="timeline-wrapper h-100">
             <div
               *ngIf="!groupedHistoryItems || !groupedHistoryItems.length"
-              class="text-secondary small p-4 text-center"
+              class="small p-4 text-center"
             >
               <ng-container *ngIf="historyLoading; else noHistory">
                 <span
@@ -764,7 +796,19 @@
                 ></span>
                 Loading history...
               </ng-container>
-              <ng-template #noHistory> No history available yet. </ng-template>
+              <ng-template #noHistory>
+                <div class="empty-state text-center py-4">
+                  <div class="empty-icon-wrapper mx-auto mb-3">
+                    <div class="gradient-ring">
+                      <i class="feather icon-clock empty-main-icon"></i>
+                    </div>
+                  </div>
+                  <h6 class="empty-title mb-1">No history yet</h6>
+                  <p class="empty-subtitle mb-0">
+                    Timeline updates will appear here once this applicant has activity.
+                  </p>
+                </div>
+              </ng-template>
             </div>
             <div class="timeline-day" *ngFor="let group of groupedHistoryItems">
               <div class="timeline-day-label">{{ group.dayLabel }}</div>
@@ -772,8 +816,9 @@
                 <li
                   *ngFor="let ev of group.events"
                   class="timeline-item"
-                  [class.clickable]="ev.with_detail"
-                  (click)="ev.with_detail && openEventSidebar(ev)"
+                  [class.clickable]="ev.with_detail || ['sms','email','document','file','upload'].includes((ev.type||'').toLowerCase())"
+                  role="button"
+                  (click)="(ev.with_detail || ['sms','email','document','file','upload'].includes((ev.type||'').toLowerCase())) && openEventSidebar(ev)"
                 >
                   <div class="timeline-line"></div>
                   <div
@@ -1218,6 +1263,26 @@
         </div>
 
         <div class="event-content">
+          <!-- SMS preview inside iPhone frame -->
+          <ng-container *ngIf="(selectedHistoryEvent?.type || '').toLowerCase() === 'sms'">
+            <div class="content-title small text-secondary mb-1">Message</div>
+            <div class="device device-iphone">
+              <div class="device-notch"></div>
+              <div class="device-screen">
+                <div class="d-flex flex-column gap-2">
+                  <div class="d-flex">
+                    <div class="chat-bubble mt-4 ms-3" style="max-width: 85%">
+                      <div class="chat-text" [innerText]="eventDetailText || selectedHistoryEvent?.text || ''"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="eventDetailLoading" class="small text-secondary mb-3 d-flex align-items-center gap-2">
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              Loading details...
+            </div>
+          </ng-container>
           <!-- Document preview (for document-type events) -->
           <ng-container
             *ngIf="
@@ -1331,13 +1396,14 @@
 
           <div
             class="content-title small text-secondary"
-            *ngIf="eventDetailText"
+            *ngIf="eventDetailText && (selectedHistoryEvent?.type || '').toLowerCase() !== 'sms'"
           >
             Details
           </div>
-          <pre class="content-pre" *ngIf="eventDetailText as detail">{{
+          <pre class="content-pre" *ngIf="eventDetailText as detail; else noDetailBlock" [hidden]="(selectedHistoryEvent?.type || '').toLowerCase() === 'sms'">{{
             detail
           }}</pre>
+          <ng-template #noDetailBlock></ng-template>
           <div
             class="text-secondary small"
             *ngIf="!eventDetailLoading && !eventDetailText"
@@ -1539,6 +1605,7 @@
               </div>
               <ng-container *ngIf="!emailSourceMode; else sourceMode">
                 <div
+                  #emailEditorRef
                   class="form-control"
                   style="min-height: 220px"
                   contenteditable="true"
@@ -1590,7 +1657,7 @@
                     }}</span>
                   </div>
                   <hr />
-                  <div [innerHTML]="emailContent || '[Message]'"></div>
+                  <div [innerHTML]="emailContent ? emailPreviewHtml : '[Message]'"></div>
                 </div>
               </div>
             </div>
@@ -1620,7 +1687,7 @@
                   </div>
                   <hr />
                   <div
-                    [innerHTML]="emailContent || '[Message]'"
+                    [innerHTML]="emailContent ? emailPreviewHtml : '[Message]'"
                     style="font-size: 0.95rem"
                   ></div>
                 </div>

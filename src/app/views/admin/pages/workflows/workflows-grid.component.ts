@@ -34,7 +34,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
   imports: [CommonModule, FormsModule, AgGridAngular],
   template: `
     <ag-grid-angular class="ag-theme-quartz dw-grid-theme" style="width:100%;height:420px;"
-      [rowData]="displayRowData"
+      [rowData]="rowData"
       [columnDefs]="columnDefs"
       [defaultColDef]="defaultColDef"
       rowSelection="multiple"
@@ -42,7 +42,6 @@ export class GridHeaderComponent implements IHeaderAngularComp {
       [pagination]="true"
       [paginationPageSize]="pageSize"
       [paginationPageSizeSelector]="pageSizeOptions"
-      [rowClassRules]="rowClassRules"
       (gridReady)="onGridReady($event)"
       (selectionChanged)="onSelectionChanged()"
       (firstDataRendered)="onFirstDataRendered()"
@@ -51,10 +50,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
     </ag-grid-angular>
   `,
   styles: [`
-    /* Group header row styling */
-    :host ::ng-deep .dw-group-row .ag-cell { background: #0000000a; border-top: 1px solid var(--bs-border-color,#dee2e6); }
-    :host ::ng-deep .ag-theme-quartz .ag-cell.dw-group-cell { display:flex; align-items:center; gap:.5rem; padding:.5rem .75rem; }
-    :host ::ng-deep .ag-theme-quartz .ag-cell.dw-group-cell i { color: var(--bs-primary,#0d6efd); }
+    :host ::ng-deep .dw-actions-cell { display:flex; align-items:center; justify-content:center; }
   `]
 })
 export class WorkflowsGridComponent implements OnChanges {
@@ -72,9 +68,10 @@ export class WorkflowsGridComponent implements OnChanges {
   rowRangeEnd = 0;
 
   columnDefs: ColDef[] = [
+    // Uncomment the block below if bulk selection is needed in the future.
     // {
     //   headerName: '',
-    //   checkboxSelection: (p) => !(p?.data && (p.data as any).__group === true),
+    //   checkboxSelection: true,
     //   headerCheckboxSelection: true,
     //   width: 48,
     //   pinned: 'left',
@@ -86,40 +83,10 @@ export class WorkflowsGridComponent implements OnChanges {
     {
       headerName: 'Location',
       field: 'location_name',
-      minWidth: 160,
-      flex: 1,
+      minWidth: 110,
+      flex: .5,
       headerComponent: GridHeaderComponent,
-      headerComponentParams: { icon: 'icon-map-pin' },
-      colSpan: (p) => (p?.data && (p.data as any).__group === true) ? 100 : 1,
-      cellClass: (p) => (p?.data && (p.data as any).__group === true) ? 'dw-group-cell' : '',
-      cellRenderer: (p: any) => {
-        if (p?.data && p.data.__group === true) {
-          const rawName = (p.data.location_name || 'Unknown Location');
-          const name = rawName.toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          const count = Number(p.data.__count || 0);
-          const isOpen = this.expandedGroups.has(String(rawName));
-          const chevron = isOpen ? 'icon-chevron-down' : 'icon-chevron-right';
-          return `
-            <button class="btn btn-xs btn-link p-0 me-1" type="button" data-action="toggle-group" aria-label="Toggle group">
-              <i class="feather ${chevron}"></i>
-            </button>
-            <i class="feather icon-map-pin"></i> <span>${name}</span>
-            <span class="ms-2 badge bg-primary-subtle text-primary">${count} workflow${count===1?'':'s'}</span>`;
-        }
-        // For normal rows, avoid repeating the location value (group header already shows it)
-        return '';
-      },
-      sortable: true,
-      comparator: (a: any, b: any, nodeA, nodeB) => {
-        // Ensure group rows sort by location and remain before their items if resorted
-        const da: any = nodeA?.data || {}; const db: any = nodeB?.data || {};
-        const la = (da.location_name || '').toString().toLowerCase();
-        const lb = (db.location_name || '').toString().toLowerCase();
-        if (da.__group === true && db.__group !== true) return la.localeCompare(lb) || -1;
-        if (db.__group === true && da.__group !== true) return la.localeCompare(lb) || 1;
-        return la.localeCompare(lb);
-      },
-      filter: false
+      headerComponentParams: { icon: 'icon-map-pin' }
     },
 
     {
@@ -130,8 +97,7 @@ export class WorkflowsGridComponent implements OnChanges {
       headerComponent: GridHeaderComponent,
       headerComponentParams: { icon: 'icon-briefcase' },
       cellRenderer: (p: any) => {
-        if (p?.data && p.data.__group === true) return '';
-        const value = (p.value ?? '').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
+         const value = (p.value ?? '').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
         return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
       }
     },
@@ -146,7 +112,6 @@ export class WorkflowsGridComponent implements OnChanges {
       cellClass: 'text-nowrap',
       filter: 'agDateColumnFilter',
       valueGetter: (p: any) => {
-        if (p?.data && p.data.__group === true) return null;
         const v = p.data?.created_at;
         if (!v) return null;
         const iso = typeof v === 'string' ? v.replace(' ', 'T') : v;
@@ -175,7 +140,7 @@ export class WorkflowsGridComponent implements OnChanges {
       headerComponent: GridHeaderComponent,
       headerComponentParams: { icon: 'icon-check-circle' },
       headerClass: 'ag-center-header',
-  valueGetter: (p) => (p?.data && p.data.__group === true) ? null : (Number(p.data?.is_active) === 1 ? 1 : 0),
+      valueGetter: (p) => Number(p.data?.is_active) === 1 ? 1 : 0,
       comparator: (a: any, b: any) => Number(a) - Number(b),
       filter: 'agSetColumnFilter',
       filterParams: {
@@ -196,7 +161,7 @@ export class WorkflowsGridComponent implements OnChanges {
       pinned: 'right',
       sortable:false,
       filter:false,
-      cellRenderer: (p: any) => (p?.data && p.data.__group === true) ? '' : this.actionButtons(p.data),
+      cellRenderer: (p: any) => this.actionButtons(p.data),
       cellClass:'dw-actions-cell'
     },
 
@@ -214,17 +179,15 @@ export class WorkflowsGridComponent implements OnChanges {
 
   gridApi?: GridApi;
   selectedCount = 0;
-  displayRowData: any[] = [];
-  rowClassRules = { 'dw-group-row': (p: any) => !!(p?.data && (p.data as any).__group === true) };
-  private expandedGroups = new Set<string>();
+  private gridInitialised = false;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['rowData']) {
-      this.rebuildAllExpanded();
-      this.displayRowData = this.buildGroupedRows(this.rowData || []);
       if (this.gridApi) {
-        this.gridApi.setGridOption('rowData', this.displayRowData);
-        this.gridApi.paginationGoToFirstPage();
+        this.gridApi.setGridOption('rowData', this.rowData || []);
+        if (this.gridInitialised) {
+          this.gridApi.paginationGoToFirstPage();
+        }
         this.updatePaginationState();
         this.clearSelection();
       }
@@ -235,7 +198,6 @@ export class WorkflowsGridComponent implements OnChanges {
 
   private actionButtons(rec: WorkflowRecord) {
     if (!rec) return '';
-    if ((rec as any).__group === true) return '';
     const disabled = Number((rec as any).is_active ?? 1) === 0;
     return `
       <div class="d-flex gap-1">
@@ -255,20 +217,8 @@ export class WorkflowsGridComponent implements OnChanges {
 
   onCellClicked(e: CellClickedEvent) {
     if (!e?.colDef || !e.event) return;
-    if (e?.data && (e.data as any).__group === true) {
-      const target = e.event.target as HTMLElement;
-      const btn = target?.closest('button[data-action="toggle-group"]') as HTMLButtonElement | null;
-      if (btn) {
-        const groupName = String((e.data as any)?.location_name || '');
-        if (this.expandedGroups.has(groupName)) this.expandedGroups.delete(groupName); else this.expandedGroups.add(groupName);
-        this.displayRowData = this.buildGroupedRows(this.rowData || []);
-        this.gridApi?.setGridOption('rowData', this.displayRowData);
-        this.updatePaginationState();
-      }
-      return; // ignore other clicks on group rows
-    }
 
-    // 1) Botones de Actions
+    // 1) Action buttons
     const target = e.event.target as HTMLElement;
     const btn = target?.closest('button[data-action]') as HTMLButtonElement | null;
     if (btn) {
@@ -279,7 +229,7 @@ export class WorkflowsGridComponent implements OnChanges {
       return;
     }
 
-    // 2) Click en el nombre → navegar
+    // 2) Click on workflow name → navigate
   if (e.colDef.field === 'workflow_name') {
       const id = (e.data as any)?.id_workflow;
       if (id != null) {
@@ -291,10 +241,8 @@ export class WorkflowsGridComponent implements OnChanges {
 
   onGridReady(e: GridReadyEvent) {
     this.gridApi = e.api;
-    // Initialize with grouped data
-    this.rebuildAllExpanded();
-    this.displayRowData = this.buildGroupedRows(this.rowData || []);
-    this.gridApi.setGridOption('rowData', this.displayRowData);
+    this.gridApi.setGridOption('rowData', this.rowData || []);
+    this.gridInitialised = true;
     this.updatePaginationState();
   }
   onFirstDataRendered() { this.gridApi?.sizeColumnsToFit(); this.updatePaginationState(); }
@@ -313,46 +261,5 @@ export class WorkflowsGridComponent implements OnChanges {
     this.rowRangeEnd = Math.min(this.rowRangeStart + pageSize, this.rowCount);
   }
 
-  /** Build a visually grouped dataset: insert a header row per location, followed by its workflows. */
-  private buildGroupedRows(data: WorkflowRecord[]): any[] {
-    if (!Array.isArray(data) || data.length === 0) return [];
-    // Sort by location then by workflow name
-    const sorted = [...data].sort((a: any, b: any) => {
-      const la = (a?.location_name || '').toString().toLowerCase();
-      const lb = (b?.location_name || '').toString().toLowerCase();
-      if (la !== lb) return la.localeCompare(lb);
-      const wa = (a?.workflow_name || '').toString().toLowerCase();
-      const wb = (b?.workflow_name || '').toString().toLowerCase();
-      return wa.localeCompare(wb);
-    });
-    const out: any[] = [];
-    let current: string | null = null;
-    let buffer: WorkflowRecord[] = [];
-    const flush = () => {
-      if (current === null) return;
-      const count = buffer.length;
-      out.push({ __group: true, location_name: current, __count: count });
-      if (this.expandedGroups.has(current)) {
-        out.push(...buffer);
-      }
-      buffer = [];
-    };
-    for (const rec of sorted) {
-      const loc = (rec as any)?.location_name ?? 'Unknown';
-      if (current === null || String(loc) !== String(current)) {
-        flush();
-        current = String(loc);
-      }
-      buffer.push(rec);
-    }
-    flush();
-    return out;
-  }
-
-  /** Expand all groups by default based on current data */
-  private rebuildAllExpanded(): void {
-    this.expandedGroups.clear();
-    const names = new Set<string>((this.rowData || []).map((r: any) => String(r?.location_name ?? 'Unknown')));
-    names.forEach(n => this.expandedGroups.add(n));
-  }
+  // Grouping helpers removed; grid now displays raw data.
 }

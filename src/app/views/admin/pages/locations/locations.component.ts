@@ -116,8 +116,18 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Called when an applicant has been moved; refresh stages (counts) and ensure current view updates */
   onApplicantStageMoved(evt: { idApplicant: string; toStageId: number }) {
     // Reload stages to refresh applicants_count badges
-    this.loadStagesForWorkflow();
+    this.loadStagesForWorkflow(true);
     // If grid exists, call its public refresh API to avoid re-creating the component
+    try {
+      if (this.applicantsGrid && typeof (this.applicantsGrid.refresh) === 'function') {
+        this.applicantsGrid.refresh();
+      }
+    } catch (e) { /* best effort */ }
+  }
+
+  onApplicantDeleted(_applicantId: string): void {
+    // Update stage counts and keep grid visible when an applicant is removed
+    this.loadStagesForWorkflow(true);
     try {
       if (this.applicantsGrid && typeof (this.applicantsGrid.refresh) === 'function') {
         this.applicantsGrid.refresh();
@@ -342,7 +352,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadStagesForWorkflow();
   }
 
-  private loadStagesForWorkflow(): void {
+  private loadStagesForWorkflow(keepGridVisible: boolean = false): void {
     this.stagesLoading = true;
     this.stagesRequested = false;
   // Abort only if null or undefined; allow 0 as a valid id
@@ -397,8 +407,12 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
           this.selectedStageDetails = null;
         }
 
-// Hide grid
-        this.showGrid = false;
+// Hide grid unless caller requested to keep current view
+        if (!keepGridVisible) {
+          this.showGrid = false;
+        } else if (this.selectedCardId) {
+          this.showGrid = true;
+        }
         this.stagesLoading = false;
       },
       error: err => {

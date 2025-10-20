@@ -400,11 +400,16 @@
 </div>
 
 <!-- Lightweight modal overlay for iframe menu items -->
-<div class="iframe-modal-backdrop" *ngIf="iframeModalVisible" (click)="closeIframeModal()">
-  <div class="iframe-modal" (click)="$event.stopPropagation()">
+<div class="iframe-modal-backdrop" *ngIf="iframeModalVisible" [class.fullscreen]="iframeModalFullscreen" (click)="closeIframeModal()">
+  <div class="iframe-modal" [class.fullscreen]="iframeModalFullscreen" (click)="$event.stopPropagation()">
     <div class="iframe-modal-header d-flex align-items-center justify-content-between">
       <h6 class="mb-0">{{ iframeModalTitle || 'Preview' }}</h6>
-      <button type="button" class="btn-close" aria-label="Close" (click)="closeIframeModal()"></button>
+      <div class="iframe-modal-actions d-flex align-items-center">
+        <button type="button" class="btn btn-link btn-sm text-secondary me-1" (click)="toggleIframeModalFullscreen($event)" [attr.aria-label]="iframeModalFullscreen ? 'Exit full screen' : 'Full screen'" [attr.aria-pressed]="iframeModalFullscreen">
+          <i class="feather" [attr.data-feather]="iframeModalFullscreen ? 'minimize-2' : 'maximize-2'" appFeatherIcon></i>
+        </button>
+        <button type="button" class="btn-close" aria-label="Close" (click)="closeIframeModal()"></button>
+      </div>
     </div>
     <div class="iframe-modal-body">
       <div class="iframe-wrapper" [innerHTML]="iframeModalHtml"></div>

@@ -519,8 +519,10 @@ export interface NavbarComponent {
   iframeModalVisible: boolean;
   iframeModalTitle: string | null;
   iframeModalHtml: SafeHtml | null;
+  iframeModalFullscreen: boolean;
   onSpecialMenu(item: SpecialMenuItemLike, ev?: Event): void;
   closeIframeModal(): void;
+  toggleIframeModalFullscreen(ev?: Event): void;
 }
 
 NavbarComponent.prototype.onSpecialMenu = function(this: NavbarComponent, item: SpecialMenuItemLike, ev?: Event) {
@@ -548,6 +550,7 @@ NavbarComponent.prototype.onSpecialMenu = function(this: NavbarComponent, item: 
   const html = buildIframeHtml(src);
   this.iframeModalTitle = item.label || 'Preview';
   this.iframeModalHtml = this['sanitizer']?.bypassSecurityTrustHtml(html) as SafeHtml;
+  this.iframeModalFullscreen = false;
   this.iframeModalVisible = true;
 };
 
@@ -555,14 +558,21 @@ NavbarComponent.prototype.closeIframeModal = function(this: NavbarComponent) {
   this.iframeModalVisible = false;
   this.iframeModalTitle = null;
   this.iframeModalHtml = null;
+  this.iframeModalFullscreen = false;
 };
 
 // Initialize fields on component instances
 Object.defineProperties(NavbarComponent.prototype, {
   iframeModalVisible: { value: false, writable: true, configurable: true },
   iframeModalTitle: { value: null, writable: true, configurable: true },
-  iframeModalHtml: { value: null, writable: true, configurable: true }
+  iframeModalHtml: { value: null, writable: true, configurable: true },
+  iframeModalFullscreen: { value: false, writable: true, configurable: true }
 });
+
+NavbarComponent.prototype.toggleIframeModalFullscreen = function(this: NavbarComponent, ev?: Event) {
+  try { ev?.preventDefault(); ev?.stopPropagation(); } catch { /* ignore */ }
+  this.iframeModalFullscreen = !this.iframeModalFullscreen;
+};
 
 function extractUrlFromCode(codeOrUrl: string): string | null {
   if (!codeOrUrl) return null;
@@ -581,6 +591,6 @@ function buildIframeHtml(codeOrUrl: string): string {
   }
   const url = extractUrlFromCode(codeOrUrl) || codeOrUrl;
   // Default size; container scrolls
-  return `<iframe src="${url}" width="100%" height="80vh" frameborder="0" allowfullscreen></iframe>`;
+  return `<iframe src="${url}" frameborder="0" allowfullscreen style="display:block;width:100%;height:100%;"></iframe>`;
 }
 

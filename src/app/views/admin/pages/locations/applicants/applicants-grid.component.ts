@@ -104,6 +104,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
 })
 export class ApplicantsGridComponent implements OnInit, OnChanges {
   @Output() stageMoved = new EventEmitter<{ idApplicant: string; toStageId: number }>();
+  @Output() applicantDeleted = new EventEmitter<string>();
   @Input() cardId!: number | null; // stage id
   @Input() applicantsCount: number | null | undefined = null; // total applicants (stage.applicants_count)
   @Input() locationName = '';
@@ -480,6 +481,7 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     this.recentApplicants = this.recentApplicants.filter((row) => row.id !== applicantId);
     this.rowData = this.rowData.filter((row) => row.id !== applicantId);
     this.loadApplicants();
+    try { this.applicantDeleted.emit(applicantId); } catch { /* best effort */ }
   }
 
   // Legacy mock helpers removed after integrating real API

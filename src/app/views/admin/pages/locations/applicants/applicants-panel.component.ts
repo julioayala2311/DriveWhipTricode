@@ -2114,8 +2114,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       this.chatLoadedForApplicantId === applicantId &&
       this.chatPage === page &&
       this._resolvedMessages.length
-    )
+    ) {
+      this.scrollMessagesToBottomSoon();
       return;
+    }
     this.chatLoading = true;
     this.chatError = null;
     this.chatPage = page;

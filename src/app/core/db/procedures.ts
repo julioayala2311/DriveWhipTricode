@@ -23,6 +23,7 @@ export enum DriveWhipAdminCommand {
     crm_locations_list = "crm_locations_list",
     crm_markets_list = "crm_markets_list",
     crm_locations_dropdown = "crm_locations_dropdown",
+    crm_stages_applicants_list = "crm_stages_applicants_list", // List of stages for workflow (p_id_workflow)
     crm_stages_list = "crm_stages_list", // List of stages for workflow (p_id_workflow)
     crm_applicants_notes_crud = "crm_applicants_notes_crud",
     crm_applicants_crud = "crm_applicants_crud",

@@ -13,6 +13,7 @@ import { DriveWhipAdminCommand } from "../../../../../core/db/procedures";
 import { Utilities } from "../../../../../Utilities/Utilities";
 import { AuthSessionService } from '../../../../../core/services/auth/auth-session.service';
 import { finalize, forkJoin, of, switchMap } from 'rxjs';
+import Swal from 'sweetalert2';
 
 /**
  * WorkflowEditorComponent
@@ -249,7 +250,58 @@ export class WorkflowEditorComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly workflowName = signal<string>("Loading…");
   readonly stages = signal<any[]>([]);
+  // id of the stage currently being deleted (shows spinner)
+  readonly deletingStageId = signal<number | null>(null);
   readonly selectedStageId = signal<number | null>(null);
+
+  /** Click handler for delete button inside a stage card. Shows confirmation and calls SP to logically delete the stage. */
+  onDeleteClick(event: Event, stageId: number | null): void {
+    // prevent the card click which selects the stage
+    event.stopPropagation();
+    if (!stageId) return;
+    void Swal.fire({
+      title: 'Confirm deletion',
+      text: 'Are you sure you want to delete this stage? This action will deactivate the stage.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel'
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      const currentUser = this.authSession.user?.user || 'system';
+      const params: any[] = [
+        'D', // action = delete (logical deactivate)
+        stageId,
+        this.workflowId,
+        null, // p_id_stage_type not required for delete
+        null, // p_name
+        null, // p_sort_order
+        null, // p_is_active
+        null, // p_created_by
+        currentUser, // p_updated_by
+        null // p_form_code
+      ];
+      const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
+      this.deletingStageId.set(stageId);
+      this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(() => this.deletingStageId.set(null))).subscribe({
+        next: res => {
+          if (!res || !res.ok) {
+            Utilities.showToast('Failed to delete stage','error');
+            return;
+          }
+          Utilities.showToast('Stage deleted','success');
+          // If the deleted stage was selected, clear selection
+          if (this.selectedStageId() === stageId) this.selectedStageId.set(null);
+          // Refresh stages list
+          this.loadStages();
+        },
+        error: err => {
+          console.error('[WorkflowEditor] delete stage error', err);
+          Utilities.showToast('Error deleting stage','error');
+        }
+      });
+    });
+  }
   readonly savingOrder = signal(false);
   readonly filterText = signal('');
   // Keep original order snapshot to detect changes
@@ -442,6 +494,7 @@ export class WorkflowEditorComponent implements OnInit {
       null,
       this.isAddingDataCollection() ? (this.newStageFormCode() ?? null) : null
     ];
+    console.log(createParams);
     const createApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: createParams };
 
     this.newStageSaving.set(true);

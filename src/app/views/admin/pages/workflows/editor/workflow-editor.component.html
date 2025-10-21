@@ -178,6 +178,21 @@
           cdkDrag
           [cdkDragDisabled]="false"
         >
+          <!-- Delete button shown on hover -->
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-danger stage-delete-btn"
+            title="Delete stage"
+            (click)="onDeleteClick($event, s.id_stage)"
+            [attr.aria-label]="'Delete stage ' + (s.name || '')"
+          >
+            <ng-container *ngIf="deletingStageId() !== s.id_stage; else deletingTpl">
+              <i class="feather icon-trash"></i>
+            </ng-container>
+            <ng-template #deletingTpl>
+              <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            </ng-template>
+          </button>
           <div class="d-flex align-items-start gap-2">
             <div class="move-icon text-secondary" title="Drag to reorder">
               <i class="feather icon-move"></i>

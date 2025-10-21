@@ -48,7 +48,7 @@ interface StageItem {
   styleUrl: './locations.component.scss'
 })
 export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
-  // Stages (carousel data) loaded from crm_stages_list
+  // Stages (carousel data) loaded from crm_stages_applicants_list
   stages: StageItem[] = [];
   selectedStageDetails: StageItem | null = null;
 
@@ -97,12 +97,6 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     if (fromSelected) return fromSelected;
     if (this.stages && this.stages.length > 0) return this.stages[0].id_workflow ?? null;
     return null;
-  }
-
-  /** Router link array to the workflow editor when an id exists, otherwise to the workflows list */
-  get workflowEditorLink(): any[] {
-    const id = this.toNumberStrict(this.selectedLocationId);
-    return id ? ['/workflows', 'edit', id] : ['/workflows'];
   }
 
   constructor(private driveWhipCore: DriveWhipCoreService, private crypto: CryptoService, private route: ActivatedRoute) {}
@@ -371,7 +365,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.stagesRequested = true;
     const api: IDriveWhipCoreAPI = {
-      commandName: DriveWhipAdminCommand.crm_stages_list,
+      commandName: DriveWhipAdminCommand.crm_stages_applicants_list,
       parameters: [ workflowId ]
     };
   

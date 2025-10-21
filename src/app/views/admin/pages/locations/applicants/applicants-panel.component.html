@@ -462,20 +462,12 @@
                 >
                   {{ answersError }}
                 </div>
-                <ul
-                  class="list-unstyled mb-2"
-                  *ngIf="!answersLoading && !answersError"
-                >
-                  <li
-                    *ngFor="
-                      let a of showAllAnswers
-                        ? answers
-                        : (answers | slice : 0 : 5)
-                    "
-                    class="mb-2"
-                  >
-                    <i class="feather icon-file-text me-2 text-primary"></i>
-                    <span>{{ a.answer_text }}</span>
+                <ul class="list-unstyled mb-2 simple-bullet-list" *ngIf="!answersLoading && !answersError">
+                  <li *ngFor="let a of showAllAnswers ? answers : (answers | slice : 0 : 5)" class="qa-item py-1">
+                    <div class="qa-question small text-body-secondary mb-1">{{ a.question || '' }}</div>
+                    <div class="qa-answer text-body" style="line-height: 1.15">
+                      <span class="text-truncate-2 d-inline-block" style="max-width: 100%">{{ a.answer_text || 'No answer' }}</span>
+                    </div>
                   </li>
                   <li
                     *ngIf="answers && answers.length === 0"
@@ -958,7 +950,7 @@
                       <button
                         type="button"
                         class="btn btn-outline-secondary"
-                        (click)="disapproveDocument(group.items[0])"
+                        (click)="openDisapproveSidebar(group.items[0])"
                         [disabled]="docsLoading"
                       >
                         <i class="feather icon-x me-1"></i>Disapprove
@@ -1414,6 +1406,104 @@
       </div>
     </aside>
 
+    <!-- Disapprove / Re-collect Sidebar -->
+    <div class="event-sidebar-backdrop" *ngIf="disapproveSidebarOpen" (click)="closeDisapproveSidebar()"></div>
+    <aside class="event-sidebar email-composer" *ngIf="disapproveSidebarOpen" (click)="$event.stopPropagation()" aria-label="Re-collect File">
+      <header class="event-sidebar-header">
+        <div class="d-flex align-items-center gap-2">
+          <div class="event-icon"><i class="feather icon-alert-circle"></i></div>
+          <div class="d-flex flex-column">
+            <div class="event-title">Re-collect File</div>
+            <div class="event-subtitle small text-secondary" *ngIf="disapproveDoc as d">{{ d.document_name }}</div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button
+            class="btn btn-light btn-xs"
+            type="button"
+            [class.active]="disapprovePreviewMode === 'mobile'"
+            (click)="setDisapprovePreviewMode('mobile')"
+            title="Mobile preview"
+          >
+            <i class="feather icon-smartphone"></i>
+          </button>
+          <button
+            class="btn btn-light btn-xs"
+            type="button"
+            [class.active]="disapprovePreviewMode === 'desktop'"
+            (click)="setDisapprovePreviewMode('desktop')"
+            title="Desktop preview"
+          >
+            <i class="feather icon-monitor"></i>
+          </button>
+          <button type="button" class="btn btn-link btn-sm text-secondary px-2" (click)="closeDisapproveSidebar()" aria-label="Close">
+            <i class="feather icon-x"></i>
+          </button>
+        </div>
+      </header>
+      <div class="event-sidebar-body">
+        <div class="row g-3 align-items-start">
+          <div class="col-12 col-lg-7">
+            <div class="mb-2">
+              <label class="form-label small">Re-Collect Reason</label>
+              <select class="form-select form-select-sm" [ngModel]="disapproveReason" (ngModelChange)="onDisapproveReasonChange($event)">
+                <option [ngValue]="''" disabled>Select</option>
+                <option *ngFor="let r of disapproveReasonOptions" [ngValue]="r">{{ r }}</option>
+                <option [ngValue]="'Custom'">Custom</option>
+              </select>
+            </div>
+            <div class="mb-2" *ngIf="disapproveReason === 'Custom'">
+              <label class="form-label small" for="customReason">Custom reason</label>
+              <input id="customReason" type="text" class="form-control form-control-sm" [(ngModel)]="disapproveCustomReason" placeholder="Enter reason" />
+            </div>
+            <div class="mb-2">
+              <label class="form-label small" for="recollectMessage">Message</label>
+              <textarea id="recollectMessage" rows="4" class="form-control form-control-sm" [(ngModel)]="disapproveMessage" placeholder="Add a message (optional)"></textarea>
+            </div>
+            <div class="form-check mt-2">
+              <input id="sendSmsToo" class="form-check-input" type="checkbox" [(ngModel)]="disapproveSendSms" />
+              <label class="form-check-label small" for="sendSmsToo">Send via SMS in addition to email (Recommended)</label>
+            </div>
+            <div class="form-check mt-2">
+              <input id="notifyOwner" class="form-check-input" type="checkbox" [(ngModel)]="disapproveNotifyOwner" />
+              <label class="form-check-label small" for="notifyOwner">Notify job owner when resubmission is complete</label>
+            </div>
+          </div>
+          <div class="col-12 col-lg-5">
+            <!-- Desktop preview (Mac) -->
+            <div *ngIf="disapprovePreviewMode === 'desktop'" class="device device-mac">
+              <div class="device-screen">
+                <div class="preview-email">
+                  <div class="small text-secondary">To: {{ disapproveTo }}</div>
+                  <div class="small">Subject: {{ disapproveSubject }}</div>
+                  <hr />
+                  <div class="small" style="white-space: pre-wrap">{{ disapprovePreviewText || '[Message]' }}</div>
+                </div>
+              </div>
+            </div>
+            <!-- Mobile preview (iPhone) -->
+            <div *ngIf="disapprovePreviewMode === 'mobile'" class="device device-iphone">
+              <div class="device-notch"></div>
+              <div class="device-screen">
+                <div class="preview-email" style="padding: 12px">
+                  <div class="small text-secondary">To: {{ disapproveTo }}</div>
+                  <div class="small">Subject: {{ disapproveSubject }}</div>
+                  <hr />
+                  <div class="small" style="white-space: pre-wrap">{{ disapprovePreviewText || '[Message]' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeDisapproveSidebar()">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" (click)="sendDisapprove()" [disabled]="disapproveSending || !disapproveReasonValid">
+            <span *ngIf="disapproveSending" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            Send
+          </button>
+        </div>
+      </div>
+    </aside>
     <!-- Email Composer Sidebar -->
     <div
       class="event-sidebar-backdrop"

@@ -97,9 +97,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   answersError: string | null = null;
   answers: Array<{
     id_question?: any;
+    id_question1?: any;
     answer_text?: string;
     answered_at?: any;
     created_at?: any;
+    question?: string;
   }> = [];
   showAllAnswers: boolean = false;
 
@@ -178,6 +180,23 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   smsMessage: string = '';
   smsDelay = false;
   smsSending = false;
+
+  // Disapprove / Re-collect sidebar state
+  disapproveSidebarOpen = false;
+  disapproveDoc: ApplicantDocument | null = null;
+  disapproveReasonOptions: string[] = [
+    'Image is blurry or too small',
+    'File is corrupt',
+    'Wrong document',
+    'Document is expired'
+  ];
+  disapproveReason: string = '';
+  disapproveCustomReason: string = '';
+  disapproveMessage: string = '';
+  disapproveSendSms: boolean = false;
+  disapproveNotifyOwner: boolean = false;
+  disapproveSending: boolean = false;
+  disapprovePreviewMode: 'desktop' | 'mobile' = 'desktop';
 
   // Open SMS composer using iPhone preview
   openSmsSidebar(): void {
@@ -1817,6 +1836,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           answer_text: r.answer_text ?? r.ANSWER_TEXT ?? "",
           answered_at: r.answered_at ?? r.ANSWERED_AT ?? null,
           created_at: r.created_at ?? r.CREATED_AT ?? null,
+          question: r.question ?? r.QUESTION ?? null,
         }));
       },
       error: (err) => {
@@ -2628,6 +2648,67 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   disapproveDocument(doc: ApplicantDocument): void {
     this.updateDocumentStatus(doc, "DISAPPROVED");
+  }
+
+  // Open the re-collect panel instead of immediately disapproving
+  openDisapproveSidebar(doc: ApplicantDocument): void {
+    this.disapproveDoc = doc;
+    this.disapproveSidebarOpen = true;
+    this.disapproveReason = '';
+    this.disapproveCustomReason = '';
+    this.disapproveMessage = '';
+    this.disapproveSendSms = false;
+    this.disapproveNotifyOwner = false;
+  }
+
+  closeDisapproveSidebar(): void {
+    this.disapproveSidebarOpen = false;
+  }
+
+  onDisapproveReasonChange(val: string): void {
+    this.disapproveReason = val;
+    if (val !== 'Custom') {
+      this.disapproveCustomReason = '';
+    }
+  }
+
+  get disapproveReasonValid(): boolean {
+    if (this.disapproveReason === 'Custom') return !!this.disapproveCustomReason.trim();
+    return !!this.disapproveReason;
+  }
+
+  get disapprovePreviewText(): string {
+    const reason = this.disapproveReason === 'Custom' ? this.disapproveCustomReason : this.disapproveReason;
+    const base = reason ? `Reason: ${reason}` : '';
+    const msg = this.disapproveMessage?.trim() ? `\n\n${this.disapproveMessage.trim()}` : '';
+    return `${base}${msg}`.trim();
+  }
+
+  get disapproveSubject(): string {
+    const reason = this.disapproveReason === 'Custom' ? this.disapproveCustomReason : this.disapproveReason;
+    const label = reason || 'Document';
+    return `[ACTION REQUIRED] Please Re-send: ${label}`;
+  }
+
+  get disapproveTo(): string {
+    return this.applicant?.email || 'applicant';
+  }
+
+  setDisapprovePreviewMode(mode: 'desktop' | 'mobile'): void {
+    this.disapprovePreviewMode = mode;
+  }
+
+  // Submit the re-collect request: update status and optionally send via SMS
+  sendDisapprove(): void {
+    if (!this.disapproveDoc || !this.disapproveReasonValid) return;
+    this.disapproveSending = true;
+    // Prefer RE-COLLECTING to reflect active recollection process
+    this.updateDocumentStatus(this.disapproveDoc, 'RE-COLLECTING');
+    // Simulate messaging flow (hook up backend when ready)
+    Utilities.showToast('Re-collect request sent', 'success');
+    // Optionally, we could trigger email/SMS here using existing composer services
+    this.disapproveSending = false;
+    this.closeDisapproveSidebar();
   }
 
   private updateDocumentStatus(doc: ApplicantDocument, status: string): void {

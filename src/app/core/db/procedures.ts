@@ -45,7 +45,9 @@ export enum DriveWhipAdminCommand {
     crm_applicant_chat_history = "crm_applicant_chat_history",
     crm_applicant_event_read = "crm_applicant_event_read",
     crm_applicant_event_options = "crm_applicant_event_options",
-    crm_applicant_event_detail = "crm_applicant_event_detail"
+    crm_applicant_event_detail = "crm_applicant_event_detail",
+    crm_applicants_recollect_options = "crm_applicants_recollect_options",
+    crm_applicants_recollect_menssage = "crm_applicants_recollect_menssage"
 }
 
 export enum DriveWhipAplicantsCommand {

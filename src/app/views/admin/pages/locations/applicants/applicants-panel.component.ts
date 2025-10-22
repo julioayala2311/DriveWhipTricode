@@ -13,7 +13,7 @@ import {
   inject,
 } from "@angular/core";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
-import { Subscription } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 import Swal from "sweetalert2";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
@@ -44,6 +44,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   messagesScroll?: ElementRef<HTMLDivElement>;
   @ViewChild("emailEditorRef", { static: false })
   emailEditorRef?: ElementRef<HTMLDivElement>;
+  @ViewChild("recollectEditorRef", { static: false })
+  recollectEditorRef?: ElementRef<HTMLDivElement>;
   private authSession = inject(AuthSessionService);
   private sanitizer = inject(DomSanitizer);
   @Input() applicant: any;
@@ -184,12 +186,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   // Disapprove / Re-collect sidebar state
   disapproveSidebarOpen = false;
   disapproveDoc: ApplicantDocument | null = null;
-  disapproveReasonOptions: string[] = [
-    'Image is blurry or too small',
-    'File is corrupt',
-    'Wrong document',
-    'Document is expired'
-  ];
+  disapproveReasonOptions: Array<{ code: string; description: string }> = [];
+  /** Map event code -> description */
+  private disapproveReasonMap: Record<string, string> = {};
+  disapproveOptionsLoading = false;
+  disapproveOptionsError: string | null = null;
   disapproveReason: string = '';
   disapproveCustomReason: string = '';
   disapproveMessage: string = '';
@@ -197,6 +198,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   disapproveNotifyOwner: boolean = false;
   disapproveSending: boolean = false;
   disapprovePreviewMode: 'desktop' | 'mobile' = 'desktop';
+  recollectSourceMode: boolean = false;
+  recollectContent: string = '';
 
   // Open SMS composer using iPhone preview
   openSmsSidebar(): void {
@@ -2657,8 +2660,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.disapproveReason = '';
     this.disapproveCustomReason = '';
     this.disapproveMessage = '';
+    this.recollectContent = '';
+    this.recollectSourceMode = false;
     this.disapproveSendSms = false;
     this.disapproveNotifyOwner = false;
+    this.ensureRecollectOptions();
   }
 
   closeDisapproveSidebar(): void {
@@ -2667,26 +2673,25 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   onDisapproveReasonChange(val: string): void {
     this.disapproveReason = val;
-    if (val !== 'Custom') {
+    if (val !== 'RECOLLECT_CUSTOM') {
       this.disapproveCustomReason = '';
     }
   }
 
   get disapproveReasonValid(): boolean {
-    if (this.disapproveReason === 'Custom') return !!this.disapproveCustomReason.trim();
-    return !!this.disapproveReason;
+    if (this.disapproveReason === 'RECOLLECT_CUSTOM') return !!this.disapproveCustomReason.trim();
+    return !!(this.disapproveReason || '').trim();
   }
 
   get disapprovePreviewText(): string {
-    const reason = this.disapproveReason === 'Custom' ? this.disapproveCustomReason : this.disapproveReason;
+    const reason = this.currentRecollectDescription();
     const base = reason ? `Reason: ${reason}` : '';
     const msg = this.disapproveMessage?.trim() ? `\n\n${this.disapproveMessage.trim()}` : '';
     return `${base}${msg}`.trim();
   }
 
   get disapproveSubject(): string {
-    const reason = this.disapproveReason === 'Custom' ? this.disapproveCustomReason : this.disapproveReason;
-    const label = reason || 'Document';
+    const label = this.currentRecollectDescription() || 'Document';
     return `[ACTION REQUIRED] Please Re-send: ${label}`;
   }
 
@@ -2698,17 +2703,231 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.disapprovePreviewMode = mode;
   }
 
-  // Submit the re-collect request: update status and optionally send via SMS
-  sendDisapprove(): void {
-    if (!this.disapproveDoc || !this.disapproveReasonValid) return;
+  // Re-collect editor controls (mirror of email composer)
+  recollectExec(cmd: string, value?: string): void {
+    try {
+      document.execCommand(cmd, false, value);
+      // sync content
+      this.captureRecollectContentFromEditor();
+    } catch {}
+  }
+
+  toggleRecollectSource(): void {
+    this.recollectSourceMode = !this.recollectSourceMode;
+    if (!this.recollectSourceMode) {
+      // switching back to WYSIWYG: push source into editor
+      this.syncRecollectEditorFromContent();
+    }
+  }
+
+  recollectInsertLink(): void {
+    const url = prompt('Enter URL');
+    if (!url) return;
+    this.recollectExec('createLink', url);
+  }
+
+  onRecollectEditorInput(_ev: Event): void {
+    this.captureRecollectContentFromEditor();
+  }
+
+  private captureRecollectContentFromEditor(): void {
+    const el = this.recollectEditorRef?.nativeElement;
+    if (!el) return;
+    this.recollectContent = el.innerHTML;
+    // keep a plain-text version for SMS counters and fallback
+    this.disapproveMessage = (el.innerText || '').toString().slice(0, 1000);
+  }
+
+  private syncRecollectEditorFromContent(): void {
+    const el = this.recollectEditorRef?.nativeElement;
+    if (!el) return;
+    el.innerHTML = this.recollectContent || '';
+  }
+
+  onRecollectSourceChange(val: string): void {
+    this.recollectContent = val || '';
+    // strip tags to build sms/plain text version
+    const text = (val || '').replace(/<[^>]+>/g, '');
+    this.disapproveMessage = text.slice(0, 1000);
+  }
+
+  get recollectCharCount(): number { return (this.disapproveMessage || '').length; }
+  get recollectSmsSegments(): number {
+    const len = this.recollectCharCount;
+    if (len === 0) return 0;
+    return Math.ceil(len / 160);
+  }
+
+  get recollectPreviewHtml(): SafeHtml {
+    const reason = this.currentRecollectDescription();
+    const reasonHtml = reason ? `<div><strong>Reason:</strong> ${this.escapeHtml(reason)}</div>` : '';
+    const bodyHtml = this.recollectContent ? this.recollectContent : `<div>${this.escapeHtml(this.disapproveMessage || '')}</div>`;
+    const html = `${reasonHtml}${bodyHtml}`;
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  // Submit the re-collect request: generate messages via SP and send Email (+ optional SMS)
+  async sendDisapprove(): Promise<void> {
+    if (!this.disapproveDoc || !this.disapproveReasonValid || this.disapproveSending) return;
+    const idApplicant = this.resolveApplicantId(this.applicant) || this.applicantId;
+    if (!idApplicant) {
+      Utilities.showToast('Applicant id not found', 'warning');
+      return;
+    }
+    const emailTo = (this.applicant?.email || this.applicant?.email_address || '').toString().trim();
+    const smsTo = (this.getApplicantPhone(this.applicant) || '').toString().trim();
+  const subject = this.disapproveSubject;
+  const eventCode = String(this.disapproveReason || '').trim();
+    const description = this.currentRecollectDescription();
+    const dataKey = (this.disapproveDoc.data_key || this.disapproveDoc.document_name || '').toString();
+
+    // Require at least Email or (if checked) SMS target
+    if (!emailTo && !this.disapproveSendSms) {
+      Utilities.showToast('Applicant email not found', 'warning');
+      return;
+    }
+    if (this.disapproveSendSms && !smsTo) {
+      Utilities.showToast('Applicant phone not found for SMS', 'warning');
+      return;
+    }
+
     this.disapproveSending = true;
-    // Prefer RE-COLLECTING to reflect active recollection process
-    this.updateDocumentStatus(this.disapproveDoc, 'RE-COLLECTING');
-    // Simulate messaging flow (hook up backend when ready)
-    Utilities.showToast('Re-collect request sent', 'success');
-    // Optionally, we could trigger email/SMS here using existing composer services
-    this.disapproveSending = false;
-    this.closeDisapproveSidebar();
+    try {
+      // 1) Email (default)
+      if (emailTo) {
+        const templateId = this.core.accountCreatedTemplateId || '';
+        if (!templateId) {
+          Utilities.showToast('Email template is not configured', 'warning');
+        } else {
+          const apiEmail: IDriveWhipCoreAPI = {
+            commandName: DriveWhipAdminCommand.crm_applicants_recollect_menssage as any,
+            parameters: [String(idApplicant), eventCode, description, dataKey, 'email'],
+          } as any;
+          let emailHtml = '';
+          try {
+            const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse<any>>(apiEmail));
+            if (res?.ok) {
+              let raw: any = res.data;
+              if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+              const row = Array.isArray(raw) && raw.length ? raw[0] : raw;
+              emailHtml = String(row?.message ?? row?.MESSAGE ?? '') || '';
+            }
+          } catch (e) {
+            // fall through to fallback
+          }
+          if (!emailHtml) emailHtml = this.buildRecollectEmailHtmlFallback();
+          try {
+            await firstValueFrom(this.core.sendTemplateEmail({ title: subject, message: emailHtml, templateId, to: [emailTo] }));
+          } catch (e) {
+            console.error('[ApplicantPanel] Re-collect email send error', e);
+            Utilities.showToast('Failed to send email', 'error');
+          }
+        }
+      }
+
+      // 2) SMS (optional)
+      if (this.disapproveSendSms && smsTo) {
+        const apiSms: IDriveWhipCoreAPI = {
+          commandName: DriveWhipAdminCommand.crm_applicants_recollect_menssage as any,
+          parameters: [String(idApplicant), eventCode, description, dataKey, 'sms'],
+        } as any;
+        let smsText = '';
+        try {
+          const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse<any>>(apiSms));
+          if (res?.ok) {
+            let raw: any = res.data;
+            if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+            const row = Array.isArray(raw) && raw.length ? raw[0] : raw;
+            smsText = String(row?.message ?? row?.MESSAGE ?? '') || '';
+          }
+        } catch (e) {
+          // fall through to fallback
+        }
+        if (!smsText) {
+          const reason = this.currentRecollectDescription();
+          const plain = (this.disapproveMessage || '').toString().trim();
+          smsText = reason ? `Reason: ${reason}${plain ? '\n\n' + plain : ''}` : plain;
+          smsText = smsText.slice(0, 1000);
+        }
+        const from = '8774142766';
+        try {
+          await firstValueFrom(this.core.sendChatSms({ from, to: smsTo, message: smsText, id_applicant: String(idApplicant) }));
+        } catch (e) {
+          console.error('[ApplicantPanel] Re-collect SMS send error', e);
+          Utilities.showToast('Failed to send SMS', 'error');
+        }
+      }
+
+      // 3) Update status and close
+      this.updateDocumentStatus(this.disapproveDoc, 'DISAPPROVED');
+      Utilities.showToast('Re-collect notification sent', 'success');
+      this.closeDisapproveSidebar();
+    } finally {
+      this.disapproveSending = false;
+    }
+  }
+
+  /** Ensure recollect reason options are loaded (from crm_applicants_recollect_options) */
+  private ensureRecollectOptions(): void {
+    if (this.disapproveReasonOptions.length > 0 || this.disapproveOptionsLoading) return;
+    this.loadRecollectOptions();
+  }
+
+  private loadRecollectOptions(): void {
+    this.disapproveOptionsLoading = true;
+    this.disapproveOptionsError = null;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_applicants_recollect_options as any,
+      parameters: [],
+    } as any;
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        let raw: any = res?.data;
+        if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+        const rows = Array.isArray(raw) ? raw : [];
+        const items: Array<{ code: string; description: string }> = [];
+        const map: Record<string, string> = {};
+        for (const r of rows) {
+          // SP returns: option (event code), description (label)
+          const code = String(r.option ?? r.OPTION ?? r.event ?? r.EVENT ?? r.code ?? r.CODE ?? '').trim();
+          const description = String(r.description ?? r.DESCRIPTION ?? code).trim();
+          if (!code || !description) continue;
+          if (!map[code]) {
+            map[code] = description;
+            items.push({ code, description });
+          }
+        }
+        this.disapproveReasonMap = map;
+        this.disapproveReasonOptions = items;
+      },
+      error: (err) => {
+        console.error('[ApplicantPanel] loadRecollectOptions error', err);
+        this.disapproveOptionsError = 'Failed to load re-collect reasons';
+      },
+      complete: () => {
+        this.disapproveOptionsLoading = false;
+      },
+    });
+  }
+
+  /** Resolve selected reason description (map code->description or custom text) */
+  private currentRecollectDescription(): string {
+    if ((this.disapproveReason || '') === 'RECOLLECT_CUSTOM') return (this.disapproveCustomReason || '').trim();
+    const code = (this.disapproveReason || '').trim();
+    return this.disapproveReasonMap[code] || code;
+  }
+
+  /** Build a simple HTML body as fallback if SP returns no email body */
+  private buildRecollectEmailHtmlFallback(): string {
+    const reason = this.currentRecollectDescription();
+    const reasonHtml = reason ? `<div><strong>Reason:</strong> ${this.escapeHtml(reason)}</div>` : '';
+    const bodyHtml = this.recollectContent ? this.recollectContent : `<div>${this.escapeHtml(this.disapproveMessage || '')}</div>`;
+    return `${reasonHtml}${bodyHtml}`;
+  }
+
+  /** Helper: whether current selection is custom reason */
+  isCustomRecollect(): boolean {
+    return (this.disapproveReason || '') === 'RECOLLECT_CUSTOM';
   }
 
   private updateDocumentStatus(doc: ApplicantDocument, status: string): void {

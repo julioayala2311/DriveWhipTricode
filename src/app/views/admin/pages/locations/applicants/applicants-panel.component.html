@@ -1392,9 +1392,13 @@
           >
             Details
           </div>
-          <pre class="content-pre" *ngIf="eventDetailText as detail; else noDetailBlock" [hidden]="(selectedHistoryEvent?.type || '').toLowerCase() === 'sms'">{{
-            detail
-          }}</pre>
+          <div
+            class="content-pre"
+            *ngIf="eventDetailText as detail; else noDetailBlock"
+            [hidden]="(selectedHistoryEvent?.type || '').toLowerCase() === 'sms'"
+            [innerHTML]="detail"
+            style="white-space: pre-wrap"
+          ></div>
           <ng-template #noDetailBlock></ng-template>
           <div
             class="text-secondary small"
@@ -1448,17 +1452,82 @@
               <label class="form-label small">Re-Collect Reason</label>
               <select class="form-select form-select-sm" [ngModel]="disapproveReason" (ngModelChange)="onDisapproveReasonChange($event)">
                 <option [ngValue]="''" disabled>Select</option>
-                <option *ngFor="let r of disapproveReasonOptions" [ngValue]="r">{{ r }}</option>
-                <option [ngValue]="'Custom'">Custom</option>
+                <option *ngFor="let r of disapproveReasonOptions" [ngValue]="r.code">{{ r.description }}</option>
               </select>
             </div>
-            <div class="mb-2" *ngIf="disapproveReason === 'Custom'">
+            <div class="mb-2" *ngIf="isCustomRecollect()">
               <label class="form-label small" for="customReason">Custom reason</label>
               <input id="customReason" type="text" class="form-control form-control-sm" [(ngModel)]="disapproveCustomReason" placeholder="Enter reason" />
             </div>
             <div class="mb-2">
-              <label class="form-label small" for="recollectMessage">Message</label>
-              <textarea id="recollectMessage" rows="4" class="form-control form-control-sm" [(ngModel)]="disapproveMessage" placeholder="Add a message (optional)"></textarea>
+              <label class="form-label small">Message</label>
+              <div class="d-flex align-items-center gap-1 mb-1 flex-wrap">
+                <select
+                  class="form-select form-select-sm"
+                  style="width: auto"
+                  (change)="recollectExec('formatBlock', $any($event.target).value)"
+                >
+                  <option value="P" selected>Normal</option>
+                  <option value="H1">Heading 1</option>
+                  <option value="H2">Heading 2</option>
+                  <option value="H3">Heading 3</option>
+                </select>
+                <span class="mx-1"></span>
+                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('bold')" title="Bold">
+                  <i class="feather icon-bold"></i>
+                </button>
+                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('italic')" title="Italic">
+                  <i class="feather icon-italic"></i>
+                </button>
+                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('underline')" title="Underline">
+                  <i class="feather icon-underline"></i>
+                </button>
+                <span class="mx-1"></span>
+                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('insertUnorderedList')" title="Bulleted list">
+                  <i class="feather icon-list"></i>
+                </button>
+                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('insertOrderedList')" title="Numbered list">
+                  <i class="feather icon-list"></i>
+                </button>
+                <span class="mx-1"></span>
+                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('justifyLeft')" title="Align left">
+                  <i class="feather icon-align-left"></i>
+                </button>
+                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('justifyCenter')" title="Align center">
+                  <i class="feather icon-align-center"></i>
+                </button>
+                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('justifyRight')" title="Align right">
+                  <i class="feather icon-align-right"></i>
+                </button>
+                <span class="mx-1"></span>
+                <button class="btn btn-light btn-xs" type="button" (click)="recollectInsertLink()" title="Insert link">
+                  <i class="feather icon-link-2"></i>
+                </button>
+                <button class="btn btn-light btn-xs" type="button" (click)="toggleRecollectSource()" title="Source">
+                  <i class="feather icon-code"></i>
+                </button>
+              </div>
+              <ng-container *ngIf="!recollectSourceMode; else recollectSource">
+                <div
+                  #recollectEditorRef
+                  class="form-control"
+                  style="min-height: 160px"
+                  contenteditable="true"
+                  (input)="onRecollectEditorInput($event)"
+                ></div>
+              </ng-container>
+              <ng-template #recollectSource>
+                <textarea
+                  class="form-control"
+                  style="min-height: 160px"
+                  [ngModel]="recollectContent"
+                  (ngModelChange)="onRecollectSourceChange($event)"
+                ></textarea>
+              </ng-template>
+              <div class="d-flex justify-content-between small mt-1 text-secondary" *ngIf="disapproveSendSms">
+                <span>{{ recollectCharCount }}/1000 Characters</span>
+                <span>Segments: {{ recollectSmsSegments }}</span>
+              </div>
             </div>
             <div class="form-check mt-2">
               <input id="sendSmsToo" class="form-check-input" type="checkbox" [(ngModel)]="disapproveSendSms" />
@@ -1477,7 +1546,7 @@
                   <div class="small text-secondary">To: {{ disapproveTo }}</div>
                   <div class="small">Subject: {{ disapproveSubject }}</div>
                   <hr />
-                  <div class="small" style="white-space: pre-wrap">{{ disapprovePreviewText || '[Message]' }}</div>
+                  <div [innerHTML]="recollectPreviewHtml"></div>
                 </div>
               </div>
             </div>
@@ -1489,7 +1558,7 @@
                   <div class="small text-secondary">To: {{ disapproveTo }}</div>
                   <div class="small">Subject: {{ disapproveSubject }}</div>
                   <hr />
-                  <div class="small" style="white-space: pre-wrap">{{ disapprovePreviewText || '[Message]' }}</div>
+                  <div class="small" [innerHTML]="recollectPreviewHtml"></div>
                 </div>
               </div>
             </div>

@@ -26,6 +26,64 @@ import { DriveWhipAdminCommand } from "../../../../../core/db/procedures";
 import { Utilities } from "../../../../../Utilities/Utilities";
 import { AuthSessionService } from "../../../../../core/services/auth/auth-session.service";
 
+interface EmploymentAddress {
+  city?: string | null;
+  line1?: string | null;
+  line2?: string | null;
+  state?: string | null;
+  country?: string | null;
+  postal_code?: string | null;
+}
+
+interface EmploymentBasePay {
+  amount?: number | string | null;
+  period?: string | null;
+  currency?: string | null;
+}
+
+interface EmploymentPlatformIds {
+  employee_id?: string | null;
+  position_id?: string | null;
+  platform_user_id?: string | null;
+}
+
+interface EmploymentMetadata {
+  driverStatus?: string | null;
+  raw_employment_type?: string | null;
+  [key: string]: any;
+}
+
+interface EmploymentProfile {
+  id?: string;
+  account?: string;
+  address?: EmploymentAddress | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  full_name?: string | null;
+  birth_date?: string | null;
+  email?: string | null;
+  phone_number?: string | null;
+  picture_url?: string | null;
+  employment_status?: string | null;
+  employment_type?: string | null;
+  job_title?: string | null;
+  ssn?: string | null;
+  marital_status?: string | null;
+  gender?: string | null;
+  hire_date?: string | null;
+  original_hire_date?: string | null;
+  termination_date?: string | null;
+  termination_reason?: string | null;
+  employer?: string | null;
+  base_pay?: EmploymentBasePay | null;
+  pay_cycle?: string | null;
+  platform_ids?: EmploymentPlatformIds | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  metadata?: EmploymentMetadata | null;
+  employment?: string | null;
+}
+
 @Component({
   selector: "app-applicant-panel",
   standalone: true,
@@ -163,6 +221,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private _eventDocLoadSeq = 0;
   private _activeEventDocToken = 0;
   private _eventDocSub: Subscription | null = null;
+  private _fallbackHistorySource: any[] | null = null;
+  private _normalizedFallbackHistory: any[] = [];
 
   // Email composer sidebar state
   emailSidebarOpen = false;
@@ -200,6 +260,59 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   disapprovePreviewMode: 'desktop' | 'mobile' = 'desktop';
   recollectSourceMode: boolean = false;
   recollectContent: string = '';
+  recollectTemplateLoading = false;
+  recollectTemplateError: string | null = null;
+  private _recollectTemplateToken = 0;
+
+  employmentProfileSnapshot: EmploymentProfile | null = {
+    id: "61192fe2-c13d-3e6b-b28e-1155147845a2",
+    account: "019a0b0b-62a0-25bd-5102-11b4d292a7e8",
+    address: {
+      city: null,
+      line1: null,
+      line2: null,
+      state: null,
+      country: "SV",
+      postal_code: null,
+    },
+    first_name: "Juan",
+    last_name: "Zamora",
+    full_name: "Juan Zamora",
+    birth_date: null,
+    email: "zamora125@hotmail.com",
+    phone_number: "+50377461468",
+    picture_url:
+      "https://api.argyle.com/v2/payroll-documents/019a0b0e-9a2c-eca8-a5b6-a2d9c921e31c/file",
+    employment_status: null,
+    employment_type: "contractor",
+    job_title: "Driver",
+    ssn: null,
+    marital_status: null,
+    gender: null,
+    hire_date: "2020-04-04",
+    original_hire_date: "2020-04-04",
+    termination_date: null,
+    termination_reason: null,
+    employer: "uber",
+    base_pay: {
+      amount: null,
+      period: null,
+      currency: null,
+    },
+    pay_cycle: null,
+    platform_ids: {
+      employee_id: null,
+      position_id: null,
+      platform_user_id: null,
+    },
+    created_at: "2025-10-22T08:34:57.708Z",
+    updated_at: "2025-10-22T08:34:57.708Z",
+    metadata: {
+      driverStatus: "scanner_common.data.MissingT",
+      raw_employment_type: "Contractor",
+    },
+    employment: "8675e413-ef4f-3ea0-8f4f-008128c81d47",
+  };
 
   // Open SMS composer using iPhone preview
   openSmsSidebar(): void {
@@ -218,6 +331,29 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   closeSmsSidebar(): void {
     this.smsSidebarOpen = false;
+  }
+
+  viewEmploymentSummary(): void {
+    if (!this.employmentProfileSnapshot) {
+      Swal.fire({
+        icon: "info",
+        title: "Employment profile",
+        text: "Employment details are not available for this applicant.",
+        confirmButtonText: "Close",
+      });
+      return;
+    }
+
+    const html = this.buildEmploymentDetailsMarkup(this.employmentProfileSnapshot);
+    Swal.fire({
+      title: "Employment profile",
+      html,
+      width: 680,
+      customClass: { popup: "employment-profile-popup" },
+      showCloseButton: true,
+      focusConfirm: false,
+      confirmButtonText: "Close",
+    });
   }
 
   onSmsInput(val: string): void {
@@ -715,12 +851,12 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         this.loadApplicantDocuments(id);
       }
     }
-    // Load chat when switching into Messages tab
+    // Load chat when switching into Messages tab (force refresh on return)
     if (changes["activeTab"] && this.activeTab === "messages") {
       const idFromApplicant = this.resolveApplicantId(this.applicant);
       const id = (this.applicantId || idFromApplicant || null) as string | null;
       if (id) {
-        this.loadChatHistory(id, 1);
+        this.loadChatHistory(id, 1, true);
       }
     }
     // Load history when switching into History tab
@@ -731,10 +867,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         this.ensureEventOptions();
         this.loadApplicantEvents(id, this.selectedEventPrefix, true);
       }
+    }
     // Close event sidebar when leaving History tab
     if (changes["activeTab"] && this.activeTab !== "history" && this.eventSidebarOpen) {
       this.closeEventSidebar();
-    }
     }
   }
 
@@ -1200,11 +1336,20 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (Array.isArray(this.historyEvents) && this.historyEvents.length)
       return this.historyEvents as any;
     // Fall back to explicit input (if provided)
-    if (Array.isArray(this.history) && this.history.length)
-      return this.history as any;
-    if (Array.isArray(this.applicant?.history) && this.applicant.history.length)
-      return this.applicant.history;
-    return [];
+    let source: any[] | null = null;
+    if (Array.isArray(this.history) && this.history.length) {
+      source = this.history as any[];
+    } else if (
+      Array.isArray(this.applicant?.history) &&
+      this.applicant.history.length
+    ) {
+      source = this.applicant.history as any[];
+    }
+    if (source !== this._fallbackHistorySource) {
+      this._fallbackHistorySource = source;
+      this._normalizedFallbackHistory = this.normalizeFallbackHistory(source);
+    }
+    return this._normalizedFallbackHistory;
   }
 
   // Filtering / searching state for the timeline
@@ -1262,6 +1407,16 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   /** Open the inline sidebar with event details; optionally fetch extra detail when available */
   openEventSidebar(ev: any): void {
     if (!ev) return;
+    const type = (ev.type || ev.event_type || '').toString().toLowerCase();
+    const eventTable = (ev.event_table || '').toString().toLowerCase();
+    const idTableStr = (ev.id_event_table ?? ev.idEventTable ?? "0").toString();
+    const isDocument = type === 'document' || eventTable.startsWith('documents');
+    const docIdNum = parseInt(idTableStr, 10);
+    const hasDocId = !Number.isNaN(docIdNum) && docIdNum > 0;
+    // Only allow opening when backend signals detail OR when it's a document with a valid id
+    const canOpen = (ev.with_detail === true) || (isDocument && hasDocId);
+    if (!canOpen) return;
+
     this.selectedHistoryEvent = ev;
     this.eventSidebarOpen = true;
     this.eventDetailError = null;
@@ -1274,22 +1429,16 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       ev.body ?? ev.text ?? ev.notes ?? ev.document_name ?? ""
     );
     // If it's a document event, try to load the file preview early (by id_event_table)
-    const type = (ev.type || ev.event_type || '').toString().toLowerCase();
-    const idTableStr = (ev.id_event_table ?? ev.idEventTable ?? "0").toString();
-    if (type === 'document' || (ev.event_table || '').toString().toLowerCase().startsWith('documents')) {
-      const docId = parseInt(idTableStr, 10);
-      if (!Number.isNaN(docId) && docId > 0) {
-        const idFromApplicant = this.resolveApplicantId(this.applicant);
-        const idApplicant = (this.applicantId || idFromApplicant || null) as string | null;
-        if (idApplicant) {
-          const token = this.beginEventDocLoad();
-          this.loadEventDocumentPreviewById(idApplicant, docId, token);
-        }
+    if (isDocument && hasDocId) {
+      const idFromApplicant = this.resolveApplicantId(this.applicant);
+      const idApplicant = (this.applicantId || idFromApplicant || null) as string | null;
+      if (idApplicant) {
+        const token = this.beginEventDocLoad();
+        this.loadEventDocumentPreviewById(idApplicant, docIdNum, token);
       }
     }
-    // Fetch extra detail if the event supports it
-    const idTable = idTableStr;
-    const shouldFetch = ev.with_detail === true || idTable !== "0";
+    // Fetch extra detail only when explicitly allowed by backend
+    const shouldFetch = ev.with_detail === true;
     if (!shouldFetch) return;
     const idFromApplicant = this.resolveApplicantId(this.applicant);
     const idApplicant = (this.applicantId || idFromApplicant || null) as
@@ -2009,6 +2158,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const user = String(r.event_user ?? r.user ?? r.actorName ?? '') || '';
     const role = user.toLowerCase().includes('system') ? 'System' : undefined;
     const channel = type === 'sms' ? 'SMS' : type === 'email' ? 'Email' : undefined;
+    // Backend may send a variety of shapes for the detail flag; coerce safely
+    const rawWithDetail = (r.with_detail ?? r.with_details ?? (r as any).width_details ?? r.withDetail ?? r.withDetails) as any;
+    const withDetail = this.coerceWithDetailFlag(rawWithDetail);
+
     return {
       id,
       id_event: String(r.id_event ?? id),
@@ -2020,7 +2173,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       channel,
       event_table: eventTable,
       id_event_table: idEventTable,
-      with_detail: (r.with_detail === true) || idEventTable !== '0',
+      // Trust backend for detail availability; do NOT infer from id_event_table
+      with_detail: withDetail,
     };
   }
 
@@ -2049,6 +2203,395 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (et.startsWith('notes')) return 'Note';
     if (et.startsWith('stages-history')) return 'Stage changed';
     return 'Event';
+  }
+
+  private normalizeFallbackHistory(source: any[] | null | undefined): any[] {
+    if (!Array.isArray(source) || !source.length) return [];
+    return source.map((ev) => this.normalizeLooseEvent(ev));
+  }
+
+  private normalizeLooseEvent(ev: any): any {
+    if (!ev || typeof ev !== 'object') return ev;
+    const raw =
+      ev.with_detail ??
+      ev.with_details ??
+      (ev as any).width_details ??
+      ev.withDetail ??
+      ev.withDetails;
+    const withDetail = this.coerceWithDetailFlag(raw);
+    if (withDetail === ev.with_detail) return ev;
+    return {
+      ...ev,
+      with_detail: withDetail,
+      withDetail,
+      withDetails: withDetail,
+    };
+  }
+
+  private coerceWithDetailFlag(raw: any): boolean {
+    if (typeof raw === 'boolean') return raw;
+    if (typeof raw === 'number') return raw === 1;
+    if (typeof raw === 'string') {
+      const s = raw.trim().toLowerCase();
+      return s === 'true' || s === '1' || s === 'yes' || s === 'y' || s === 't' || s === 'si';
+    }
+    return false;
+  }
+
+  private buildEmploymentDetailsMarkup(profile: EmploymentProfile): string {
+    const sections: string[] = [];
+    // Track top-level keys we actually rendered to avoid duplicating in the dynamic section
+    const usedKeys = new Set<string>();
+
+    // Header card with avatar and key tags
+    sections.push(this.renderProfileHeader(profile));
+
+    // Section rows
+    const overviewRows: string[] = [];
+    const r_job = this.renderProfileRow('Job title', profile.job_title); if (r_job) { overviewRows.push(r_job); usedKeys.add('job_title'); }
+    const r_emp = this.renderProfileRow('Employer', this.prettifyToken(profile.employer)); if (r_emp) { overviewRows.push(r_emp); usedKeys.add('employer'); }
+    const r_type = this.renderProfileRow('Employment type', this.prettifyToken(profile.employment_type)); if (r_type) { overviewRows.push(r_type); usedKeys.add('employment_type'); }
+    const r_status = this.renderProfileRow('Employment status', this.prettifyToken(profile.employment_status)); if (r_status) { overviewRows.push(r_status); usedKeys.add('employment_status'); }
+
+    const personalRows: string[] = [];
+    const r_birth = this.renderProfileRow('Birth date', this.formatDateValue(profile.birth_date)); if (r_birth) { personalRows.push(r_birth); usedKeys.add('birth_date'); }
+    const r_gender = this.renderProfileRow('Gender', this.prettifyToken(profile.gender)); if (r_gender) { personalRows.push(r_gender); usedKeys.add('gender'); }
+    const r_marital = this.renderProfileRow('Marital status', this.prettifyToken(profile.marital_status)); if (r_marital) { personalRows.push(r_marital); usedKeys.add('marital_status'); }
+    const r_ssn = this.renderProfileRow('SSN', profile.ssn ? this.maskSensitiveValue(profile.ssn) : null); if (r_ssn) { personalRows.push(r_ssn); usedKeys.add('ssn'); }
+
+    const contactRows: string[] = [];
+    const r_email = this.renderProfileRow('Email', this.buildEmailLink(profile.email), { allowHtml: true }); if (r_email) { contactRows.push(r_email); usedKeys.add('email'); }
+    const r_phone = this.renderProfileRow('Phone', this.buildPhoneLink(profile.phone_number), { allowHtml: true }); if (r_phone) { contactRows.push(r_phone); usedKeys.add('phone_number'); }
+    const r_photo = this.renderProfileRow('Photo', this.buildExternalLink(profile.picture_url, 'View photo'), { allowHtml: true }); if (r_photo) { contactRows.push(r_photo); usedKeys.add('picture_url'); }
+
+    const addressRows: string[] = [];
+    const r_addr = this.renderProfileRow('Address', this.formatAddress(profile.address)); if (r_addr) { addressRows.push(r_addr); usedKeys.add('address'); }
+
+    const employmentRows: string[] = [];
+    const r_hire = this.renderProfileRow('Hire date', this.formatDateValue(profile.hire_date)); if (r_hire) { employmentRows.push(r_hire); usedKeys.add('hire_date'); }
+    const r_ohire = this.renderProfileRow('Original hire date', this.formatDateValue(profile.original_hire_date)); if (r_ohire) { employmentRows.push(r_ohire); usedKeys.add('original_hire_date'); }
+    const r_term = this.renderProfileRow('Termination date', this.formatDateValue(profile.termination_date)); if (r_term) { employmentRows.push(r_term); usedKeys.add('termination_date'); }
+    const r_treason = this.renderProfileRow('Termination reason', this.prettifyToken(profile.termination_reason)); if (r_treason) { employmentRows.push(r_treason); usedKeys.add('termination_reason'); }
+    const r_cycle = this.renderProfileRow('Pay cycle', this.prettifyToken(profile.pay_cycle)); if (r_cycle) { employmentRows.push(r_cycle); usedKeys.add('pay_cycle'); }
+
+    const compensationRows: string[] = [];
+    const r_pay = this.renderProfileRow('Base pay', this.formatBasePay(profile.base_pay)); if (r_pay) { compensationRows.push(r_pay); usedKeys.add('base_pay'); }
+
+    const platformRows: string[] = [];
+    const r_eid = this.renderProfileRow('Employee ID', profile.platform_ids?.employee_id); if (r_eid) { platformRows.push(r_eid); usedKeys.add('platform_ids'); }
+    const r_pid = this.renderProfileRow('Position ID', profile.platform_ids?.position_id); if (r_pid) { platformRows.push(r_pid); usedKeys.add('platform_ids'); }
+    const r_puid = this.renderProfileRow('Platform user ID', profile.platform_ids?.platform_user_id); if (r_puid) { platformRows.push(r_puid); usedKeys.add('platform_ids'); }
+
+    const metadataRows: string[] = [];
+    if (profile.metadata && typeof profile.metadata === 'object') {
+      for (const [key, value] of Object.entries(profile.metadata)) {
+        if (value == null || value === '') continue;
+        const label = this.prettifyToken(key) || key;
+        const formatted = typeof value === 'string'
+          ? (this.prettifyToken(value) || value)
+          : String(value);
+        const row = this.renderProfileRow(label, formatted);
+        if (row) metadataRows.push(row);
+      }
+      usedKeys.add('metadata');
+    }
+
+    const recordRows: string[] = [
+      this.renderProfileRow('Profile ID', profile.id),
+      this.renderProfileRow('Account ID', profile.account),
+      this.renderProfileRow('Employment record ID', profile.employment),
+      this.renderProfileRow('Created at', this.formatDateTime(profile.created_at)),
+      this.renderProfileRow('Updated at', this.formatDateTime(profile.updated_at)),
+    ].filter(Boolean) as string[];
+    if (recordRows.length) { usedKeys.add('id'); usedKeys.add('account'); usedKeys.add('employment'); usedKeys.add('created_at'); usedKeys.add('updated_at'); }
+
+    // Additional fields: dynamically render any unknown properties that may arrive in the JSON
+    const additionalRows = this.collectAdditionalRows(profile, usedKeys);
+
+    // Build accordion sections with details/summary (no JS needed)
+    const acc: string[] = [];
+    if (overviewRows.length) acc.push(this.renderAccordionSection('Overview', overviewRows, true));
+    if (personalRows.length) acc.push(this.renderAccordionSection('Personal details', personalRows));
+    if (contactRows.length) acc.push(this.renderAccordionSection('Contact', contactRows));
+    if (addressRows.length) acc.push(this.renderAccordionSection('Location', addressRows));
+    if (employmentRows.length) acc.push(this.renderAccordionSection('Employment timeline', employmentRows));
+    if (compensationRows.length) acc.push(this.renderAccordionSection('Compensation', compensationRows));
+    if (platformRows.length) acc.push(this.renderAccordionSection('Platform identifiers', platformRows));
+    if (metadataRows.length) acc.push(this.renderAccordionSection('Metadata', metadataRows));
+  if (recordRows.length) acc.push(this.renderAccordionSection('Record details', recordRows));
+  if (additionalRows.length) acc.push(this.renderAccordionSection('Additional fields', additionalRows));
+
+    sections.push(`<div class=\"accordion-stack\">${acc.join('')}</div>`);
+    return `<div class=\"employment-profile\">${sections.join('')}</div>`;
+  }
+
+  private renderAccordionSection(title: string, rows: string[], open: boolean = false): string {
+    const openAttr = open ? ' open' : '';
+    return `
+<details class=\"acc\"${openAttr}>
+  <summary>
+    <span class=\"acc-title\">${this.escapeHtml(title)}</span>
+    <span class=\"acc-caret\"></span>
+  </summary>
+  <div class=\"acc-body\">${rows.join('')}</div>
+</details>`;
+  }
+
+  private renderProfileHeader(profile: EmploymentProfile): string {
+    const fullName = this.resolveFullName(profile) || 'Unknown';
+    const employer = this.prettifyToken(profile.employer) || '—';
+    const job = profile.job_title || '—';
+    const type = this.prettifyToken(profile.employment_type) || '';
+    const status = this.prettifyToken(profile.employment_status) || '';
+    const img = profile.picture_url ? `<img class=\"ep-avatar\" src=\"${this.escapeAttribute(profile.picture_url)}\" alt=\"${this.escapeAttribute(fullName)}\"/>` : `<div class=\"ep-avatar ep-initials\">${this.escapeHtml((fullName || '?').slice(0,1))}</div>`;
+    const tags: string[] = [];
+    if (type) tags.push(`<span class=\"tag\">${this.escapeHtml(type)}</span>`);
+    if (status) tags.push(`<span class=\"tag muted\">${this.escapeHtml(status)}</span>`);
+    return `
+<div class=\"ep-header\">
+  ${img}
+  <div class=\"ep-main\">
+    <div class=\"ep-name\">${this.escapeHtml(fullName)}</div>
+    <div class=\"ep-sub\">${this.escapeHtml(job)} <span class=\"sep\">•</span> ${this.escapeHtml(employer)}</div>
+    <div class=\"ep-tags\">${tags.join('')}</div>
+  </div>
+</div>`;
+  }
+
+  private renderProfileSection(title: string, rows: string[]): string {
+    if (!rows.length) return '';
+    return `<section class="profile-section"><h4 class="section-title">${this.escapeHtml(title)}</h4>${rows.join('')}</section>`;
+  }
+
+  /**
+   * Collect dynamic rows for unknown fields so the popup adapts to missing/new properties without code changes.
+   * - Skips all known fields that are already rendered in dedicated sections
+   * - Flattens simple nested objects into label paths like "Parent › Child"
+   * - Arrays of primitives are joined with comma; arrays of objects are summarized by item count
+   */
+  private collectAdditionalRows(profile: any, excludeKeys?: Set<string>): string[] {
+    const rows: string[] = [];
+    if (!profile || typeof profile !== 'object') return rows;
+    const knownTopLevel = excludeKeys ? new Set<string>(excludeKeys) : new Set<string>();
+    const entries = Object.entries(profile as Record<string, any>);
+    for (const [key, value] of entries) {
+      if (knownTopLevel.has(key)) continue; // rendered elsewhere
+      this.flattenUnknown(value, this.prettifyToken(key) || key, rows);
+    }
+    return rows;
+  }
+
+  private flattenUnknown(value: any, labelPath: string, out: string[]): void {
+    if (value == null) return;
+    // Primitive values: render directly
+    if (this.isPrimitive(value)) {
+      const row = this.renderProfileRow(labelPath, String(value));
+      if (row) out.push(row);
+      return;
+    }
+    // Dates as strings that parse
+    if (typeof value === 'string') {
+      // If it looks like a date, format; else render as-is
+      const asDate = new Date(value);
+      const formatted = !Number.isNaN(asDate.getTime()) ? this.formatDateTime(value) || value : value;
+      const row = this.renderProfileRow(labelPath, formatted);
+      if (row) out.push(row);
+      return;
+    }
+    // Arrays
+    if (Array.isArray(value)) {
+      if (!value.length) return;
+      const allPrimitive = value.every((v) => this.isPrimitive(v) || typeof v === 'string');
+      if (allPrimitive) {
+        const joined = value.map((v) => (typeof v === 'string' ? v : String(v))).join(', ');
+        const row = this.renderProfileRow(labelPath, joined);
+        if (row) out.push(row);
+      } else {
+        const row = this.renderProfileRow(labelPath, `${value.length} item(s)`);
+        if (row) out.push(row);
+      }
+      return;
+    }
+    // Plain object: recurse one level deep to key/value pairs
+    if (typeof value === 'object') {
+      let pushed = 0;
+      for (const [k, v] of Object.entries(value as Record<string, any>)) {
+        if (v == null || (typeof v === 'string' && v.trim().toLowerCase() === 'null')) continue;
+        const childLabel = `${labelPath} › ${this.prettifyToken(k) || k}`;
+        if (this.isPrimitive(v) || typeof v === 'string') {
+          const row = this.renderProfileRow(childLabel, typeof v === 'string' ? v : String(v));
+          if (row) { out.push(row); pushed++; }
+        } else if (Array.isArray(v)) {
+          if (!v.length) continue;
+          const basic = v.every((i) => this.isPrimitive(i) || typeof i === 'string');
+          const val = basic ? v.map((i) => (typeof i === 'string' ? i : String(i))).join(', ') : `${v.length} item(s)`;
+          const row = this.renderProfileRow(childLabel, val);
+          if (row) { out.push(row); pushed++; }
+        } else if (typeof v === 'object') {
+          // Avoid too much depth: show JSON snippet
+          try {
+            const json = JSON.stringify(v, null, 2);
+            const row = this.renderProfileRow(childLabel, json);
+            if (row) { out.push(row); pushed++; }
+          } catch {
+            const row = this.renderProfileRow(childLabel, '[object]');
+            if (row) { out.push(row); pushed++; }
+          }
+        }
+      }
+      // If object had no renderable children, show stringified
+      if (!pushed) {
+        try {
+          const json = JSON.stringify(value, null, 2);
+          const row = this.renderProfileRow(labelPath, json);
+          if (row) out.push(row);
+        } catch {
+          const row = this.renderProfileRow(labelPath, '[object]');
+          if (row) out.push(row);
+        }
+      }
+    }
+  }
+
+  private isPrimitive(v: any): boolean {
+    return (
+      typeof v === 'number' ||
+      typeof v === 'boolean' ||
+      v instanceof Number ||
+      v instanceof Boolean
+    );
+  }
+
+  private renderProfileRow(label: string, value?: string | null, opts?: { allowHtml?: boolean }): string | null {
+    if (value == null) return null;
+    const normalized = typeof value === 'string' ? value : String(value);
+    if (normalized.trim() === '' || normalized.trim().toLowerCase() === 'null') return null;
+    const safeLabel = this.escapeHtml(label);
+    const safeValue = opts?.allowHtml ? normalized : this.escapeHtml(normalized);
+    return `<div class="profile-row"><span class="label">${safeLabel}</span><span class="value">${safeValue}</span></div>`;
+  }
+
+  private resolveFullName(profile: EmploymentProfile): string | null {
+    if (profile.full_name) return profile.full_name;
+    const parts = [profile.first_name, profile.last_name].filter((p) => !!p && String(p).trim() !== '');
+    return parts.length ? parts.join(' ') : null;
+  }
+
+  private formatDateValue(value?: string | null): string | null {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
+  }
+
+  private formatDateTime(value?: string | null): string | null {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(date);
+  }
+
+  private formatAddress(address?: EmploymentAddress | null): string | null {
+    if (!address) return null;
+    const lines: string[] = [];
+    if (address.line1) lines.push(address.line1);
+    if (address.line2) lines.push(address.line2);
+    const locality: string[] = [];
+    if (address.city) locality.push(address.city);
+    if (address.state) locality.push(address.state);
+    if (address.postal_code) locality.push(address.postal_code);
+    if (locality.length) lines.push(locality.join(', '));
+    if (address.country) lines.push(address.country.toUpperCase());
+    const joined = lines.map((line) => line.trim()).filter(Boolean).join(', ');
+    return joined || null;
+  }
+
+  private formatBasePay(base?: EmploymentBasePay | null): string | null {
+    if (!base) return null;
+    const amountRaw = base.amount;
+    const currency = (base.currency || 'USD').toString().toUpperCase();
+    const period = this.prettifyToken(base.period);
+    if (amountRaw == null || amountRaw === '') return null;
+    const amount = typeof amountRaw === 'number' ? amountRaw : parseFloat(String(amountRaw));
+    if (!Number.isFinite(amount)) return null;
+    let formattedAmount: string;
+    try {
+      formattedAmount = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency,
+        maximumFractionDigits: 2,
+      }).format(amount);
+    } catch {
+      formattedAmount = `${currency} ${amount.toFixed(2)}`;
+    }
+    return period ? `${formattedAmount} per ${period.toLowerCase()}` : formattedAmount;
+  }
+
+  private buildEmailLink(email?: string | null): string | null {
+    if (!email) return null;
+    const trimmed = email.trim();
+    if (!trimmed) return null;
+    const href = `mailto:${trimmed}`;
+    return `<a href="${this.escapeAttribute(href)}">${this.escapeHtml(trimmed)}</a>`;
+  }
+
+  private buildPhoneLink(phone?: string | null): string | null {
+    if (!phone) return null;
+    const trimmed = phone.trim();
+    if (!trimmed) return null;
+    const pretty = this.formatPhoneNumber(trimmed);
+    const href = `tel:${trimmed.replace(/\s+/g, '')}`;
+    return `<a href="${this.escapeAttribute(href)}">${this.escapeHtml(pretty)}</a>`;
+  }
+
+  private buildExternalLink(url?: string | null, label: string = 'View'): string | null {
+    if (!url) return null;
+    const trimmed = url.trim();
+    if (!trimmed) return null;
+    return `<a href="${this.escapeAttribute(trimmed)}" target="_blank" rel="noopener">${this.escapeHtml(label)}</a>`;
+  }
+
+  private formatPhoneNumber(phone: string): string {
+    if (!phone.startsWith('+')) return phone;
+    const match = phone.match(/^(\+\d{1,3})(\d{4,})$/);
+    if (!match) return phone;
+    const [, countryCode, rest] = match;
+    const grouped = rest.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    return `${countryCode} ${grouped}`.trim();
+  }
+
+  private prettifyToken(value?: string | null): string | null {
+    if (!value) return null;
+    const normalized = value
+      .toString()
+      .replace(/[_\.]+/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .trim();
+    if (!normalized) return null;
+    return this.capitalizeWords(normalized);
+  }
+
+  private capitalizeWords(text: string): string {
+    return text
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
+  private escapeAttribute(value: any): string {
+    return this.escapeHtml(value);
+  }
+
+  private maskSensitiveValue(value: string, visibleDigits: number = 4): string {
+    const trimmed = value.trim();
+    if (!trimmed) return trimmed;
+    if (trimmed.length <= visibleDigits) return trimmed;
+  const mask = '*'.repeat(trimmed.length - visibleDigits);
+    return `${mask}${trimmed.slice(-visibleDigits)}`;
   }
 
   onEventPrefixChange(prefix: string): void {
@@ -2646,11 +3189,25 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   approveDocument(doc: ApplicantDocument): void {
-    this.updateDocumentStatus(doc, "APPROVED");
+    // Approval without notification; pass explicit overrides for consistency
+    this.updateDocumentStatus(doc, "APPROVED", {
+      eventCode: null,
+      sendNotification: false,
+      typeNotification: null,
+      dataKeyOverride: doc?.data_key || null,
+      documentNameOverride: doc?.document_name || null,
+    });
   }
 
   disapproveDocument(doc: ApplicantDocument): void {
-    this.updateDocumentStatus(doc, "DISAPPROVED");
+    // Immediate disapproval without notification
+    this.updateDocumentStatus(doc, "DISAPPROVED", {
+      eventCode: null,
+      sendNotification: false,
+      typeNotification: null,
+      dataKeyOverride: doc?.data_key || null,
+      documentNameOverride: doc?.document_name || null,
+    });
   }
 
   // Open the re-collect panel instead of immediately disapproving
@@ -2659,23 +3216,45 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.disapproveSidebarOpen = true;
     this.disapproveReason = '';
     this.disapproveCustomReason = '';
-    this.disapproveMessage = '';
-    this.recollectContent = '';
-    this.recollectSourceMode = false;
+  this.recollectSourceMode = false;
+  this.recollectTemplateLoading = false;
+  this.recollectTemplateError = null;
+  this._recollectTemplateToken++;
+  this.applyRecollectTemplate('');
     this.disapproveSendSms = false;
     this.disapproveNotifyOwner = false;
     this.ensureRecollectOptions();
+    setTimeout(() => {
+      if (this.recollectEditorRef?.nativeElement) {
+        this.recollectEditorRef.nativeElement.innerHTML = '';
+      }
+    });
   }
 
   closeDisapproveSidebar(): void {
     this.disapproveSidebarOpen = false;
   }
 
-  onDisapproveReasonChange(val: string): void {
-    this.disapproveReason = val;
+  async onDisapproveReasonChange(val: string): Promise<void> {
+    this.disapproveReason = val || '';
     if (val !== 'RECOLLECT_CUSTOM') {
       this.disapproveCustomReason = '';
     }
+    if (!val) {
+      this._recollectTemplateToken++;
+      this.recollectTemplateLoading = false;
+      this.recollectTemplateError = null;
+      this.applyRecollectTemplate('');
+      return;
+    }
+    if (val === 'RECOLLECT_CUSTOM') {
+      this._recollectTemplateToken++;
+      this.recollectTemplateLoading = false;
+      this.recollectTemplateError = null;
+      this.applyRecollectTemplate('');
+      return;
+    }
+    await this.loadRecollectTemplateForSelection(val);
   }
 
   get disapproveReasonValid(): boolean {
@@ -2734,8 +3313,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const el = this.recollectEditorRef?.nativeElement;
     if (!el) return;
     this.recollectContent = el.innerHTML;
-    // keep a plain-text version for SMS counters and fallback
-    this.disapproveMessage = (el.innerText || '').toString().slice(0, 1000);
+    // keep a plain-text version for SMS counters and fallback (preserve links)
+    this.disapproveMessage = this.htmlToSmsText(this.recollectContent).slice(0, 1000);
   }
 
   private syncRecollectEditorFromContent(): void {
@@ -2746,9 +3325,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   onRecollectSourceChange(val: string): void {
     this.recollectContent = val || '';
-    // strip tags to build sms/plain text version
-    const text = (val || '').replace(/<[^>]+>/g, '');
-    this.disapproveMessage = text.slice(0, 1000);
+    // derive SMS-friendly text preserving anchor hrefs
+    this.disapproveMessage = this.htmlToSmsText(this.recollectContent).slice(0, 1000);
   }
 
   get recollectCharCount(): number { return (this.disapproveMessage || '').length; }
@@ -2766,6 +3344,124 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
+  private async loadRecollectTemplateForSelection(code: string): Promise<void> {
+    const doc = this.disapproveDoc;
+    const idApplicant = this.resolveApplicantId(this.applicant) || this.applicantId;
+    if (!doc || !code || code === 'RECOLLECT_CUSTOM' || !idApplicant) {
+      this.applyRecollectTemplate('');
+      return;
+    }
+
+    const description = this.disapproveReasonMap[code] || code;
+    const dataKey = (doc.data_key || doc.document_name || '').toString();
+    const token = ++this._recollectTemplateToken;
+    this.recollectTemplateLoading = true;
+    this.recollectTemplateError = null;
+
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_applicants_recollect_menssage as any,
+      parameters: [String(idApplicant), code, description, dataKey, 'email'],
+    } as any;
+
+    try {
+      const res = await firstValueFrom(
+        this.core.executeCommand<DriveWhipCommandResponse<any>>(api)
+      );
+      if (token !== this._recollectTemplateToken) {
+        return;
+      }
+
+      let html = '';
+      if (res?.ok) {
+        let raw: any = res.data;
+        if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+        const row = Array.isArray(raw) && raw.length ? raw[0] : raw;
+        html = String(row?.message ?? row?.MESSAGE ?? '') || '';
+      }
+
+      if (!html) {
+        this.applyRecollectTemplate('');
+  this.recollectTemplateError = 'Template message not available';
+  Utilities.showToast('No template message configured for this option.', 'warning');
+      } else {
+        this.applyRecollectTemplate(html);
+      }
+    } catch (err) {
+      if (token !== this._recollectTemplateToken) {
+        return;
+      }
+  console.error('[ApplicantPanel] loadRecollectTemplateForSelection error', err);
+  this.recollectTemplateError = 'Failed to load re-collect message';
+  this.applyRecollectTemplate('');
+  Utilities.showToast('Unable to load the re-collect message.', 'error');
+    } finally {
+      if (token === this._recollectTemplateToken) {
+        this.recollectTemplateLoading = false;
+      }
+    }
+  }
+
+  private applyRecollectTemplate(html: string): void {
+    const normalized = html || '';
+    this.recollectContent = normalized;
+    const plain = this.htmlToSmsText(normalized).slice(0, 1000);
+    this.disapproveMessage = plain;
+    if (this.recollectSourceMode) {
+      // textarea binding updates automatically in source mode
+      return;
+    }
+    this.syncRecollectEditorFromContent();
+  }
+
+  private plainTextFromHtml(html: string): string {
+    if (!html) return '';
+    if (typeof document !== 'undefined') {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const text = tmp.innerText || tmp.textContent || '';
+      return text.replace(/\u00a0/g, ' ').trim();
+    }
+    return html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  private htmlToSmsText(html: string): string {
+    if (!html) return '';
+    if (typeof document !== 'undefined') {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      // Replace anchors with "text: href" to preserve URLs in SMS
+      const anchors = Array.from(tmp.querySelectorAll('a')) as HTMLAnchorElement[];
+      for (const a of anchors) {
+        const text = (a.textContent || '').trim();
+        const href = (a.getAttribute('href') || '').trim();
+        const replacement = document.createTextNode(href ? (text ? `${text}: ${href}` : href) : text);
+        a.parentNode?.replaceChild(replacement, a);
+      }
+      // Convert <br> to newlines
+      const brs = Array.from(tmp.querySelectorAll('br'));
+      for (const br of brs) {
+        br.parentNode?.replaceChild(document.createTextNode('\n'), br);
+      }
+      // Extract text
+      let text = (tmp.innerText || tmp.textContent || '').replace(/\u00a0/g, ' ');
+      // Normalize whitespace and limit consecutive blank lines
+      text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      text = text.replace(/\n{3,}/g, '\n\n');
+      return text.trim();
+    }
+    // Fallback regex-based conversion
+    return html
+      .replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, (_m, href, inner) => {
+        const t = String(inner).replace(/<[^>]+>/g, '').trim();
+        return t ? `${t}: ${href}` : href;
+      })
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   // Submit the re-collect request: generate messages via SP and send Email (+ optional SMS)
   async sendDisapprove(): Promise<void> {
     if (!this.disapproveDoc || !this.disapproveReasonValid || this.disapproveSending) return;
@@ -2776,10 +3472,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
     const emailTo = (this.applicant?.email || this.applicant?.email_address || '').toString().trim();
     const smsTo = (this.getApplicantPhone(this.applicant) || '').toString().trim();
-  const subject = this.disapproveSubject;
-  const eventCode = String(this.disapproveReason || '').trim();
-    const description = this.currentRecollectDescription();
-    const dataKey = (this.disapproveDoc.data_key || this.disapproveDoc.document_name || '').toString();
+    const subject = this.disapproveSubject;
 
     // Require at least Email or (if checked) SMS target
     if (!emailTo && !this.disapproveSendSms) {
@@ -2793,31 +3486,24 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
     this.disapproveSending = true;
     try {
-      // 1) Email (default)
+      const emailHtml = this.recollectContent?.trim()
+        ? this.recollectContent
+        : this.buildRecollectEmailHtmlFallback();
+
       if (emailTo) {
         const templateId = this.core.accountCreatedTemplateId || '';
         if (!templateId) {
           Utilities.showToast('Email template is not configured', 'warning');
         } else {
-          const apiEmail: IDriveWhipCoreAPI = {
-            commandName: DriveWhipAdminCommand.crm_applicants_recollect_menssage as any,
-            parameters: [String(idApplicant), eventCode, description, dataKey, 'email'],
-          } as any;
-          let emailHtml = '';
           try {
-            const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse<any>>(apiEmail));
-            if (res?.ok) {
-              let raw: any = res.data;
-              if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
-              const row = Array.isArray(raw) && raw.length ? raw[0] : raw;
-              emailHtml = String(row?.message ?? row?.MESSAGE ?? '') || '';
-            }
-          } catch (e) {
-            // fall through to fallback
-          }
-          if (!emailHtml) emailHtml = this.buildRecollectEmailHtmlFallback();
-          try {
-            await firstValueFrom(this.core.sendTemplateEmail({ title: subject, message: emailHtml, templateId, to: [emailTo] }));
+            await firstValueFrom(
+              this.core.sendTemplateEmail({
+                title: subject,
+                message: emailHtml,
+                templateId,
+                to: [emailTo],
+              })
+            );
           } catch (e) {
             console.error('[ApplicantPanel] Re-collect email send error', e);
             Utilities.showToast('Failed to send email', 'error');
@@ -2825,41 +3511,43 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         }
       }
 
-      // 2) SMS (optional)
       if (this.disapproveSendSms && smsTo) {
-        const apiSms: IDriveWhipCoreAPI = {
-          commandName: DriveWhipAdminCommand.crm_applicants_recollect_menssage as any,
-          parameters: [String(idApplicant), eventCode, description, dataKey, 'sms'],
-        } as any;
-        let smsText = '';
-        try {
-          const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse<any>>(apiSms));
-          if (res?.ok) {
-            let raw: any = res.data;
-            if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
-            const row = Array.isArray(raw) && raw.length ? raw[0] : raw;
-            smsText = String(row?.message ?? row?.MESSAGE ?? '') || '';
-          }
-        } catch (e) {
-          // fall through to fallback
+        let smsText = (this.disapproveMessage || '').toString().trim();
+        if (!smsText) {
+          smsText = this.htmlToSmsText(emailHtml);
         }
         if (!smsText) {
-          const reason = this.currentRecollectDescription();
-          const plain = (this.disapproveMessage || '').toString().trim();
-          smsText = reason ? `Reason: ${reason}${plain ? '\n\n' + plain : ''}` : plain;
-          smsText = smsText.slice(0, 1000);
+          smsText = this.currentRecollectDescription();
         }
+        smsText = (smsText || '').trim().slice(0, 1000);
         const from = '8774142766';
         try {
-          await firstValueFrom(this.core.sendChatSms({ from, to: smsTo, message: smsText, id_applicant: String(idApplicant) }));
+          await firstValueFrom(
+            this.core.sendChatSms({
+              from,
+              to: smsTo,
+              message: smsText,
+              id_applicant: String(idApplicant),
+            })
+          );
         } catch (e) {
           console.error('[ApplicantPanel] Re-collect SMS send error', e);
           Utilities.showToast('Failed to send SMS', 'error');
         }
       }
 
-      // 3) Update status and close
-      this.updateDocumentStatus(this.disapproveDoc, 'DISAPPROVED');
+      // 3) Update status and log notification in history via SP extra params
+      const eventCode = (this.disapproveReason || '').trim() || null;
+      const typeNotification = this.disapproveSendSms
+        ? (emailTo ? 3 : 1)
+        : 2; // if no SMS, it's email-only; earlier validation ensures at least one channel
+      this.updateDocumentStatus(this.disapproveDoc, 'DISAPPROVED', {
+        eventCode,
+        sendNotification: true,
+        typeNotification,
+        dataKeyOverride: this.disapproveDoc?.data_key || null,
+        documentNameOverride: this.disapproveDoc?.document_name || null,
+      });
       Utilities.showToast('Re-collect notification sent', 'success');
       this.closeDisapproveSidebar();
     } finally {
@@ -2930,7 +3618,17 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     return (this.disapproveReason || '') === 'RECOLLECT_CUSTOM';
   }
 
-  private updateDocumentStatus(doc: ApplicantDocument, status: string): void {
+  private updateDocumentStatus(
+    doc: ApplicantDocument,
+    status: string,
+    opts?: {
+      eventCode?: string | null;
+      sendNotification?: boolean;
+      typeNotification?: number | null; // 1: SMS, 2: EMAIL, 3: BOTH
+      dataKeyOverride?: string | null;
+      documentNameOverride?: string | null;
+    }
+  ): void {
     if (!doc || !doc.id_applicant_document) return;
     const now = new Date();
     const fmt = (d: Date) =>
@@ -2947,17 +3645,25 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       status.toUpperCase() === "DISAPPROVED"
         ? this.currentUserIdentifier()
         : null;
+    const data_key = (opts?.dataKeyOverride ?? doc.data_key ?? null) as any;
+    const document_name = (opts?.documentNameOverride ?? doc.document_name ?? null) as any;
+    const eventCode = (opts?.eventCode ?? null) as any;
+    const sendNotification = opts?.sendNotification ? 1 : 0; // BOOL -> tinyint
+    const typeNotification = (opts?.typeNotification ?? null) as any;
     const params: any[] = [
-      "U",
-      doc.id_applicant_document,
-      doc.id_applicant,
-      null,
-      null,
-      status,
-      approved_at,
-      approved_by,
-      disapproved_at,
-      disapproved_by,
+      "U", // p_action
+      doc.id_applicant_document, // p_id_applicant_document
+      doc.id_applicant, // p_id_applicant
+      data_key, // p_data_key
+      document_name, // p_document_name
+      status, // p_status
+      approved_at, // p_approved_at
+      approved_by, // p_approved_by
+      disapproved_at, // p_disapproved_at
+      disapproved_by, // p_disapproved_by
+      eventCode, // p_eventcode
+      sendNotification, // p_send_notification (BOOL)
+      typeNotification, // p_type_notification (1 sms, 2 email, 3 ambos)
     ];
     const api: IDriveWhipCoreAPI = {
       commandName: DriveWhipAdminCommand.crm_applicants_documents_crud as any,
@@ -2988,20 +3694,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     });
   }
 
-  docStatusLabel(doc: ApplicantDocument): string {
-    const s = (doc.status || "").toString().toUpperCase();
-    if (s === "APPROVED") return "Approved";
-    if (s === "DISAPPROVED") return "Disapproved";
-    if (s === "RECOLLECTING" || s === "RE-COLLECTING")
-      return "Re-collecting File";
-    return s ? s.charAt(0) + s.slice(1).toLowerCase() : "Pending";
-  }
-
   docStatusClass(doc: ApplicantDocument): string {
     const s = (doc.status || "").toString().toUpperCase();
     if (s === "APPROVED") return "text-success";
     if (s === "DISAPPROVED") return "text-danger";
-    if (s === "RECOLLECTING" || s === "RE-COLLECTING") return "text-warning";
+    if (s === "RECOLLECTING" || s === "RE-COLLECTING" || s === "RE-COLLECTING FILE") return "text-warning";
     return "text-secondary";
   }
 

@@ -702,30 +702,88 @@ export class WorkflowEditorComponent implements OnInit {
 
   loadRuleRows(stageId: number, idSection: number | null): void {
     if (!stageId) return;
-    const params: any[] = ['R', null, null, null, null, null, null, null, null, null, null, null, null];
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_rule_crud as any, parameters: params };
-    this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
-      next: res => {
-        if (!res.ok) { this.rulesError.set('Failed to load rules'); return; }
-        let rows: any[] = [];
-        if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
-        const filtered = rows.filter(r => Number(r.id_stage) === stageId && (!idSection || Number(r.id_stage_section) === idSection));
-        const mapped: RuleRow[] = filtered.map(r => {
-          const rawActive = r.is_active;
-            const active = rawActive === 1 || rawActive === '1' || rawActive === true || (typeof rawActive === 'string' && rawActive.toLowerCase()==='true');
-          return {
-            id: Number(r.id_stage_section_rule),
+    // Send current stage (and section when available) so the SP can filter server-side on READ
+    const readCondsParams: any[] = ['R', null, (idSection ?? null), stageId, null, null, null, null, null, null, null, null];
+  // Updated SP signature requires 8 params; include p_id_reason placeholder as null
+  const readActsParams: any[] = ['R', null, stageId, null, null, null, null, null];
+    const readConds: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_condition_crud as any, parameters: readCondsParams };
+    const readActs: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_action_crud as any, parameters: readActsParams };
+    forkJoin([
+      this.core.executeCommand<DriveWhipCommandResponse>(readConds),
+      this.core.executeCommand<DriveWhipCommandResponse>(readActs)
+    ]).subscribe({
+      next: ([condRes, actRes]) => {
+        if (!condRes.ok || !actRes.ok) { this.rulesError.set('Failed to load rules'); return; }
+        const extract = (res: any) => {
+          let rows: any[] = [];
+          if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+          return rows || [];
+        };
+        const condRowsRaw = extract(condRes);
+        const actRowsRaw = extract(actRes);
+        const toBool = (v: any) => (v === 1 || v === '1' || v === true || (typeof v === 'string' && v.toLowerCase() === 'true'));
+        const condRows: RuleRow[] = condRowsRaw
+          .filter((r: any) => {
+            const sameStage = Number(r.id_stage) === stageId;
+            // Accept when:
+            // - No current section (unlikely here but safe), or
+            // - Row has no section (null/0) -> legacy rows, or
+            // - Row section matches current section
+            const rowSection = (r.id_stage_section == null) ? null : Number(r.id_stage_section);
+            const sectionOk = (idSection == null) || (rowSection == null) || (rowSection === idSection);
+            return sameStage && sectionOk;
+          })
+          .map((r: any) => ({
+            id: Number(r.id_stage_section_condition),
             condition_type_id: r.id_condition_type != null ? Number(r.id_condition_type) : null,
             datakey_id: r.id_datakey != null ? Number(r.id_datakey) : null,
             operator_id: r.id_operator != null ? Number(r.id_operator) : null,
             value: r.value || '',
-            action_id: r.id_action != null ? Number(r.id_action) : null,
+            action_id: null,
             reason_id: r.id_reason != null ? Number(r.id_reason) : null,
-            isActive: active,
-            dirty: false
-          };
-        });
-        this.ruleRows.set(mapped.length?mapped:[this.createEmptyRuleRow()]);
+            isActive: toBool(r.is_active),
+            dirty: false,
+            origin: 'C'
+          }));
+
+        // Map actions; resolve action_id from catalog by matching name/description
+        const actionsCat = [...this.actionsCatalog()];
+        const actRows: RuleRow[] = actRowsRaw
+          .filter((r: any) => {
+            // SP read does not return id_stage currently; if present, filter by stage, else accept
+            const rowStage = (r.id_stage == null) ? null : Number(r.id_stage);
+            return rowStage == null || rowStage === stageId;
+          })
+          .map((r: any) => {
+            const name = String(r.action || r.action_name || '').trim();
+            let typeId: number | null = null;
+            if (name) {
+              const match = actionsCat.find(a => (a.action || '').toString().trim().toLowerCase() === name.toLowerCase());
+              if (match) typeId = Number(match.id_action);
+              else {
+                const tempId = -(1000 + (actionsCat.length));
+                actionsCat.push({ id_action: tempId, action: name });
+                typeId = tempId;
+              }
+            }
+            return {
+              id: Number(r.id_action),
+              condition_type_id: null,
+              datakey_id: null,
+              operator_id: null,
+              value: '',
+              action_id: typeId,
+              reason_id: r.id_reason != null ? Number(r.id_reason) : null,
+              isActive: toBool(r.is_active),
+              dirty: false,
+              origin: 'A'
+            } as RuleRow;
+          });
+        if (actionsCat.length !== this.actionsCatalog().length) this.actionsCatalog.set(actionsCat);
+        const combined = [...condRows, ...actRows];
+        this.ruleRows.set(combined.length?combined:[this.createEmptyRuleRow()]);
+        // Force DOM selection sync in case options arrive after value was bound
+        setTimeout(()=> this.forceRulesDomSync(), 0);
       },
       error: () => this.rulesError.set('Failed to load rules')
     });
@@ -738,38 +796,84 @@ export class WorkflowEditorComponent implements OnInit {
     const stageId = this.selectedStageId();
     if (!stageId) { Utilities.showToast('Select a stage first','warning'); return; }
     const sectionId = this.rulesSectionId();
-    if (!sectionId) { Utilities.showToast('Rules section missing','warning'); return; }
+    // if (!sectionId) { Utilities.showToast('Rules section missing','warning'); return; }
     const isCreate = row.id == null;
     const action = forcedAction ? forcedAction : (isCreate ? 'C' : 'U');
+    // Validate according to the row type (Condition vs Action). Skip validation for deletes
     if (action !== 'D') {
-      if (!row.condition_type_id || !row.datakey_id || !row.operator_id) {
-        Utilities.showToast('Complete condition fields','warning'); return; }
-      if (!row.action_id) { Utilities.showToast('Select action type','warning'); return; }
-      if (!row.reason_id) { Utilities.showToast('Select reason','warning'); return; }
+      const isActionRow = (row.origin === 'A') || (!!row.action_id && !row.condition_type_id && !row.datakey_id && !row.operator_id);
+      const isConditionRow = (row.origin === 'C') || (!!row.condition_type_id || !!row.datakey_id || !!row.operator_id);
+      if (isConditionRow) {
+        // Required: condition type
+        if (!row.condition_type_id) {
+          Utilities.showToast('Select condition type','warning');
+          return;
+        }
+        // Data key and operator must be set together (or both empty)
+        const hasDatakey = !!row.datakey_id;
+        const hasOperator = !!row.operator_id;
+        if ((hasDatakey && !hasOperator) || (!hasDatakey && hasOperator)) {
+          Utilities.showToast('Select both data key and operator (or leave both empty)','warning');
+          return;
+        }
+        // Reason and value are optional
+      }
+      if (isActionRow) {
+        if (!row.action_id) {
+          Utilities.showToast('Select action type','warning');
+          return;
+        }
+        // Reason is not required for actions (persisted by Conditions SP when applicable)
+      }
+      // If neither type inferred, require at least one field
+      if (!isConditionRow && !isActionRow) {
+        Utilities.showToast('Nothing to save','info');
+        return;
+      }
     }
     row.saving = true; row.error = undefined; list[index]=row; this.ruleRows.set(list);
     const currentUser = this.authSession.user?.user || 'system';
-    const params: any[] = [
-      action,                 // p_action
-      row.id,                 // p_id_stage_section_rule
-      sectionId,              // p_id_stage_section
-      stageId,                // p_id_stage
-      row.condition_type_id,  // p_id_condition_type
-      row.reason_id,          // p_id_reason
-      row.datakey_id,         // p_id_datakey
-      row.operator_id,        // p_id_operator
-      row.action_id,          // p_id_action
-      row.isActive ? 1 : 0,   // p_is_active
-      row.value || null,      // p_value
-      isCreate ? currentUser : null, // p_created_by
-      isCreate ? null : currentUser  // p_updated_by
-    ];
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_rule_crud as any, parameters: params };
+    // Branch to new SPs per section
+    let api: IDriveWhipCoreAPI;
+    if (row.origin === 'A' || (row.action_id && !row.condition_type_id && !row.datakey_id && !row.operator_id)) {
+      const actOpt = this.actionsCatalog().find(a => Number(a.id_action) === Number(row.action_id));
+      const actionName = actOpt?.action || null;
+      const params: any[] = [
+        action,                 // p_action
+        row.id,                 // p_id_action
+        stageId,                // p_id_stage
+        row.reason_id ?? null,  // p_id_reason
+        actionName,             // p_action_name
+        row.isActive ? 1 : 0,   // p_is_active
+        isCreate ? currentUser : null, // p_created_by
+        isCreate ? null : currentUser  // p_updated_by
+      ];
+      api = { commandName: DriveWhipAdminCommand.crm_stages_sections_action_crud as any, parameters: params };
+    } else {
+      const params: any[] = [
+        action,                 // p_action
+        row.id,                 // p_id_stage_section_condition
+        sectionId,              // p_id_stage_section
+        stageId,                // p_id_stage
+        row.condition_type_id,  // p_id_condition_type
+        row.reason_id ?? null,  // p_id_reason
+        row.datakey_id,         // p_id_datakey
+        row.operator_id,        // p_id_operator
+        row.isActive ? 1 : 0,   // p_is_active
+        row.value || null,      // p_value
+        isCreate ? currentUser : null, // p_created_by
+        isCreate ? null : currentUser  // p_updated_by
+      ];
+      api = { commandName: DriveWhipAdminCommand.crm_stages_sections_condition_crud as any, parameters: params };
+    }
     this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
       next: res => {
         row.saving = false;
         if (!res.ok) { row.error='Save failed'; list[index]=row; this.ruleRows.set(list); return; }
-        Utilities.showToast(action==='D' ? 'Rule disabled' : (isCreate ? 'Rule created' : 'Rule updated'),'success');
+        const toastMsg = row.origin === 'A'
+          ? (action==='D' ? 'Action disabled' : (isCreate ? 'Action created' : 'Action updated'))
+          : (action==='D' ? 'Condition disabled' : (isCreate ? 'Condition created' : 'Condition updated'));
+        Utilities.showToast(toastMsg,'success');
         // reload to refresh ids & baseline
         this.loadRuleRows(stageId, sectionId);
       },
@@ -1492,8 +1596,9 @@ export class WorkflowEditorComponent implements OnInit {
     this.rulesError.set(null);
     const apiCondition: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_condition_type_crud, parameters: ['R', null, null, null, null, null] };
     const apiDatakey: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_datakey_crud, parameters: ['R', null, null, null, null, null] };
-    const apiOperator: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_operator_crud, parameters: ['R', null, null, null, null, null] };
-    const apiAction: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_action_crud as any, parameters: ['R', null, null, null, null, null] };
+  const apiOperator: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_operator_crud, parameters: ['R', null, null, null, null, null] };
+  // Use action TYPES catalog for Actions dropdown
+  const apiAction: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_actions_type_crud as any, parameters: ['R', null, null, null, null] };
     const apiReason: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_reason_crud as any, parameters: ['R', null, null, null, null, null] };
     forkJoin([
       this.core.executeCommand<DriveWhipCommandResponse>(apiCondition),
@@ -1514,12 +1619,42 @@ export class WorkflowEditorComponent implements OnInit {
         };
         this.conditionTypes.set(extract(condRes));
         this.dataKeys.set(extract(dataRes));
-        this.operators.set(extract(opRes));
-        this.actionsCatalog.set(extract(actRes));
+  this.operators.set(extract(opRes));
+  // Map action types to expected shape: { id_action, action }
+  const rawActions = extract(actRes);
+  const mappedActions = rawActions.map((r: any) => ({ id_action: r.id_action_type ?? r.id ?? r.value, action: r.description ?? r.name ?? r.action })).filter((a: any)=> a.id_action != null && a.action);
+  this.actionsCatalog.set(mappedActions);
         this.reasonsCatalog.set(extract(reaRes));
+        // After catalogs are present, ensure selects reflect current row values
+        setTimeout(()=> this.forceRulesDomSync(), 0);
       },
       error: () => this.rulesError.set('Failed to load catalogs')
     });
+  }
+
+  /** Ensure <select> elements reflect the bound values even if options arrived later. */
+  private forceRulesDomSync(): void {
+    try {
+      const rows = this.ruleRows();
+      rows.forEach((r, i) => {
+        // Condition selects
+        if (r.origin === 'C' || r.condition_type_id != null || r.datakey_id != null || r.operator_id != null || (r.value || '').length) {
+          const ct = document.getElementById('cond_type_'+i) as HTMLSelectElement | null;
+          if (ct) ct.value = (r.condition_type_id ?? '').toString();
+          const dk = document.getElementById('cond_datakey_'+i) as HTMLSelectElement | null;
+          if (dk) dk.value = (r.datakey_id ?? '').toString();
+          const op = document.getElementById('cond_op_'+i) as HTMLSelectElement | null;
+          if (op) op.value = (r.operator_id ?? '').toString();
+        }
+        // Action selects
+        if (r.origin === 'A' || r.action_id != null || r.reason_id != null) {
+          const act = document.getElementById('act_action_'+i) as HTMLSelectElement | null;
+          if (act) act.value = (r.action_id ?? '').toString();
+          const rsn = document.getElementById('act_reason_'+i) as HTMLSelectElement | null;
+          if (rsn) rsn.value = (r.reason_id ?? '').toString();
+        }
+      });
+    } catch { /* noop */ }
   }
 
   ensureStageTypes(): void {

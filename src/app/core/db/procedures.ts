@@ -14,7 +14,9 @@ export enum DriveWhipAdminCommand {
     crm_stages_sections_idlemove_crud = "crm_stages_sections_idlemove_crud", // Idle move rule CRUD
     crm_stages_sections_followup_crud = "crm_stages_sections_followup_crud", // Follow-up messages CRUD (multiple)
     crm_stages_sections_rule_crud = "crm_stages_sections_rule_crud", // Rules (condition+action) CRUD
+    crm_stages_sections_condition_crud = "crm_stages_sections_condition_crud", // Conditions CRUD (separate)
     crm_stages_sections_action_crud = "crm_stages_sections_action_crud", // Actions catalog CRUD
+    crm_stages_actions_type_crud = "crm_stages_actions_type_crud", // Action types catalog for dropdown
     crm_stages_sections_reason_crud = "crm_stages_sections_reason_crud", // Reasons catalog CRUD
     crm_stages_type_crud = "crm_stages_type_crud", // Stage type catalog CRUD
     crm_rules_types_crud = "crm_rules_types_crud", // Rule types catalog CRUD

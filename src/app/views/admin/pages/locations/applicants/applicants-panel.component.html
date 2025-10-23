@@ -669,6 +669,14 @@
               </div>
             </div>
           </div>
+          <button
+            type="button"
+            class="btn btn-outline-primary btn-sm"
+            (click)="viewEmploymentSummary()"
+            [disabled]="!employmentProfileSnapshot"
+          >
+            <i class="feather icon-user"></i>
+          </button>
         </div>
       </section>
       <section class="panel-column panel-chat">
@@ -808,9 +816,12 @@
                 <li
                   *ngFor="let ev of group.events"
                   class="timeline-item"
-                  [class.clickable]="ev.with_detail || ['sms','email','document','file','upload'].includes((ev.type||'').toLowerCase())"
-                  role="button"
-                  (click)="(ev.with_detail || ['sms','email','document','file','upload'].includes((ev.type||'').toLowerCase())) && openEventSidebar(ev)"
+                  [class.clickable]="ev.with_detail"
+                  [class.noninteractive]="!ev.with_detail"
+                  [attr.role]="ev.with_detail ? 'button' : null"
+                  [attr.aria-disabled]="!ev.with_detail ? true : null"
+                  [attr.title]="!ev.with_detail ? 'No details available' : null"
+                  (click)="ev.with_detail && openEventSidebar(ev)"
                 >
                   <div class="timeline-line"></div>
                   <div
@@ -894,7 +905,7 @@
                     class="badge rounded-pill"
                     *ngIf="group.items && group.items.length"
                     [ngClass]="docStatusClass(group.items[0])"
-                    >{{ docStatusLabel(group.items[0]) }}</span
+                    >{{ group.items[0].status ?? "Pending" }}</span
                   >
                 </div>
                 <div class="card-body">
@@ -921,7 +932,7 @@
                       *ngIf="
                         group.items[0] &&
                         (group.items[0].document_name | lowercase).match(
-                          '\\.png|\\.jpg|\\.jpeg|\\.gif|\\.webp|\\.bmp|\\.svg'
+                          '\\.png|\\.jpg|\\.jpeg|\\.gif|\\.webp|\\.bmp|\\.svg|\\.pdf'
                         )
                       "
                     >
@@ -978,7 +989,7 @@
                         <span
                           class="badge rounded-pill"
                           [ngClass]="docStatusClass(doc)"
-                          >{{ docStatusLabel(doc) }}</span
+                          >{{ doc.status ?? "Pending" }}</span
                         >
                       </div>
                       <button
@@ -1362,7 +1373,7 @@
                       {{ d.document_name }}
                     </div>
                     <div class="small text-secondary">
-                      {{ docStatusLabel(d) }}
+                      {{ d.status ?? "Pending" }}
                     </div>
                   </div>
                   <div class="d-flex gap-1">
@@ -1461,6 +1472,23 @@
             </div>
             <div class="mb-2">
               <label class="form-label small">Message</label>
+              <div
+                class="small text-secondary d-flex align-items-center gap-2 mb-1"
+                *ngIf="recollectTemplateLoading"
+              >
+                <span
+                  class="spinner-border spinner-border-sm"
+                  role="status"
+                  aria-hidden="true"
+                ></span>
+                Loading template...
+              </div>
+              <div
+                class="small text-danger mb-1"
+                *ngIf="!recollectTemplateLoading && recollectTemplateError"
+              >
+                {{ recollectTemplateError }}
+              </div>
               <div class="d-flex align-items-center gap-1 mb-1 flex-wrap">
                 <select
                   class="form-select form-select-sm"

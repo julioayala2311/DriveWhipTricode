@@ -971,6 +971,7 @@
                               >Condition Type</label
                             >
                             <select
+                              id="cond_type_{{ i }}"
                               class="form-select form-select-sm"
                               [value]="r.condition_type_id ?? ''"
                               (change)="
@@ -996,6 +997,7 @@
                               >Data Key</label
                             >
                             <select
+                              id="cond_datakey_{{ i }}"
                               class="form-select form-select-sm"
                               [value]="r.datakey_id ?? ''"
                               (change)="
@@ -1021,6 +1023,7 @@
                               >Operator</label
                             >
                             <select
+                              id="cond_op_{{ i }}"
                               class="form-select form-select-sm"
                               [value]="r.operator_id ?? ''"
                               (change)="
@@ -1086,7 +1089,43 @@
                             </div>
                           </div>
                         </div>
-                        <div *ngIf="r.error" class="mt-1">
+                        <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1"
+                            (click)="saveRuleRow(i)"
+                            [disabled]="
+                              r.saving ||
+                              !r.dirty ||
+                              !r.condition_type_id ||
+                              (!!r.datakey_id && !r.operator_id) ||
+                              (!!r.operator_id && !r.datakey_id)
+                            "
+                            [attr.title]="
+                              !r.dirty
+                                ? 'No changes'
+                                : (!r.condition_type_id)
+                                ? 'Select condition type'
+                                : ((!!r.datakey_id && !r.operator_id) || (!!r.operator_id && !r.datakey_id))
+                                ? 'Select both data key and operator (or leave both empty)'
+                                : null
+                            "
+                          >
+                            <ng-container *ngIf="!r.saving; else savingCond">
+                              <i
+                                class="feather"
+                                [ngClass]="r.id ? 'icon-save' : 'icon-check'"
+                                style="font-size: 0.75rem"
+                              ></i>
+                              {{ r.id ? 'Update' : 'Save' }}
+                            </ng-container>
+                          </button>
+                          <ng-template #savingCond>
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                          </ng-template>
+                          <span *ngIf="r.error" class="text-danger small">{{ r.error }}</span>
+                        </div>
+                        <div *ngIf="r.error" class="mt-1 d-none">
                           <span class="text-danger small">{{ r.error }}</span>
                         </div>
                       </div>
@@ -1155,6 +1194,7 @@
                               >Action</label
                             >
                             <select
+                              id="act_action_{{ i }}"
                               class="form-select form-select-sm"
                               [value]="r.action_id ?? ''"
                               (change)="
@@ -1180,6 +1220,7 @@
                               >Reason</label
                             >
                             <select
+                              id="act_reason_{{ i }}"
                               class="form-select form-select-sm"
                               [value]="r.reason_id ?? ''"
                               (change)="
@@ -1227,7 +1268,33 @@
                             </div>
                           </div>
                         </div>
-                        <div *ngIf="r.error" class="mt-1">
+                        <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1"
+                            (click)="saveRuleRow(i)"
+                            [disabled]="r.saving || !r.dirty || !r.action_id"
+                            [attr.title]="
+                              !r.dirty
+                                ? 'No changes'
+                                : (!r.action_id ? 'Select action type' : null)
+                            "
+                          >
+                            <ng-container *ngIf="!r.saving; else savingAct">
+                              <i
+                                class="feather"
+                                [ngClass]="r.id ? 'icon-save' : 'icon-check'"
+                                style="font-size: 0.75rem"
+                              ></i>
+                              {{ r.id ? 'Update' : 'Save' }}
+                            </ng-container>
+                          </button>
+                          <ng-template #savingAct>
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                          </ng-template>
+                          <span *ngIf="r.error" class="text-danger small">{{ r.error }}</span>
+                        </div>
+                        <div *ngIf="r.error" class="mt-1 d-none">
                           <span class="text-danger small">{{ r.error }}</span>
                         </div>
                       </div>

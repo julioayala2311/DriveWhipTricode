@@ -252,3 +252,7 @@ body.dark .dw-action-btn.danger:hover:not(:disabled) {
 .text-center{ text-align:center; }
 .grid-link{ cursor:pointer; color: var(--bs-primary,#0d6efd); text-decoration: underline; }
 .grid-link:hover{ filter:brightness(.9); }
+
+.horizontal-menu .navbar .navbar-content .navbar-nav .nav-item.theme-switcher-wrapper .box.dark i {
+  color: var(--bs-primary)!important;
+}

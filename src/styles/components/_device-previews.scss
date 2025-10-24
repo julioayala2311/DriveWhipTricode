@@ -11,7 +11,7 @@
 /* iPhone-like frame */
 .device-iphone {
   width: 320px;
-  height: 700px;
+  height: 70vh;
   background: #4a4a4d;
   border-radius: 60px;
   padding: 0;
@@ -67,7 +67,7 @@
 .device-iphone .device-screen {
     margin-top: 20px;
     width: 90%;
-    height: 660px;
+    height: 65vh;
     background: var(--bs-body-bg);
     border-radius: 45px;
     padding: .1rem;
@@ -83,7 +83,7 @@
 .device-mac {
   width: 90%;
   max-width: 1000px;
-  background: #f3f4f6;
+  background: var(--bs-secondary);
   border-radius: 12px;
   padding: 50px 20px 20px;
   box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
@@ -123,7 +123,7 @@
 
 /* Mac screen */
 .device-mac .device-screen {
-  height: 500px;
+  height: 60vh;
   width: 100%;
   background: var(--bs-body-bg);
   border-radius: 12px;

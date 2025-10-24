@@ -40,7 +40,7 @@ ngb-datepicker {
           &:focus {
             outline: none;
           }
-          .btn-light {
+          .btn-secondary {
             &:hover,
             &.active {
               background-color: $component-hover-bg;

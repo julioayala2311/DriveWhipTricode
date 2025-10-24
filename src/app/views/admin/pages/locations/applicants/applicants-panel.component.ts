@@ -13,7 +13,7 @@ import {
   inject,
 } from "@angular/core";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
-import { Subscription, firstValueFrom } from 'rxjs';
+import { Subscription, firstValueFrom } from "rxjs";
 import Swal from "sweetalert2";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
@@ -25,64 +25,6 @@ import {
 import { DriveWhipAdminCommand } from "../../../../../core/db/procedures";
 import { Utilities } from "../../../../../Utilities/Utilities";
 import { AuthSessionService } from "../../../../../core/services/auth/auth-session.service";
-
-interface EmploymentAddress {
-  city?: string | null;
-  line1?: string | null;
-  line2?: string | null;
-  state?: string | null;
-  country?: string | null;
-  postal_code?: string | null;
-}
-
-interface EmploymentBasePay {
-  amount?: number | string | null;
-  period?: string | null;
-  currency?: string | null;
-}
-
-interface EmploymentPlatformIds {
-  employee_id?: string | null;
-  position_id?: string | null;
-  platform_user_id?: string | null;
-}
-
-interface EmploymentMetadata {
-  driverStatus?: string | null;
-  raw_employment_type?: string | null;
-  [key: string]: any;
-}
-
-interface EmploymentProfile {
-  id?: string;
-  account?: string;
-  address?: EmploymentAddress | null;
-  first_name?: string | null;
-  last_name?: string | null;
-  full_name?: string | null;
-  birth_date?: string | null;
-  email?: string | null;
-  phone_number?: string | null;
-  picture_url?: string | null;
-  employment_status?: string | null;
-  employment_type?: string | null;
-  job_title?: string | null;
-  ssn?: string | null;
-  marital_status?: string | null;
-  gender?: string | null;
-  hire_date?: string | null;
-  original_hire_date?: string | null;
-  termination_date?: string | null;
-  termination_reason?: string | null;
-  employer?: string | null;
-  base_pay?: EmploymentBasePay | null;
-  pay_cycle?: string | null;
-  platform_ids?: EmploymentPlatformIds | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-  metadata?: EmploymentMetadata | null;
-  employment?: string | null;
-}
 
 @Component({
   selector: "app-applicant-panel",
@@ -232,14 +174,14 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   emailContent: string = ""; // HTML
   emailSending = false;
   emailDelay = false;
-  emailPreviewMode: 'desktop' | 'mobile' = 'desktop';
+  emailPreviewMode: "desktop" | "mobile" = "desktop";
   emailSourceMode = false;
 
   // SMS composer sidebar state
   smsSidebarOpen = false;
-  smsFrom: string = '';
-  smsTo: string = '';
-  smsMessage: string = '';
+  smsFrom: string = "";
+  smsTo: string = "";
+  smsMessage: string = "";
   smsDelay = false;
   smsSending = false;
 
@@ -251,68 +193,20 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private disapproveReasonMap: Record<string, string> = {};
   disapproveOptionsLoading = false;
   disapproveOptionsError: string | null = null;
-  disapproveReason: string = '';
-  disapproveCustomReason: string = '';
-  disapproveMessage: string = '';
+  disapproveReason: string = "";
+  disapproveCustomReason: string = "";
+  disapproveMessage: string = "";
   disapproveSendSms: boolean = false;
   disapproveNotifyOwner: boolean = false;
   disapproveSending: boolean = false;
-  disapprovePreviewMode: 'desktop' | 'mobile' = 'desktop';
+  disapprovePreviewMode: "desktop" | "mobile" = "desktop";
   recollectSourceMode: boolean = false;
-  recollectContent: string = '';
+  recollectContent: string = "";
   recollectTemplateLoading = false;
   recollectTemplateError: string | null = null;
   private _recollectTemplateToken = 0;
 
-  employmentProfileSnapshot: EmploymentProfile | null = {
-    id: "61192fe2-c13d-3e6b-b28e-1155147845a2",
-    account: "019a0b0b-62a0-25bd-5102-11b4d292a7e8",
-    address: {
-      city: null,
-      line1: null,
-      line2: null,
-      state: null,
-      country: "SV",
-      postal_code: null,
-    },
-    first_name: "Juan",
-    last_name: "Zamora",
-    full_name: "Juan Zamora",
-    birth_date: null,
-    email: "zamora125@hotmail.com",
-    phone_number: "+50377461468",
-    picture_url:
-      "https://api.argyle.com/v2/payroll-documents/019a0b0e-9a2c-eca8-a5b6-a2d9c921e31c/file",
-    employment_status: null,
-    employment_type: "contractor",
-    job_title: "Driver",
-    ssn: null,
-    marital_status: null,
-    gender: null,
-    hire_date: "2020-04-04",
-    original_hire_date: "2020-04-04",
-    termination_date: null,
-    termination_reason: null,
-    employer: "uber",
-    base_pay: {
-      amount: null,
-      period: null,
-      currency: null,
-    },
-    pay_cycle: null,
-    platform_ids: {
-      employee_id: null,
-      position_id: null,
-      platform_user_id: null,
-    },
-    created_at: "2025-10-22T08:34:57.708Z",
-    updated_at: "2025-10-22T08:34:57.708Z",
-    metadata: {
-      driverStatus: "scanner_common.data.MissingT",
-      raw_employment_type: "Contractor",
-    },
-    employment: "8675e413-ef4f-3ea0-8f4f-008128c81d47",
-  };
+  employmentProfileSnapshot: string = '{"id":"61192fe2-c13d-3e6b-b28e-1155147845a2","account":"019a0b0b-62a0-25bd-5102-11b4d292a7e8","address":{"city":null,"line1":null,"line2":null,"state":null,"country":"SV","postal_code":null},"first_name":"Juan","last_name":"Zamora","full_name":"Juan Zamora","birth_date":null,"email":"zamora125@hotmail.com","phone_number":"+50377461468","picture_url":"https://api.argyle.com/v2/payroll-documents/019a0b0e-9a2c-eca8-a5b6-a2d9c921e31c/file","employment_status":null,"employment_type":"contractor","job_title":"Driver","ssn":null,"marital_status":null,"gender":null,"hire_date":"2020-04-04","original_hire_date":"2020-04-04","termination_date":null,"termination_reason":null,"employer":"uber","base_pay":{"amount":null,"period":null,"currency":null},"pay_cycle":null,"platform_ids":{"employee_id":null,"position_id":null,"platform_user_id":null},"created_at":"2025-10-22T08:34:57.708Z","updated_at":"2025-10-22T08:34:57.708Z","metadata":{"driverStatus":"scanner_common.data.MissingT","raw_employment_type":"Contractor"},"employment":"8675e413-ef4f-3ea0-8f4f-008128c81d47"}'; 
 
   // Open SMS composer using iPhone preview
   openSmsSidebar(): void {
@@ -320,11 +214,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (this.eventSidebarOpen) this.closeEventSidebar();
     if (this.emailSidebarOpen) this.closeEmailSidebar();
 
-    const to = this.getApplicantPhone(this.applicant) || '';
-    const defaultFrom = '8774142766';
+    const to = this.getApplicantPhone(this.applicant) || "";
+    const defaultFrom = "8774142766";
     this.smsFrom = defaultFrom;
     this.smsTo = to;
-    this.smsMessage = '';
+    this.smsMessage = "";
     this.smsDelay = false;
     this.smsSidebarOpen = true;
   }
@@ -337,18 +231,20 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (!this.employmentProfileSnapshot) {
       Swal.fire({
         icon: "info",
-        title: "Employment profile",
-        text: "Employment details are not available for this applicant.",
+        title: "Argyle Information",
+        text: "Argyle information are not available for this applicant.",
         confirmButtonText: "Close",
       });
       return;
     }
 
-    const html = this.buildEmploymentDetailsMarkup(this.employmentProfileSnapshot);
+    const html = this.buildEmploymentDetailsMarkup(
+      JSON.parse(this.employmentProfileSnapshot)
+    );
     Swal.fire({
-      title: "Employment profile",
+      title: "Argyle Information",
       html,
-      width: 680,
+      width: 800,
       customClass: { popup: "employment-profile-popup" },
       showCloseButton: true,
       focusConfirm: false,
@@ -356,12 +252,103 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     });
   }
 
-  onSmsInput(val: string): void {
-    // Enforce max length 1000 like mock
-    this.smsMessage = (val || '').toString().slice(0, 1000);
+  /**
+   * Renderiza dinámicamente cualquier objeto JSON con estilo NobleUI.
+   */
+  private buildEmploymentDetailsMarkup(profile: any): string {
+    const renderValue = (value: any): string => {
+      if (value === null || value === undefined) {
+        return `<span class="badge bg-secondary text-white">N/A</span>`;
+      }
+      if (typeof value === "boolean") {
+        return value
+          ? `<span class="badge bg-success">Yes</span>`
+          : `<span class="badge bg-danger">No</span>`;
+      }
+      if (!isNaN(Date.parse(value))) {
+        return `<span class="badge bg-primary text-white">${new Date(
+          value
+        ).toLocaleDateString()}</span>`;
+      }
+      if (typeof value === "number") {
+        return `<span class="badge bg-info">${value}</span>`;
+      }
+      if (typeof value === "string" && value.startsWith("http")) {
+        return `<a href="${value}" target="_blank" class="text-primary text-decoration-underline">Open link</a>`;
+      }
+      return `<span class="fw-semibold">${value}</span>`;
+    };
+
+    const prettifyKey = (key: string): string =>
+      key
+        .replace(/_/g, " ")
+        .replace(/([A-Z])/g, " $1")
+        .replace(/^./, (str) => str.toUpperCase());
+
+    const renderObject = (obj: any): string => {
+      let html = `<div class="card border-0 shadow-sm mb-3"><div class="card-body shadow-sm rounded">`;
+
+      for (const [key, value] of Object.entries(obj)) {
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          html += `
+          <div class="border-start border-3 border-primary ps-3 py-2">
+            <h6 class="fw-bold text-primary mb-2"><i class="mdi mdi-folder-outline me-1"></i>${prettifyKey(
+              key
+            )}</h6>
+            ${renderObject(value)}
+          </div>`;
+        } else if (Array.isArray(value)) {
+          html += `
+          <div class="mb-3">
+            <h6 class="fw-bold text-secondary"><i class="mdi mdi-format-list-bulleted me-1"></i>${prettifyKey(
+              key
+            )}</h6>
+            <div class="row">
+              ${value
+                .map(
+                  (item, i) => `
+                <div class="col-md-6">
+                  <div class="card shadow-sm mb-2">
+                    <div class="card-body">
+                      <h6 class="text-muted mb-2">Item ${i + 1}</h6>
+                      ${
+                        typeof item === "object"
+                          ? renderObject(item)
+                          : renderValue(item)
+                      }
+                    </div>
+                  </div>
+                </div>`
+                )
+                .join("")}
+            </div>
+          </div>`;
+        } else {
+          html += `
+          <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+            <span class="text-muted"><i class="mdi mdi-tag-outline me-1"></i>${prettifyKey(
+              key
+            )}</span>
+            ${renderValue(value)}
+          </div>`;
+        }
+      }
+
+      html += `</div></div>`;
+      return html;
+    };
+
+    return renderObject(profile);
   }
 
-  get smsCharCount(): number { return (this.smsMessage || '').length; }
+  onSmsInput(val: string): void {
+    // Enforce max length 1000 like mock
+    this.smsMessage = (val || "").toString().slice(0, 1000);
+  }
+
+  get smsCharCount(): number {
+    return (this.smsMessage || "").length;
+  }
   get smsSegments(): number {
     // Simple segmentation: 160 chars per segment (GSM). This is an approximation.
     const len = this.smsCharCount;
@@ -370,26 +357,30 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   sendSms(): void {
-    const text = (this.smsMessage || '').trim();
+    const text = (this.smsMessage || "").trim();
     const id = this.resolveApplicantId(this.applicant) || this.applicantId;
-    const to = (this.smsTo || '').trim();
-    const from = (this.smsFrom || '').trim();
+    const to = (this.smsTo || "").trim();
+    const from = (this.smsFrom || "").trim();
     if (!text || !id || !to || !from || this.smsSending) return;
 
     // Optimistic add to chat stream if visible
     const optimistic: ApplicantMessage = {
-      id: 'temp-sms-' + Date.now(),
-      direction: 'outbound',
-      sender: 'You',
+      id: "temp-sms-" + Date.now(),
+      direction: "outbound",
+      sender: "You",
       body: text,
-      timestamp: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date()),
-      channel: 'SMS',
-      status: 'sending',
-      statusLabel: 'Sending',
+      timestamp: new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(new Date()),
+      channel: "SMS",
+      status: "sending",
+      statusLabel: "Sending",
       automated: false,
-      dayLabel: '',
+      dayLabel: "",
       sentAt: new Date().toISOString(),
-      createdBy: this.authSession.user?.user || 'You',
+      createdBy: this.authSession.user?.user || "You",
     };
     this.messages = [...(this.messages ?? []), optimistic];
     this.refreshResolvedMessages();
@@ -401,14 +392,20 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       .subscribe({
         next: (_res) => {
           // Mark optimistic as delivered and close sidebar
-          try { this.markOptimisticDelivered(optimistic.id || ''); } catch {}
+          try {
+            this.markOptimisticDelivered(optimistic.id || "");
+          } catch {}
           this.closeSmsSidebar();
         },
         error: (_err) => {
           // Remove optimistic and surface an error toast via history or simply keep message with not_delivered
-          try { this.removeOptimistic(optimistic.id || ''); } catch {}
+          try {
+            this.removeOptimistic(optimistic.id || "");
+          } catch {}
         },
-        complete: () => { this.smsSending = false; }
+        complete: () => {
+          this.smsSending = false;
+        },
       });
   }
 
@@ -417,7 +414,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const msgs: ApplicantMessage[] = this.messages ?? [];
     for (let i = msgs.length - 1; i >= 0; i--) {
       const m = msgs[i];
-      if ((m?.direction === 'outbound') && ((m?.channel || '').toUpperCase() === 'SMS') && (m?.body || '').toString().trim()) {
+      if (
+        m?.direction === "outbound" &&
+        (m?.channel || "").toUpperCase() === "SMS" &&
+        (m?.body || "").toString().trim()
+      ) {
         return true;
       }
     }
@@ -430,10 +431,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.closeMenus();
 
     const id = this.resolveApplicantId(this.applicant) || this.applicantId;
-    const to = (this.getApplicantPhone(this.applicant) || '').trim();
-    const from = (this.smsFrom || '8774142766').trim();
+    const to = (this.getApplicantPhone(this.applicant) || "").trim();
+    const from = (this.smsFrom || "8774142766").trim();
     if (!id || !to || !from) {
-      Utilities.showToast('Missing phone or applicant id for resend', 'warning');
+      Utilities.showToast(
+        "Missing phone or applicant id for resend",
+        "warning"
+      );
       return;
     }
 
@@ -442,30 +446,39 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     let last: ApplicantMessage | null = null;
     for (let i = msgs.length - 1; i >= 0; i--) {
       const m = msgs[i];
-      if ((m?.direction === 'outbound') && ((m?.channel || '').toUpperCase() === 'SMS') && (m?.body || '').toString().trim()) {
-        last = m; break;
+      if (
+        m?.direction === "outbound" &&
+        (m?.channel || "").toUpperCase() === "SMS" &&
+        (m?.body || "").toString().trim()
+      ) {
+        last = m;
+        break;
       }
     }
-    const text = (last?.body || '').toString().trim();
+    const text = (last?.body || "").toString().trim();
     if (!text) {
-      Utilities.showToast('No outbound SMS found to resend', 'info');
+      Utilities.showToast("No outbound SMS found to resend", "info");
       return;
     }
 
     // Optimistic append
     const optimistic: ApplicantMessage = {
-      id: 'temp-resend-' + Date.now(),
-      direction: 'outbound',
-      sender: 'You',
+      id: "temp-resend-" + Date.now(),
+      direction: "outbound",
+      sender: "You",
       body: text,
-      timestamp: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date()),
-      channel: 'SMS',
-      status: 'sending',
-      statusLabel: 'Sending',
+      timestamp: new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(new Date()),
+      channel: "SMS",
+      status: "sending",
+      statusLabel: "Sending",
       automated: false,
-      dayLabel: '',
+      dayLabel: "",
       sentAt: new Date().toISOString(),
-      createdBy: this.authSession.user?.user || 'You',
+      createdBy: this.authSession.user?.user || "You",
     };
     this.messages = [...(this.messages ?? []), optimistic];
     this.refreshResolvedMessages();
@@ -475,13 +488,17 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       .sendChatSms({ from, to, message: text, id_applicant: String(id) })
       .subscribe({
         next: () => {
-          try { this.markOptimisticDelivered(optimistic.id || ''); } catch {}
-          Utilities.showToast('Message resent', 'success');
+          try {
+            this.markOptimisticDelivered(optimistic.id || "");
+          } catch {}
+          Utilities.showToast("Message resent", "success");
         },
         error: () => {
-          try { this.removeOptimistic(optimistic.id || ''); } catch {}
-          Utilities.showToast('Failed to resend message', 'error');
-        }
+          try {
+            this.removeOptimistic(optimistic.id || "");
+          } catch {}
+          Utilities.showToast("Failed to resend message", "error");
+        },
       });
   }
 
@@ -797,7 +814,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       return "system";
     }
   }
-  
+
   private _resolvedMessages: ApplicantMessage[] = [];
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -869,7 +886,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       }
     }
     // Close event sidebar when leaving History tab
-    if (changes["activeTab"] && this.activeTab !== "history" && this.eventSidebarOpen) {
+    if (
+      changes["activeTab"] &&
+      this.activeTab !== "history" &&
+      this.eventSidebarOpen
+    ) {
       this.closeEventSidebar();
     }
   }
@@ -996,13 +1017,17 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (this.smsSidebarOpen) this.closeSmsSidebar();
 
     const userEmail = this.currentUserEmail();
-    const applicantEmail = (this.applicant?.email || this.applicant?.email_address || '').toString();
-    this.emailFrom = userEmail || '';
-    this.emailTo = applicantEmail || '';
-    this.emailSubject = '';
-    this.emailContent = '';
+    const applicantEmail = (
+      this.applicant?.email ||
+      this.applicant?.email_address ||
+      ""
+    ).toString();
+    this.emailFrom = userEmail || "";
+    this.emailTo = applicantEmail || "";
+    this.emailSubject = "";
+    this.emailContent = "";
     this.emailDelay = false;
-    this.emailPreviewMode = 'desktop';
+    this.emailPreviewMode = "desktop";
     this.emailSourceMode = false;
     this.emailSidebarOpen = true;
     setTimeout(() => this.syncEmailEditorFromContent(), 0);
@@ -1033,10 +1058,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   emailInsertLink(): void {
-    const url = prompt('Enter URL');
+    const url = prompt("Enter URL");
     if (url && url.trim()) {
       try {
-        document.execCommand('createLink', false, url.trim());
+        document.execCommand("createLink", false, url.trim());
       } catch {}
       if (!this.emailSourceMode) {
         this.captureEmailContentFromEditor();
@@ -1046,45 +1071,47 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   onEmailEditorInput(ev: Event): void {
     const el = ev.target as HTMLElement;
-    this.emailContent = el?.innerHTML || '';
+    this.emailContent = el?.innerHTML || "";
   }
 
   get emailPreviewHtml(): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(this.emailContent || '');
+    return this.sanitizer.bypassSecurityTrustHtml(this.emailContent || "");
   }
 
   private captureEmailContentFromEditor(): void {
     const editor = this.emailEditorRef?.nativeElement;
     if (!editor) return;
-    this.emailContent = editor.innerHTML || '';
+    this.emailContent = editor.innerHTML || "";
   }
 
   private syncEmailEditorFromContent(): void {
     if (this.emailSourceMode) return;
     const editor = this.emailEditorRef?.nativeElement;
     if (!editor) return;
-    editor.innerHTML = this.emailContent || '';
+    editor.innerHTML = this.emailContent || "";
   }
 
-  setEmailPreviewMode(mode: 'desktop'|'mobile'): void { this.emailPreviewMode = mode; }
+  setEmailPreviewMode(mode: "desktop" | "mobile"): void {
+    this.emailPreviewMode = mode;
+  }
 
   // Placeholder send handler (wire to backend when available)
   sendEmail(): void {
-    const to = (this.emailTo || '').trim();
+    const to = (this.emailTo || "").trim();
     if (!to) {
-      Utilities.showToast('Recipient (To) is required', 'warning');
+      Utilities.showToast("Recipient (To) is required", "warning");
       return;
     }
 
-    const templateId = this.core.accountCreatedTemplateId || '';
+    const templateId = this.core.accountCreatedTemplateId || "";
     if (!templateId) {
-      Utilities.showToast('Email template is not configured', 'warning');
+      Utilities.showToast("Email template is not configured", "warning");
       return;
     }
 
-    const title = (this.emailSubject || '').trim() || 'Message from DriveWhip';
+    const title = (this.emailSubject || "").trim() || "Message from DriveWhip";
     // Use the editor HTML (or source HTML if source mode). Ensure non-empty HTML string
-    const message = (this.emailContent || '').trim() || '<p></p>';
+    const message = (this.emailContent || "").trim() || "<p></p>";
 
     this.emailSending = true;
     this.core
@@ -1093,11 +1120,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         next: () => {
           this.emailSending = false;
           this.closeEmailSidebar();
-          Utilities.showToast('Email sent', 'success');
+          Utilities.showToast("Email sent", "success");
         },
         error: () => {
           this.emailSending = false;
-          Utilities.showToast('Failed to send email', 'error');
+          Utilities.showToast("Failed to send email", "error");
         },
       });
   }
@@ -1106,14 +1133,19 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     try {
       const u: any = (this.authSession as any)?.user || null;
       if (!u) return null;
-      const direct = (u.user || '').toString().trim();
+      const direct = (u.user || "").toString().trim();
       if (direct) return direct;
       // Try parse token claims if present
-      const token = (u.token || u.id_token || '').toString();
-      if (token && token.split('.').length === 3) {
+      const token = (u.token || u.id_token || "").toString();
+      if (token && token.split(".").length === 3) {
         try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          const claim = (payload.email || payload.upn || payload.preferred_username || '').toString();
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          const claim = (
+            payload.email ||
+            payload.upn ||
+            payload.preferred_username ||
+            ""
+          ).toString();
           if (claim) return claim;
         } catch {}
       }
@@ -1129,7 +1161,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       const u: any = (this.authSession as any)?.user || null;
       const arr: any[] = Array.isArray(u?.emails) ? u.emails : [];
       for (const e of arr) {
-        const s = (e || '').toString().trim();
+        const s = (e || "").toString().trim();
         if (s) opts.add(s);
       }
     } catch {}
@@ -1407,14 +1439,15 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   /** Open the inline sidebar with event details; optionally fetch extra detail when available */
   openEventSidebar(ev: any): void {
     if (!ev) return;
-    const type = (ev.type || ev.event_type || '').toString().toLowerCase();
-    const eventTable = (ev.event_table || '').toString().toLowerCase();
+    const type = (ev.type || ev.event_type || "").toString().toLowerCase();
+    const eventTable = (ev.event_table || "").toString().toLowerCase();
     const idTableStr = (ev.id_event_table ?? ev.idEventTable ?? "0").toString();
-    const isDocument = type === 'document' || eventTable.startsWith('documents');
+    const isDocument =
+      type === "document" || eventTable.startsWith("documents");
     const docIdNum = parseInt(idTableStr, 10);
     const hasDocId = !Number.isNaN(docIdNum) && docIdNum > 0;
     // Only allow opening when backend signals detail OR when it's a document with a valid id
-    const canOpen = (ev.with_detail === true) || (isDocument && hasDocId);
+    const canOpen = ev.with_detail === true || (isDocument && hasDocId);
     if (!canOpen) return;
 
     this.selectedHistoryEvent = ev;
@@ -1431,7 +1464,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     // If it's a document event, try to load the file preview early (by id_event_table)
     if (isDocument && hasDocId) {
       const idFromApplicant = this.resolveApplicantId(this.applicant);
-      const idApplicant = (this.applicantId || idFromApplicant || null) as string | null;
+      const idApplicant = (this.applicantId || idFromApplicant || null) as
+        | string
+        | null;
       if (idApplicant) {
         const token = this.beginEventDocLoad();
         this.loadEventDocumentPreviewById(idApplicant, docIdNum, token);
@@ -1450,68 +1485,82 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       commandName: DriveWhipAdminCommand.crm_applicant_event_detail as any,
       parameters: [ev.id_event || ev.id, idApplicant],
     } as any;
-    this.core
-      .executeCommand<DriveWhipCommandResponse<any>>(api)
-      .subscribe({
-        next: (res) => {
-          let raw: any = res?.data;
-          if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
-          const row = Array.isArray(raw) && raw.length ? raw[0] : null;
-          if (row && typeof row === "object") {
-            const detail = String(
-              row.message_text ??
-                row.message ??
-                row.document_name ??
-                row.note ??
-                row.text ??
-                ""
-            );
-            if (detail) this.eventDetailText = detail;
-            // If this is a document event and we didn't get a preview yet, try from detail row
-            if ((type === 'document' || (ev.event_table || '').toString().toLowerCase().startsWith('documents')) && !this.eventDoc) {
-              const folder = row.folder ?? row.FOLDER ?? null;
-              const name = row.document_name ?? row.DOCUMENT_NAME ?? null;
-              const id_applicant_document = row.id_applicant_document ?? row.ID_APPLICANT_DOCUMENT ?? null;
-              const idFromApplicant2 = this.resolveApplicantId(this.applicant);
-              const idApplicant2 = (this.applicantId || idFromApplicant2 || null) as string | null;
-              if (idApplicant2) {
-                if (id_applicant_document) {
-                  const parsed = parseInt(String(id_applicant_document), 10);
-                  if (!Number.isNaN(parsed) && parsed > 0) {
-                    const token = this.beginEventDocLoad();
-                    this.loadEventDocumentPreviewById(idApplicant2, parsed, token);
-                  }
-                } else if (name) {
-                  // Fallback: build minimal doc object and fetch URL directly if folder/name present
-                  const doc: ApplicantDocument = {
-                    id_applicant_document: 0,
-                    id_applicant: String(idApplicant2),
-                    data_key: String(row.data_key ?? row.DATA_KEY ?? ''),
-                    document_name: String(name),
-                    status: row.status ?? row.STATUS ?? null,
-                    created_at: row.created_at ?? row.CREATED_AT ?? null,
-                    approved_at: row.approved_at ?? row.APPROVED_AT ?? null,
-                    approved_by: row.approved_by ?? row.APPROVED_BY ?? null,
-                    disapproved_at: row.disapproved_at ?? row.DISAPPROVED_AT ?? null,
-                    disapproved_by: row.disapproved_by ?? row.DISAPPROVED_BY ?? null,
-                    folder: folder ?? null,
-                    url: ''
-                  };
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        let raw: any = res?.data;
+        if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+        const row = Array.isArray(raw) && raw.length ? raw[0] : null;
+        if (row && typeof row === "object") {
+          const detail = String(
+            row.message_text ??
+              row.message ??
+              row.document_name ??
+              row.note ??
+              row.text ??
+              ""
+          );
+          if (detail) this.eventDetailText = detail;
+          // If this is a document event and we didn't get a preview yet, try from detail row
+          if (
+            (type === "document" ||
+              (ev.event_table || "")
+                .toString()
+                .toLowerCase()
+                .startsWith("documents")) &&
+            !this.eventDoc
+          ) {
+            const folder = row.folder ?? row.FOLDER ?? null;
+            const name = row.document_name ?? row.DOCUMENT_NAME ?? null;
+            const id_applicant_document =
+              row.id_applicant_document ?? row.ID_APPLICANT_DOCUMENT ?? null;
+            const idFromApplicant2 = this.resolveApplicantId(this.applicant);
+            const idApplicant2 = (this.applicantId ||
+              idFromApplicant2 ||
+              null) as string | null;
+            if (idApplicant2) {
+              if (id_applicant_document) {
+                const parsed = parseInt(String(id_applicant_document), 10);
+                if (!Number.isNaN(parsed) && parsed > 0) {
                   const token = this.beginEventDocLoad();
-                  this.loadEventDocumentUrl(doc, token);
+                  this.loadEventDocumentPreviewById(
+                    idApplicant2,
+                    parsed,
+                    token
+                  );
                 }
+              } else if (name) {
+                // Fallback: build minimal doc object and fetch URL directly if folder/name present
+                const doc: ApplicantDocument = {
+                  id_applicant_document: 0,
+                  id_applicant: String(idApplicant2),
+                  data_key: String(row.data_key ?? row.DATA_KEY ?? ""),
+                  document_name: String(name),
+                  status: row.status ?? row.STATUS ?? null,
+                  created_at: row.created_at ?? row.CREATED_AT ?? null,
+                  approved_at: row.approved_at ?? row.APPROVED_AT ?? null,
+                  approved_by: row.approved_by ?? row.APPROVED_BY ?? null,
+                  disapproved_at:
+                    row.disapproved_at ?? row.DISAPPROVED_AT ?? null,
+                  disapproved_by:
+                    row.disapproved_by ?? row.DISAPPROVED_BY ?? null,
+                  folder: folder ?? null,
+                  url: "",
+                };
+                const token = this.beginEventDocLoad();
+                this.loadEventDocumentUrl(doc, token);
               }
             }
           }
-        },
-        error: (err) => {
-          console.error("[ApplicantPanel] event detail error", err);
-          this.eventDetailError = "Failed to load event detail";
-        },
-        complete: () => {
-          this.eventDetailLoading = false;
-        },
-      });
+        }
+      },
+      error: (err) => {
+        console.error("[ApplicantPanel] event detail error", err);
+        this.eventDetailError = "Failed to load event detail";
+      },
+      complete: () => {
+        this.eventDetailLoading = false;
+      },
+    });
   }
 
   closeEventSidebar(): void {
@@ -1523,12 +1572,18 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.eventDocLoading = false;
     this.eventDocError = null;
     this.eventDoc = null;
-    try { this._eventDocSub?.unsubscribe(); } catch {}
+    try {
+      this._eventDocSub?.unsubscribe();
+    } catch {}
     this._eventDocSub = null;
   }
 
   /** Load a single applicant document (by id) for the sidebar preview */
-  private loadEventDocumentPreviewById(idApplicant: string, idApplicantDocument: number, token?: number): void {
+  private loadEventDocumentPreviewById(
+    idApplicant: string,
+    idApplicantDocument: number,
+    token?: number
+  ): void {
     try {
       if (!idApplicant || !idApplicantDocument) return;
       const t = token ?? this.beginEventDocLoad();
@@ -1548,29 +1603,34 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         commandName: DriveWhipAdminCommand.crm_applicants_documents_crud as any,
         parameters: params,
       } as any;
-      this._eventDocSub = this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
-        next: (res) => {
-          if (t !== this._activeEventDocToken) return; // stale
-          let raw: any = res?.data;
-          if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
-          const rows: any[] = Array.isArray(raw) ? raw : [];
-          const r = rows.length ? rows[0] : null;
-          if (!r) {
-            this.eventDocError = 'File not found';
-            return;
-          }
-          const doc = this.normalizeDocRecord(r);
-          this.loadEventDocumentUrl(doc, t);
-        },
-        error: (err) => {
-          console.error('[ApplicantPanel] loadEventDocumentPreviewById error', err);
-          this.eventDocError = 'Failed to load file';
-          this.eventDocLoading = false;
-        },
-        complete: () => {},
-      });
+      this._eventDocSub = this.core
+        .executeCommand<DriveWhipCommandResponse<any>>(api)
+        .subscribe({
+          next: (res) => {
+            if (t !== this._activeEventDocToken) return; // stale
+            let raw: any = res?.data;
+            if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+            const rows: any[] = Array.isArray(raw) ? raw : [];
+            const r = rows.length ? rows[0] : null;
+            if (!r) {
+              this.eventDocError = "File not found";
+              return;
+            }
+            const doc = this.normalizeDocRecord(r);
+            this.loadEventDocumentUrl(doc, t);
+          },
+          error: (err) => {
+            console.error(
+              "[ApplicantPanel] loadEventDocumentPreviewById error",
+              err
+            );
+            this.eventDocError = "Failed to load file";
+            this.eventDocLoading = false;
+          },
+          complete: () => {},
+        });
     } catch (e) {
-      this.eventDocError = 'Failed to load file';
+      this.eventDocError = "Failed to load file";
       this.eventDocLoading = false;
     }
   }
@@ -1579,29 +1639,38 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private loadEventDocumentUrl(doc: ApplicantDocument, token?: number): void {
     try {
       const t = token ?? this.beginEventDocLoad();
-      const effectiveFolder = (doc.folder && String(doc.folder).trim())
-        ? String(doc.folder)
-        : (this.resolveDocFolderByName(doc.document_name) || 'aplicant');
+      const effectiveFolder =
+        doc.folder && String(doc.folder).trim()
+          ? String(doc.folder)
+          : this.resolveDocFolderByName(doc.document_name) || "aplicant";
       const docToLoad = { ...doc, folder: effectiveFolder };
-      this._eventDocSub = this.core.fetchFile(effectiveFolder, doc.document_name || '').subscribe({
-        next: (resp: any) => {
-          if (t !== this._activeEventDocToken) return; // stale
-          // Ensure we set the correct doc only for the active token
-          docToLoad.url = resp?.data?.url || docToLoad.url || '';
-          this.eventDoc = { ...docToLoad };
-          this.eventDocLoading = false;
-        },
-        error: (err) => {
-          console.error('[ApplicantPanel] loadEventDocumentUrl error', err);
-          if (t !== this._activeEventDocToken) return; // stale
-          this.eventDoc = { ...docToLoad }; // set without URL so actions can still work
-          this.eventDocError = 'Unable to load file preview';
-          this.eventDocLoading = false;
-        },
-      });
+      this._eventDocSub = this.core
+        .fetchFile(effectiveFolder, doc.document_name || "")
+        .subscribe({
+          next: (resp: any) => {
+            if (t !== this._activeEventDocToken) return; // stale
+            // Ensure we set the correct doc only for the active token
+            docToLoad.url = resp?.data?.url || docToLoad.url || "";
+            this.eventDoc = { ...docToLoad };
+            this.eventDocLoading = false;
+          },
+          error: (err) => {
+            console.error("[ApplicantPanel] loadEventDocumentUrl error", err);
+            if (t !== this._activeEventDocToken) return; // stale
+            this.eventDoc = { ...docToLoad }; // set without URL so actions can still work
+            this.eventDocError = "Unable to load file preview";
+            this.eventDocLoading = false;
+          },
+        });
     } catch (e) {
-      this.eventDoc = { ...doc, folder: doc.folder || this.resolveDocFolderByName(doc.document_name) || 'aplicant' };
-      this.eventDocError = 'Unable to load file preview';
+      this.eventDoc = {
+        ...doc,
+        folder:
+          doc.folder ||
+          this.resolveDocFolderByName(doc.document_name) ||
+          "aplicant",
+      };
+      this.eventDocError = "Unable to load file preview";
       this.eventDocLoading = false;
     }
   }
@@ -1609,7 +1678,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   /** Begin a new event-doc load by increasing the active token and cancelling previous */
   private beginEventDocLoad(): number {
     this._activeEventDocToken = ++this._eventDocLoadSeq;
-    try { this._eventDocSub?.unsubscribe(); } catch {}
+    try {
+      this._eventDocSub?.unsubscribe();
+    } catch {}
     this._eventDocSub = null;
     this.eventDocLoading = true;
     this.eventDocError = null;
@@ -1618,15 +1689,20 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   /** Try to infer the folder of a document from already loaded applicant files by name */
-  private resolveDocFolderByName(name: string | null | undefined): string | null {
-    const fileName = (name || '').toString().trim();
+  private resolveDocFolderByName(
+    name: string | null | undefined
+  ): string | null {
+    const fileName = (name || "").toString().trim();
     if (!fileName) return null;
     try {
       const groups = this.documentGroups || [];
       for (const g of groups) {
-        for (const d of (g.items || [])) {
-          if ((d?.document_name || '').toString().trim().toLowerCase() === fileName.toLowerCase()) {
-            const fld = (d.folder || '').toString().trim();
+        for (const d of g.items || []) {
+          if (
+            (d?.document_name || "").toString().trim().toLowerCase() ===
+            fileName.toLowerCase()
+          ) {
+            const fld = (d.folder || "").toString().trim();
             if (fld) return fld;
           }
         }
@@ -1673,7 +1749,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
             <div class="mt-2"><strong>To:</strong> ${this.escapeHtml(
               ev.to || ev.newStage || ""
             )}</div>
-            <div class="mt-3">${this.escapeHtml(detailText || ev.notes || ev.text || "")}</div>
+            <div class="mt-3">${this.escapeHtml(
+              detailText || ev.notes || ev.text || ""
+            )}</div>
           `;
           break;
         case "upload":
@@ -1691,7 +1769,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
               ev.fileSize || ""
             )}</div>
             <div class="mt-3">${this.escapeHtml(ev.notes || "")}</div>
-            ${ev.fileUrl ? `<div class="mt-3"><a href="${this.escapeHtml(ev.fileUrl)}" target="_blank">View / Download</a></div>` : ''}
+            ${
+              ev.fileUrl
+                ? `<div class="mt-3"><a href="${this.escapeHtml(
+                    ev.fileUrl
+                  )}" target="_blank">View / Download</a></div>`
+                : ""
+            }
           `;
           break;
         case "note":
@@ -1726,10 +1810,12 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     };
 
     // If event is marked with_detail, fetch detail text
-    const idTable = (ev.id_event_table ?? ev.idEventTable ?? '0').toString();
+    const idTable = (ev.id_event_table ?? ev.idEventTable ?? "0").toString();
     if (ev.with_detail) {
       const idFromApplicant = this.resolveApplicantId(this.applicant);
-      const idApplicant = (this.applicantId || idFromApplicant || null) as string | null;
+      const idApplicant = (this.applicantId || idFromApplicant || null) as
+        | string
+        | null;
       if (idApplicant) {
         const api: IDriveWhipCoreAPI = {
           commandName: DriveWhipAdminCommand.crm_applicant_event_detail as any,
@@ -1741,8 +1827,15 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
             if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
             const row = Array.isArray(raw) && raw.length ? raw[0] : null;
             let detailText: string | undefined = undefined;
-            if (row && typeof row === 'object') {
-              detailText = String(row.message_text ?? row.message ?? row.document_name ?? row.note ?? row.text ?? '');
+            if (row && typeof row === "object") {
+              detailText = String(
+                row.message_text ??
+                  row.message ??
+                  row.document_name ??
+                  row.note ??
+                  row.text ??
+                  ""
+              );
             }
             finish(detailText);
           },
@@ -2024,8 +2117,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         // Normalize and ensure 'all' is first
         const mapped = rows
           .map((r) => ({
-            event_type: String(r.event_type ?? r.type ?? '').toLowerCase(),
-            description: String(r.description ?? r.label ?? r.name ?? '') || 'All events',
+            event_type: String(r.event_type ?? r.type ?? "").toLowerCase(),
+            description:
+              String(r.description ?? r.label ?? r.name ?? "") || "All events",
           }))
           .filter((o) => o.event_type);
         // Deduplicate by event_type
@@ -2036,20 +2130,28 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           seen.add(o.event_type);
           dedup.push(o);
         }
-        dedup.sort((a, b) => (a.event_type === 'all' ? -1 : b.event_type === 'all' ? 1 : a.description.localeCompare(b.description)));
-        this.eventOptions = dedup.length ? dedup : [{ event_type: 'all', description: 'All events' }];
+        dedup.sort((a, b) =>
+          a.event_type === "all"
+            ? -1
+            : b.event_type === "all"
+            ? 1
+            : a.description.localeCompare(b.description)
+        );
+        this.eventOptions = dedup.length
+          ? dedup
+          : [{ event_type: "all", description: "All events" }];
       },
       error: (err) => {
-        console.error('[ApplicantPanel] loadEventOptions error', err);
-        this.eventOptionsError = 'Failed to load event filters';
+        console.error("[ApplicantPanel] loadEventOptions error", err);
+        this.eventOptionsError = "Failed to load event filters";
         // Fallback options
         this.eventOptions = [
-          { event_type: 'all', description: 'All events' },
-          { event_type: 'notifications', description: 'Notification' },
-          { event_type: 'chats', description: 'Chat' },
-          { event_type: 'documents', description: 'Document' },
-          { event_type: 'notes', description: 'Note' },
-          { event_type: 'stages-history', description: 'Stage History' },
+          { event_type: "all", description: "All events" },
+          { event_type: "notifications", description: "Notification" },
+          { event_type: "chats", description: "Chat" },
+          { event_type: "documents", description: "Document" },
+          { event_type: "notes", description: "Note" },
+          { event_type: "stages-history", description: "Stage History" },
         ];
       },
       complete: () => {
@@ -2059,37 +2161,50 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   /** Load events for the history (timeline) */
-  private loadApplicantEvents(applicantId: string, prefix: string = 'all', force: boolean = false): void {
+  private loadApplicantEvents(
+    applicantId: string,
+    prefix: string = "all",
+    force: boolean = false
+  ): void {
     if (!applicantId) return;
-    if (!force && this.historyLoadedForApplicantId === applicantId && this.selectedEventPrefix === prefix && this.historyEvents.length) return;
+    if (
+      !force &&
+      this.historyLoadedForApplicantId === applicantId &&
+      this.selectedEventPrefix === prefix &&
+      this.historyEvents.length
+    )
+      return;
     this.historyLoading = true;
     this.historyError = null;
     const api: IDriveWhipCoreAPI = {
       commandName: DriveWhipAdminCommand.crm_applicant_event_read as any,
-      parameters: [applicantId, prefix || 'all'],
+      parameters: [applicantId, prefix || "all"],
     } as any;
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
       next: (res) => {
         if (!res?.ok) {
-          this.historyError = String(res?.error || 'Failed to load history');
+          this.historyError = String(res?.error || "Failed to load history");
           this.historyEvents = [];
           return;
         }
-  // Support multiple result sets: enriched + refs; prefer enriched for display
-  const { enriched, refs } = this.parseEventDatasets(res.data);
-  const refMap = this.buildEventRefMap(refs);
-  const rows = enriched.length ? enriched : refs;
-  // Map to the timeline item shape and augment from refs when needed
-  const mapped = rows.map((r) => this.normalizeEventRow(r, refMap));
+        // Support multiple result sets: enriched + refs; prefer enriched for display
+        const { enriched, refs } = this.parseEventDatasets(res.data);
+        const refMap = this.buildEventRefMap(refs);
+        const rows = enriched.length ? enriched : refs;
+        // Map to the timeline item shape and augment from refs when needed
+        const mapped = rows.map((r) => this.normalizeEventRow(r, refMap));
         // Sort desc by time then keep as array for grouping below
-        const withTs = mapped.map((ev) => ({ ...ev, __timestamp: this.resolveEventTimestamp(ev) }));
+        const withTs = mapped.map((ev) => ({
+          ...ev,
+          __timestamp: this.resolveEventTimestamp(ev),
+        }));
         withTs.sort((a, b) => (b.__timestamp ?? 0) - (a.__timestamp ?? 0));
         this.historyEvents = withTs;
         this.historyLoadedForApplicantId = applicantId;
       },
       error: (err) => {
-        console.error('[ApplicantPanel] loadApplicantEvents error', err);
-        this.historyError = 'Failed to load history';
+        console.error("[ApplicantPanel] loadApplicantEvents error", err);
+        this.historyError = "Failed to load history";
         this.historyEvents = [];
       },
       complete: () => {
@@ -2107,24 +2222,28 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         for (const ds of data as any[]) {
           if (!Array.isArray(ds) || ds.length === 0) continue;
           const r = ds[0];
-          const isEnriched = r && typeof r === 'object' && (
-            Object.prototype.hasOwnProperty.call(r, 'event_title') ||
-            Object.prototype.hasOwnProperty.call(r, 'event_date') ||
-            Object.prototype.hasOwnProperty.call(r, 'event_user') ||
-            Object.prototype.hasOwnProperty.call(r, 'event_type')
-          );
-          if (isEnriched) out.enriched = ds; else out.refs = ds;
+          const isEnriched =
+            r &&
+            typeof r === "object" &&
+            (Object.prototype.hasOwnProperty.call(r, "event_title") ||
+              Object.prototype.hasOwnProperty.call(r, "event_date") ||
+              Object.prototype.hasOwnProperty.call(r, "event_user") ||
+              Object.prototype.hasOwnProperty.call(r, "event_type"));
+          if (isEnriched) out.enriched = ds;
+          else out.refs = ds;
         }
       } else {
         const arr = data as any[];
         const r = arr[0];
-        const isEnriched = r && typeof r === 'object' && (
-          Object.prototype.hasOwnProperty.call(r, 'event_title') ||
-          Object.prototype.hasOwnProperty.call(r, 'event_date') ||
-          Object.prototype.hasOwnProperty.call(r, 'event_user') ||
-          Object.prototype.hasOwnProperty.call(r, 'event_type')
-        );
-        if (isEnriched) out.enriched = arr; else out.refs = arr;
+        const isEnriched =
+          r &&
+          typeof r === "object" &&
+          (Object.prototype.hasOwnProperty.call(r, "event_title") ||
+            Object.prototype.hasOwnProperty.call(r, "event_date") ||
+            Object.prototype.hasOwnProperty.call(r, "event_user") ||
+            Object.prototype.hasOwnProperty.call(r, "event_type"));
+        if (isEnriched) out.enriched = arr;
+        else out.refs = arr;
       }
     }
     return out;
@@ -2133,7 +2252,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private buildEventRefMap(refs: any[]): Record<string, any> {
     const map: Record<string, any> = {};
     for (const r of refs || []) {
-      const key = String(r.id_event ?? r.event_id ?? r.id ?? '').trim();
+      const key = String(r.id_event ?? r.event_id ?? r.id ?? "").trim();
       if (!key) continue;
       map[key] = r;
     }
@@ -2141,25 +2260,42 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private normalizeEventRow(r: any, refMap?: Record<string, any>): any {
-    const id = String(r.event_id ?? r.id ?? r.id_event ?? r.uuid ?? '');
-    let eventTable = String(r.event_table ?? r.table ?? '').toLowerCase();
-    let idEventTable = r.id_event_table != null ? String(r.id_event_table) : '0';
-    if ((!eventTable || idEventTable === '0') && refMap && id) {
+    const id = String(r.event_id ?? r.id ?? r.id_event ?? r.uuid ?? "");
+    let eventTable = String(r.event_table ?? r.table ?? "").toLowerCase();
+    let idEventTable =
+      r.id_event_table != null ? String(r.id_event_table) : "0";
+    if ((!eventTable || idEventTable === "0") && refMap && id) {
       const ref = refMap[id];
       if (ref) {
-        eventTable = String(ref.event_table ?? '').toLowerCase();
-        idEventTable = ref.id_event_table != null ? String(ref.id_event_table) : idEventTable;
+        eventTable = String(ref.event_table ?? "").toLowerCase();
+        idEventTable =
+          ref.id_event_table != null
+            ? String(ref.id_event_table)
+            : idEventTable;
       }
     }
-    const typeRaw = String(r.event_type ?? r.type ?? this.mapEventTableToType(eventTable)).toLowerCase();
-    const type = typeRaw === 'mail' ? 'email' : typeRaw; // normalize
-    const text = String(r.event_title ?? r.title ?? this.defaultTitleForEventTable(eventTable) ?? r.text ?? '');
+    const typeRaw = String(
+      r.event_type ?? r.type ?? this.mapEventTableToType(eventTable)
+    ).toLowerCase();
+    const type = typeRaw === "mail" ? "email" : typeRaw; // normalize
+    const text = String(
+      r.event_title ??
+        r.title ??
+        this.defaultTitleForEventTable(eventTable) ??
+        r.text ??
+        ""
+    );
     const time = r.event_date ?? r.date ?? r.created_at ?? r.createdAt ?? null;
-    const user = String(r.event_user ?? r.user ?? r.actorName ?? '') || '';
-    const role = user.toLowerCase().includes('system') ? 'System' : undefined;
-    const channel = type === 'sms' ? 'SMS' : type === 'email' ? 'Email' : undefined;
+    const user = String(r.event_user ?? r.user ?? r.actorName ?? "") || "";
+    const role = user.toLowerCase().includes("system") ? "System" : undefined;
+    const channel =
+      type === "sms" ? "SMS" : type === "email" ? "Email" : undefined;
     // Backend may send a variety of shapes for the detail flag; coerce safely
-    const rawWithDetail = (r.with_detail ?? r.with_details ?? (r as any).width_details ?? r.withDetail ?? r.withDetails) as any;
+    const rawWithDetail = (r.with_detail ??
+      r.with_details ??
+      (r as any).width_details ??
+      r.withDetail ??
+      r.withDetails) as any;
     const withDetail = this.coerceWithDetailFlag(rawWithDetail);
 
     return {
@@ -2179,30 +2315,30 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private mapEventTableToType(eventTable: string): string {
-    if (!eventTable) return 'event';
-    if (eventTable.startsWith('notifications-sms')) return 'sms';
-    if (eventTable.startsWith('notifications')) return 'email';
-    if (eventTable.startsWith('chats')) return 'sms';
-    if (eventTable.startsWith('documents')) return 'document';
-    if (eventTable.startsWith('notes')) return 'note';
-    if (eventTable.startsWith('stages-history')) return 'stage';
-    return 'event';
+    if (!eventTable) return "event";
+    if (eventTable.startsWith("notifications-sms")) return "sms";
+    if (eventTable.startsWith("notifications")) return "email";
+    if (eventTable.startsWith("chats")) return "sms";
+    if (eventTable.startsWith("documents")) return "document";
+    if (eventTable.startsWith("notes")) return "note";
+    if (eventTable.startsWith("stages-history")) return "stage";
+    return "event";
   }
 
   private defaultTitleForEventTable(eventTable: string): string {
-    const et = (eventTable || '').toLowerCase();
-    if (et.startsWith('documents-create')) return 'Document uploaded';
-    if (et.startsWith('documents-approved')) return 'Document approved';
-    if (et.startsWith('documents-disapproved')) return 'Document disapproved';
-    if (et.startsWith('notifications-sms')) return 'SMS notification sent';
-    if (et.startsWith('notifications')) return 'Email notification sent';
-    if (et === 'chats') return 'SMS sent from chat screen';
-    if (et.startsWith('chats')) return 'SMS message';
-    if (et.startsWith('notes-create')) return 'Note added';
-    if (et.startsWith('notes-updated')) return 'Note updated';
-    if (et.startsWith('notes')) return 'Note';
-    if (et.startsWith('stages-history')) return 'Stage changed';
-    return 'Event';
+    const et = (eventTable || "").toLowerCase();
+    if (et.startsWith("documents-create")) return "Document uploaded";
+    if (et.startsWith("documents-approved")) return "Document approved";
+    if (et.startsWith("documents-disapproved")) return "Document disapproved";
+    if (et.startsWith("notifications-sms")) return "SMS notification sent";
+    if (et.startsWith("notifications")) return "Email notification sent";
+    if (et === "chats") return "SMS sent from chat screen";
+    if (et.startsWith("chats")) return "SMS message";
+    if (et.startsWith("notes-create")) return "Note added";
+    if (et.startsWith("notes-updated")) return "Note updated";
+    if (et.startsWith("notes")) return "Note";
+    if (et.startsWith("stages-history")) return "Stage changed";
+    return "Event";
   }
 
   private normalizeFallbackHistory(source: any[] | null | undefined): any[] {
@@ -2211,7 +2347,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private normalizeLooseEvent(ev: any): any {
-    if (!ev || typeof ev !== 'object') return ev;
+    if (!ev || typeof ev !== "object") return ev;
     const raw =
       ev.with_detail ??
       ev.with_details ??
@@ -2229,373 +2365,24 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private coerceWithDetailFlag(raw: any): boolean {
-    if (typeof raw === 'boolean') return raw;
-    if (typeof raw === 'number') return raw === 1;
-    if (typeof raw === 'string') {
+    if (typeof raw === "boolean") return raw;
+    if (typeof raw === "number") return raw === 1;
+    if (typeof raw === "string") {
       const s = raw.trim().toLowerCase();
-      return s === 'true' || s === '1' || s === 'yes' || s === 'y' || s === 't' || s === 'si';
+      return (
+        s === "true" ||
+        s === "1" ||
+        s === "yes" ||
+        s === "y" ||
+        s === "t" ||
+        s === "si"
+      );
     }
     return false;
   }
 
-  private buildEmploymentDetailsMarkup(profile: EmploymentProfile): string {
-    const sections: string[] = [];
-    // Track top-level keys we actually rendered to avoid duplicating in the dynamic section
-    const usedKeys = new Set<string>();
-
-    // Header card with avatar and key tags
-    sections.push(this.renderProfileHeader(profile));
-
-    // Section rows
-    const overviewRows: string[] = [];
-    const r_job = this.renderProfileRow('Job title', profile.job_title); if (r_job) { overviewRows.push(r_job); usedKeys.add('job_title'); }
-    const r_emp = this.renderProfileRow('Employer', this.prettifyToken(profile.employer)); if (r_emp) { overviewRows.push(r_emp); usedKeys.add('employer'); }
-    const r_type = this.renderProfileRow('Employment type', this.prettifyToken(profile.employment_type)); if (r_type) { overviewRows.push(r_type); usedKeys.add('employment_type'); }
-    const r_status = this.renderProfileRow('Employment status', this.prettifyToken(profile.employment_status)); if (r_status) { overviewRows.push(r_status); usedKeys.add('employment_status'); }
-
-    const personalRows: string[] = [];
-    const r_birth = this.renderProfileRow('Birth date', this.formatDateValue(profile.birth_date)); if (r_birth) { personalRows.push(r_birth); usedKeys.add('birth_date'); }
-    const r_gender = this.renderProfileRow('Gender', this.prettifyToken(profile.gender)); if (r_gender) { personalRows.push(r_gender); usedKeys.add('gender'); }
-    const r_marital = this.renderProfileRow('Marital status', this.prettifyToken(profile.marital_status)); if (r_marital) { personalRows.push(r_marital); usedKeys.add('marital_status'); }
-    const r_ssn = this.renderProfileRow('SSN', profile.ssn ? this.maskSensitiveValue(profile.ssn) : null); if (r_ssn) { personalRows.push(r_ssn); usedKeys.add('ssn'); }
-
-    const contactRows: string[] = [];
-    const r_email = this.renderProfileRow('Email', this.buildEmailLink(profile.email), { allowHtml: true }); if (r_email) { contactRows.push(r_email); usedKeys.add('email'); }
-    const r_phone = this.renderProfileRow('Phone', this.buildPhoneLink(profile.phone_number), { allowHtml: true }); if (r_phone) { contactRows.push(r_phone); usedKeys.add('phone_number'); }
-    const r_photo = this.renderProfileRow('Photo', this.buildExternalLink(profile.picture_url, 'View photo'), { allowHtml: true }); if (r_photo) { contactRows.push(r_photo); usedKeys.add('picture_url'); }
-
-    const addressRows: string[] = [];
-    const r_addr = this.renderProfileRow('Address', this.formatAddress(profile.address)); if (r_addr) { addressRows.push(r_addr); usedKeys.add('address'); }
-
-    const employmentRows: string[] = [];
-    const r_hire = this.renderProfileRow('Hire date', this.formatDateValue(profile.hire_date)); if (r_hire) { employmentRows.push(r_hire); usedKeys.add('hire_date'); }
-    const r_ohire = this.renderProfileRow('Original hire date', this.formatDateValue(profile.original_hire_date)); if (r_ohire) { employmentRows.push(r_ohire); usedKeys.add('original_hire_date'); }
-    const r_term = this.renderProfileRow('Termination date', this.formatDateValue(profile.termination_date)); if (r_term) { employmentRows.push(r_term); usedKeys.add('termination_date'); }
-    const r_treason = this.renderProfileRow('Termination reason', this.prettifyToken(profile.termination_reason)); if (r_treason) { employmentRows.push(r_treason); usedKeys.add('termination_reason'); }
-    const r_cycle = this.renderProfileRow('Pay cycle', this.prettifyToken(profile.pay_cycle)); if (r_cycle) { employmentRows.push(r_cycle); usedKeys.add('pay_cycle'); }
-
-    const compensationRows: string[] = [];
-    const r_pay = this.renderProfileRow('Base pay', this.formatBasePay(profile.base_pay)); if (r_pay) { compensationRows.push(r_pay); usedKeys.add('base_pay'); }
-
-    const platformRows: string[] = [];
-    const r_eid = this.renderProfileRow('Employee ID', profile.platform_ids?.employee_id); if (r_eid) { platformRows.push(r_eid); usedKeys.add('platform_ids'); }
-    const r_pid = this.renderProfileRow('Position ID', profile.platform_ids?.position_id); if (r_pid) { platformRows.push(r_pid); usedKeys.add('platform_ids'); }
-    const r_puid = this.renderProfileRow('Platform user ID', profile.platform_ids?.platform_user_id); if (r_puid) { platformRows.push(r_puid); usedKeys.add('platform_ids'); }
-
-    const metadataRows: string[] = [];
-    if (profile.metadata && typeof profile.metadata === 'object') {
-      for (const [key, value] of Object.entries(profile.metadata)) {
-        if (value == null || value === '') continue;
-        const label = this.prettifyToken(key) || key;
-        const formatted = typeof value === 'string'
-          ? (this.prettifyToken(value) || value)
-          : String(value);
-        const row = this.renderProfileRow(label, formatted);
-        if (row) metadataRows.push(row);
-      }
-      usedKeys.add('metadata');
-    }
-
-    const recordRows: string[] = [
-      this.renderProfileRow('Profile ID', profile.id),
-      this.renderProfileRow('Account ID', profile.account),
-      this.renderProfileRow('Employment record ID', profile.employment),
-      this.renderProfileRow('Created at', this.formatDateTime(profile.created_at)),
-      this.renderProfileRow('Updated at', this.formatDateTime(profile.updated_at)),
-    ].filter(Boolean) as string[];
-    if (recordRows.length) { usedKeys.add('id'); usedKeys.add('account'); usedKeys.add('employment'); usedKeys.add('created_at'); usedKeys.add('updated_at'); }
-
-    // Additional fields: dynamically render any unknown properties that may arrive in the JSON
-    const additionalRows = this.collectAdditionalRows(profile, usedKeys);
-
-    // Build accordion sections with details/summary (no JS needed)
-    const acc: string[] = [];
-    if (overviewRows.length) acc.push(this.renderAccordionSection('Overview', overviewRows, true));
-    if (personalRows.length) acc.push(this.renderAccordionSection('Personal details', personalRows));
-    if (contactRows.length) acc.push(this.renderAccordionSection('Contact', contactRows));
-    if (addressRows.length) acc.push(this.renderAccordionSection('Location', addressRows));
-    if (employmentRows.length) acc.push(this.renderAccordionSection('Employment timeline', employmentRows));
-    if (compensationRows.length) acc.push(this.renderAccordionSection('Compensation', compensationRows));
-    if (platformRows.length) acc.push(this.renderAccordionSection('Platform identifiers', platformRows));
-    if (metadataRows.length) acc.push(this.renderAccordionSection('Metadata', metadataRows));
-  if (recordRows.length) acc.push(this.renderAccordionSection('Record details', recordRows));
-  if (additionalRows.length) acc.push(this.renderAccordionSection('Additional fields', additionalRows));
-
-    sections.push(`<div class=\"accordion-stack\">${acc.join('')}</div>`);
-    return `<div class=\"employment-profile\">${sections.join('')}</div>`;
-  }
-
-  private renderAccordionSection(title: string, rows: string[], open: boolean = false): string {
-    const openAttr = open ? ' open' : '';
-    return `
-<details class=\"acc\"${openAttr}>
-  <summary>
-    <span class=\"acc-title\">${this.escapeHtml(title)}</span>
-    <span class=\"acc-caret\"></span>
-  </summary>
-  <div class=\"acc-body\">${rows.join('')}</div>
-</details>`;
-  }
-
-  private renderProfileHeader(profile: EmploymentProfile): string {
-    const fullName = this.resolveFullName(profile) || 'Unknown';
-    const employer = this.prettifyToken(profile.employer) || '—';
-    const job = profile.job_title || '—';
-    const type = this.prettifyToken(profile.employment_type) || '';
-    const status = this.prettifyToken(profile.employment_status) || '';
-    const img = profile.picture_url ? `<img class=\"ep-avatar\" src=\"${this.escapeAttribute(profile.picture_url)}\" alt=\"${this.escapeAttribute(fullName)}\"/>` : `<div class=\"ep-avatar ep-initials\">${this.escapeHtml((fullName || '?').slice(0,1))}</div>`;
-    const tags: string[] = [];
-    if (type) tags.push(`<span class=\"tag\">${this.escapeHtml(type)}</span>`);
-    if (status) tags.push(`<span class=\"tag muted\">${this.escapeHtml(status)}</span>`);
-    return `
-<div class=\"ep-header\">
-  ${img}
-  <div class=\"ep-main\">
-    <div class=\"ep-name\">${this.escapeHtml(fullName)}</div>
-    <div class=\"ep-sub\">${this.escapeHtml(job)} <span class=\"sep\">•</span> ${this.escapeHtml(employer)}</div>
-    <div class=\"ep-tags\">${tags.join('')}</div>
-  </div>
-</div>`;
-  }
-
-  private renderProfileSection(title: string, rows: string[]): string {
-    if (!rows.length) return '';
-    return `<section class="profile-section"><h4 class="section-title">${this.escapeHtml(title)}</h4>${rows.join('')}</section>`;
-  }
-
-  /**
-   * Collect dynamic rows for unknown fields so the popup adapts to missing/new properties without code changes.
-   * - Skips all known fields that are already rendered in dedicated sections
-   * - Flattens simple nested objects into label paths like "Parent › Child"
-   * - Arrays of primitives are joined with comma; arrays of objects are summarized by item count
-   */
-  private collectAdditionalRows(profile: any, excludeKeys?: Set<string>): string[] {
-    const rows: string[] = [];
-    if (!profile || typeof profile !== 'object') return rows;
-    const knownTopLevel = excludeKeys ? new Set<string>(excludeKeys) : new Set<string>();
-    const entries = Object.entries(profile as Record<string, any>);
-    for (const [key, value] of entries) {
-      if (knownTopLevel.has(key)) continue; // rendered elsewhere
-      this.flattenUnknown(value, this.prettifyToken(key) || key, rows);
-    }
-    return rows;
-  }
-
-  private flattenUnknown(value: any, labelPath: string, out: string[]): void {
-    if (value == null) return;
-    // Primitive values: render directly
-    if (this.isPrimitive(value)) {
-      const row = this.renderProfileRow(labelPath, String(value));
-      if (row) out.push(row);
-      return;
-    }
-    // Dates as strings that parse
-    if (typeof value === 'string') {
-      // If it looks like a date, format; else render as-is
-      const asDate = new Date(value);
-      const formatted = !Number.isNaN(asDate.getTime()) ? this.formatDateTime(value) || value : value;
-      const row = this.renderProfileRow(labelPath, formatted);
-      if (row) out.push(row);
-      return;
-    }
-    // Arrays
-    if (Array.isArray(value)) {
-      if (!value.length) return;
-      const allPrimitive = value.every((v) => this.isPrimitive(v) || typeof v === 'string');
-      if (allPrimitive) {
-        const joined = value.map((v) => (typeof v === 'string' ? v : String(v))).join(', ');
-        const row = this.renderProfileRow(labelPath, joined);
-        if (row) out.push(row);
-      } else {
-        const row = this.renderProfileRow(labelPath, `${value.length} item(s)`);
-        if (row) out.push(row);
-      }
-      return;
-    }
-    // Plain object: recurse one level deep to key/value pairs
-    if (typeof value === 'object') {
-      let pushed = 0;
-      for (const [k, v] of Object.entries(value as Record<string, any>)) {
-        if (v == null || (typeof v === 'string' && v.trim().toLowerCase() === 'null')) continue;
-        const childLabel = `${labelPath} › ${this.prettifyToken(k) || k}`;
-        if (this.isPrimitive(v) || typeof v === 'string') {
-          const row = this.renderProfileRow(childLabel, typeof v === 'string' ? v : String(v));
-          if (row) { out.push(row); pushed++; }
-        } else if (Array.isArray(v)) {
-          if (!v.length) continue;
-          const basic = v.every((i) => this.isPrimitive(i) || typeof i === 'string');
-          const val = basic ? v.map((i) => (typeof i === 'string' ? i : String(i))).join(', ') : `${v.length} item(s)`;
-          const row = this.renderProfileRow(childLabel, val);
-          if (row) { out.push(row); pushed++; }
-        } else if (typeof v === 'object') {
-          // Avoid too much depth: show JSON snippet
-          try {
-            const json = JSON.stringify(v, null, 2);
-            const row = this.renderProfileRow(childLabel, json);
-            if (row) { out.push(row); pushed++; }
-          } catch {
-            const row = this.renderProfileRow(childLabel, '[object]');
-            if (row) { out.push(row); pushed++; }
-          }
-        }
-      }
-      // If object had no renderable children, show stringified
-      if (!pushed) {
-        try {
-          const json = JSON.stringify(value, null, 2);
-          const row = this.renderProfileRow(labelPath, json);
-          if (row) out.push(row);
-        } catch {
-          const row = this.renderProfileRow(labelPath, '[object]');
-          if (row) out.push(row);
-        }
-      }
-    }
-  }
-
-  private isPrimitive(v: any): boolean {
-    return (
-      typeof v === 'number' ||
-      typeof v === 'boolean' ||
-      v instanceof Number ||
-      v instanceof Boolean
-    );
-  }
-
-  private renderProfileRow(label: string, value?: string | null, opts?: { allowHtml?: boolean }): string | null {
-    if (value == null) return null;
-    const normalized = typeof value === 'string' ? value : String(value);
-    if (normalized.trim() === '' || normalized.trim().toLowerCase() === 'null') return null;
-    const safeLabel = this.escapeHtml(label);
-    const safeValue = opts?.allowHtml ? normalized : this.escapeHtml(normalized);
-    return `<div class="profile-row"><span class="label">${safeLabel}</span><span class="value">${safeValue}</span></div>`;
-  }
-
-  private resolveFullName(profile: EmploymentProfile): string | null {
-    if (profile.full_name) return profile.full_name;
-    const parts = [profile.first_name, profile.last_name].filter((p) => !!p && String(p).trim() !== '');
-    return parts.length ? parts.join(' ') : null;
-  }
-
-  private formatDateValue(value?: string | null): string | null {
-    if (!value) return null;
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
-  }
-
-  private formatDateTime(value?: string | null): string | null {
-    if (!value) return null;
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(date);
-  }
-
-  private formatAddress(address?: EmploymentAddress | null): string | null {
-    if (!address) return null;
-    const lines: string[] = [];
-    if (address.line1) lines.push(address.line1);
-    if (address.line2) lines.push(address.line2);
-    const locality: string[] = [];
-    if (address.city) locality.push(address.city);
-    if (address.state) locality.push(address.state);
-    if (address.postal_code) locality.push(address.postal_code);
-    if (locality.length) lines.push(locality.join(', '));
-    if (address.country) lines.push(address.country.toUpperCase());
-    const joined = lines.map((line) => line.trim()).filter(Boolean).join(', ');
-    return joined || null;
-  }
-
-  private formatBasePay(base?: EmploymentBasePay | null): string | null {
-    if (!base) return null;
-    const amountRaw = base.amount;
-    const currency = (base.currency || 'USD').toString().toUpperCase();
-    const period = this.prettifyToken(base.period);
-    if (amountRaw == null || amountRaw === '') return null;
-    const amount = typeof amountRaw === 'number' ? amountRaw : parseFloat(String(amountRaw));
-    if (!Number.isFinite(amount)) return null;
-    let formattedAmount: string;
-    try {
-      formattedAmount = new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 2,
-      }).format(amount);
-    } catch {
-      formattedAmount = `${currency} ${amount.toFixed(2)}`;
-    }
-    return period ? `${formattedAmount} per ${period.toLowerCase()}` : formattedAmount;
-  }
-
-  private buildEmailLink(email?: string | null): string | null {
-    if (!email) return null;
-    const trimmed = email.trim();
-    if (!trimmed) return null;
-    const href = `mailto:${trimmed}`;
-    return `<a href="${this.escapeAttribute(href)}">${this.escapeHtml(trimmed)}</a>`;
-  }
-
-  private buildPhoneLink(phone?: string | null): string | null {
-    if (!phone) return null;
-    const trimmed = phone.trim();
-    if (!trimmed) return null;
-    const pretty = this.formatPhoneNumber(trimmed);
-    const href = `tel:${trimmed.replace(/\s+/g, '')}`;
-    return `<a href="${this.escapeAttribute(href)}">${this.escapeHtml(pretty)}</a>`;
-  }
-
-  private buildExternalLink(url?: string | null, label: string = 'View'): string | null {
-    if (!url) return null;
-    const trimmed = url.trim();
-    if (!trimmed) return null;
-    return `<a href="${this.escapeAttribute(trimmed)}" target="_blank" rel="noopener">${this.escapeHtml(label)}</a>`;
-  }
-
-  private formatPhoneNumber(phone: string): string {
-    if (!phone.startsWith('+')) return phone;
-    const match = phone.match(/^(\+\d{1,3})(\d{4,})$/);
-    if (!match) return phone;
-    const [, countryCode, rest] = match;
-    const grouped = rest.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
-    return `${countryCode} ${grouped}`.trim();
-  }
-
-  private prettifyToken(value?: string | null): string | null {
-    if (!value) return null;
-    const normalized = value
-      .toString()
-      .replace(/[_\.]+/g, ' ')
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .trim();
-    if (!normalized) return null;
-    return this.capitalizeWords(normalized);
-  }
-
-  private capitalizeWords(text: string): string {
-    return text
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  }
-
-  private escapeAttribute(value: any): string {
-    return this.escapeHtml(value);
-  }
-
-  private maskSensitiveValue(value: string, visibleDigits: number = 4): string {
-    const trimmed = value.trim();
-    if (!trimmed) return trimmed;
-    if (trimmed.length <= visibleDigits) return trimmed;
-  const mask = '*'.repeat(trimmed.length - visibleDigits);
-    return `${mask}${trimmed.slice(-visibleDigits)}`;
-  }
-
   onEventPrefixChange(prefix: string): void {
-    this.selectedEventPrefix = prefix || 'all';
+    this.selectedEventPrefix = prefix || "all";
     const idFromApplicant = this.resolveApplicantId(this.applicant);
     const id = (this.applicantId || idFromApplicant || null) as string | null;
     if (id) this.loadApplicantEvents(id, this.selectedEventPrefix, true);
@@ -2762,19 +2549,31 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
     // Try to infer delivery status from backend fields; if absent, default outbound to delivered
     const statusRaw: string = String(
-      r.Status ?? r.status ?? r.delivery_status ?? r.DeliveryStatus ?? r.MessageStatus ?? ''
+      r.Status ??
+        r.status ??
+        r.delivery_status ??
+        r.DeliveryStatus ??
+        r.MessageStatus ??
+        ""
     ).toLowerCase();
     let status: MessageStatus | undefined = undefined;
-    if (statusRaw.includes('deliver')) {
-      status = statusRaw.includes('not') || statusRaw.includes('undelivered') ? 'not_delivered' : 'delivered';
-    } else if (statusRaw.includes('fail') || statusRaw.includes('error')) {
-      status = 'not_delivered';
-    } else if (statusRaw.includes('pending') || statusRaw.includes('queue') || statusRaw.includes('send')) {
-      status = 'pending';
+    if (statusRaw.includes("deliver")) {
+      status =
+        statusRaw.includes("not") || statusRaw.includes("undelivered")
+          ? "not_delivered"
+          : "delivered";
+    } else if (statusRaw.includes("fail") || statusRaw.includes("error")) {
+      status = "not_delivered";
+    } else if (
+      statusRaw.includes("pending") ||
+      statusRaw.includes("queue") ||
+      statusRaw.includes("send")
+    ) {
+      status = "pending";
     }
-    if (!status && direction === 'outbound') {
+    if (!status && direction === "outbound") {
       // Default assumption: once persisted, outbound messages are effectively delivered
-      status = 'delivered';
+      status = "delivered";
     }
     return {
       id: String(r.ID ?? r.id_chat ?? ""),
@@ -3214,19 +3013,19 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   openDisapproveSidebar(doc: ApplicantDocument): void {
     this.disapproveDoc = doc;
     this.disapproveSidebarOpen = true;
-    this.disapproveReason = '';
-    this.disapproveCustomReason = '';
-  this.recollectSourceMode = false;
-  this.recollectTemplateLoading = false;
-  this.recollectTemplateError = null;
-  this._recollectTemplateToken++;
-  this.applyRecollectTemplate('');
+    this.disapproveReason = "";
+    this.disapproveCustomReason = "";
+    this.recollectSourceMode = false;
+    this.recollectTemplateLoading = false;
+    this.recollectTemplateError = null;
+    this._recollectTemplateToken++;
+    this.applyRecollectTemplate("");
     this.disapproveSendSms = false;
     this.disapproveNotifyOwner = false;
     this.ensureRecollectOptions();
     setTimeout(() => {
       if (this.recollectEditorRef?.nativeElement) {
-        this.recollectEditorRef.nativeElement.innerHTML = '';
+        this.recollectEditorRef.nativeElement.innerHTML = "";
       }
     });
   }
@@ -3236,49 +3035,52 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   async onDisapproveReasonChange(val: string): Promise<void> {
-    this.disapproveReason = val || '';
-    if (val !== 'RECOLLECT_CUSTOM') {
-      this.disapproveCustomReason = '';
+    this.disapproveReason = val || "";
+    if (val !== "RECOLLECT_CUSTOM") {
+      this.disapproveCustomReason = "";
     }
     if (!val) {
       this._recollectTemplateToken++;
       this.recollectTemplateLoading = false;
       this.recollectTemplateError = null;
-      this.applyRecollectTemplate('');
+      this.applyRecollectTemplate("");
       return;
     }
-    if (val === 'RECOLLECT_CUSTOM') {
+    if (val === "RECOLLECT_CUSTOM") {
       this._recollectTemplateToken++;
       this.recollectTemplateLoading = false;
       this.recollectTemplateError = null;
-      this.applyRecollectTemplate('');
+      this.applyRecollectTemplate("");
       return;
     }
     await this.loadRecollectTemplateForSelection(val);
   }
 
   get disapproveReasonValid(): boolean {
-    if (this.disapproveReason === 'RECOLLECT_CUSTOM') return !!this.disapproveCustomReason.trim();
-    return !!(this.disapproveReason || '').trim();
+    if (this.disapproveReason === "RECOLLECT_CUSTOM")
+      return !!this.disapproveCustomReason.trim();
+    return !!(this.disapproveReason || "").trim();
   }
 
   get disapprovePreviewText(): string {
     const reason = this.currentRecollectDescription();
-    const base = reason ? `Reason: ${reason}` : '';
-    const msg = this.disapproveMessage?.trim() ? `\n\n${this.disapproveMessage.trim()}` : '';
+    const base = reason ? `Reason: ${reason}` : "";
+    const msg = this.disapproveMessage?.trim()
+      ? `\n\n${this.disapproveMessage.trim()}`
+      : "";
     return `${base}${msg}`.trim();
   }
 
   get disapproveSubject(): string {
-    const label = this.currentRecollectDescription() || 'Document';
+    const label = this.currentRecollectDescription() || "Document";
     return `[ACTION REQUIRED] Please Re-send: ${label}`;
   }
 
   get disapproveTo(): string {
-    return this.applicant?.email || 'applicant';
+    return this.applicant?.email || "applicant";
   }
 
-  setDisapprovePreviewMode(mode: 'desktop' | 'mobile'): void {
+  setDisapprovePreviewMode(mode: "desktop" | "mobile"): void {
     this.disapprovePreviewMode = mode;
   }
 
@@ -3300,9 +3102,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   recollectInsertLink(): void {
-    const url = prompt('Enter URL');
+    const url = prompt("Enter URL");
     if (!url) return;
-    this.recollectExec('createLink', url);
+    this.recollectExec("createLink", url);
   }
 
   onRecollectEditorInput(_ev: Event): void {
@@ -3314,22 +3116,30 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (!el) return;
     this.recollectContent = el.innerHTML;
     // keep a plain-text version for SMS counters and fallback (preserve links)
-    this.disapproveMessage = this.htmlToSmsText(this.recollectContent).slice(0, 1000);
+    this.disapproveMessage = this.htmlToSmsText(this.recollectContent).slice(
+      0,
+      1000
+    );
   }
 
   private syncRecollectEditorFromContent(): void {
     const el = this.recollectEditorRef?.nativeElement;
     if (!el) return;
-    el.innerHTML = this.recollectContent || '';
+    el.innerHTML = this.recollectContent || "";
   }
 
   onRecollectSourceChange(val: string): void {
-    this.recollectContent = val || '';
+    this.recollectContent = val || "";
     // derive SMS-friendly text preserving anchor hrefs
-    this.disapproveMessage = this.htmlToSmsText(this.recollectContent).slice(0, 1000);
+    this.disapproveMessage = this.htmlToSmsText(this.recollectContent).slice(
+      0,
+      1000
+    );
   }
 
-  get recollectCharCount(): number { return (this.disapproveMessage || '').length; }
+  get recollectCharCount(): number {
+    return (this.disapproveMessage || "").length;
+  }
   get recollectSmsSegments(): number {
     const len = this.recollectCharCount;
     if (len === 0) return 0;
@@ -3338,29 +3148,35 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   get recollectPreviewHtml(): SafeHtml {
     const reason = this.currentRecollectDescription();
-    const reasonHtml = reason ? `<div><strong>Reason:</strong> ${this.escapeHtml(reason)}</div>` : '';
-    const bodyHtml = this.recollectContent ? this.recollectContent : `<div>${this.escapeHtml(this.disapproveMessage || '')}</div>`;
+    const reasonHtml = reason
+      ? `<div><strong>Reason:</strong> ${this.escapeHtml(reason)}</div>`
+      : "";
+    const bodyHtml = this.recollectContent
+      ? this.recollectContent
+      : `<div>${this.escapeHtml(this.disapproveMessage || "")}</div>`;
     const html = `${reasonHtml}${bodyHtml}`;
     return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
   private async loadRecollectTemplateForSelection(code: string): Promise<void> {
     const doc = this.disapproveDoc;
-    const idApplicant = this.resolveApplicantId(this.applicant) || this.applicantId;
-    if (!doc || !code || code === 'RECOLLECT_CUSTOM' || !idApplicant) {
-      this.applyRecollectTemplate('');
+    const idApplicant =
+      this.resolveApplicantId(this.applicant) || this.applicantId;
+    if (!doc || !code || code === "RECOLLECT_CUSTOM" || !idApplicant) {
+      this.applyRecollectTemplate("");
       return;
     }
 
     const description = this.disapproveReasonMap[code] || code;
-    const dataKey = (doc.data_key || doc.document_name || '').toString();
+    const dataKey = (doc.data_key || doc.document_name || "").toString();
     const token = ++this._recollectTemplateToken;
     this.recollectTemplateLoading = true;
     this.recollectTemplateError = null;
 
     const api: IDriveWhipCoreAPI = {
-      commandName: DriveWhipAdminCommand.crm_applicants_recollect_menssage as any,
-      parameters: [String(idApplicant), code, description, dataKey, 'email'],
+      commandName:
+        DriveWhipAdminCommand.crm_applicants_recollect_menssage as any,
+      parameters: [String(idApplicant), code, description, dataKey, "email"],
     } as any;
 
     try {
@@ -3371,18 +3187,21 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         return;
       }
 
-      let html = '';
+      let html = "";
       if (res?.ok) {
         let raw: any = res.data;
         if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
         const row = Array.isArray(raw) && raw.length ? raw[0] : raw;
-        html = String(row?.message ?? row?.MESSAGE ?? '') || '';
+        html = String(row?.message ?? row?.MESSAGE ?? "") || "";
       }
 
       if (!html) {
-        this.applyRecollectTemplate('');
-  this.recollectTemplateError = 'Template message not available';
-  Utilities.showToast('No template message configured for this option.', 'warning');
+        this.applyRecollectTemplate("");
+        this.recollectTemplateError = "Template message not available";
+        Utilities.showToast(
+          "No template message configured for this option.",
+          "warning"
+        );
       } else {
         this.applyRecollectTemplate(html);
       }
@@ -3390,10 +3209,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       if (token !== this._recollectTemplateToken) {
         return;
       }
-  console.error('[ApplicantPanel] loadRecollectTemplateForSelection error', err);
-  this.recollectTemplateError = 'Failed to load re-collect message';
-  this.applyRecollectTemplate('');
-  Utilities.showToast('Unable to load the re-collect message.', 'error');
+      console.error(
+        "[ApplicantPanel] loadRecollectTemplateForSelection error",
+        err
+      );
+      this.recollectTemplateError = "Failed to load re-collect message";
+      this.applyRecollectTemplate("");
+      Utilities.showToast("Unable to load the re-collect message.", "error");
     } finally {
       if (token === this._recollectTemplateToken) {
         this.recollectTemplateLoading = false;
@@ -3402,7 +3224,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private applyRecollectTemplate(html: string): void {
-    const normalized = html || '';
+    const normalized = html || "";
     this.recollectContent = normalized;
     const plain = this.htmlToSmsText(normalized).slice(0, 1000);
     this.disapproveMessage = plain;
@@ -3414,73 +3236,103 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private plainTextFromHtml(html: string): string {
-    if (!html) return '';
-    if (typeof document !== 'undefined') {
-      const tmp = document.createElement('div');
+    if (!html) return "";
+    if (typeof document !== "undefined") {
+      const tmp = document.createElement("div");
       tmp.innerHTML = html;
-      const text = tmp.innerText || tmp.textContent || '';
-      return text.replace(/\u00a0/g, ' ').trim();
+      const text = tmp.innerText || tmp.textContent || "";
+      return text.replace(/\u00a0/g, " ").trim();
     }
-    return html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return html
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   private htmlToSmsText(html: string): string {
-    if (!html) return '';
-    if (typeof document !== 'undefined') {
-      const tmp = document.createElement('div');
+    if (!html) return "";
+    if (typeof document !== "undefined") {
+      const tmp = document.createElement("div");
       tmp.innerHTML = html;
       // Replace anchors with "text: href" to preserve URLs in SMS
-      const anchors = Array.from(tmp.querySelectorAll('a')) as HTMLAnchorElement[];
+      const anchors = Array.from(
+        tmp.querySelectorAll("a")
+      ) as HTMLAnchorElement[];
       for (const a of anchors) {
-        const text = (a.textContent || '').trim();
-        const href = (a.getAttribute('href') || '').trim();
-        const replacement = document.createTextNode(href ? (text ? `${text}: ${href}` : href) : text);
+        const text = (a.textContent || "").trim();
+        const href = (a.getAttribute("href") || "").trim();
+        const replacement = document.createTextNode(
+          href ? (text ? `${text}: ${href}` : href) : text
+        );
         a.parentNode?.replaceChild(replacement, a);
       }
       // Convert <br> to newlines
-      const brs = Array.from(tmp.querySelectorAll('br'));
+      const brs = Array.from(tmp.querySelectorAll("br"));
       for (const br of brs) {
-        br.parentNode?.replaceChild(document.createTextNode('\n'), br);
+        br.parentNode?.replaceChild(document.createTextNode("\n"), br);
       }
       // Extract text
-      let text = (tmp.innerText || tmp.textContent || '').replace(/\u00a0/g, ' ');
+      let text = (tmp.innerText || tmp.textContent || "").replace(
+        /\u00a0/g,
+        " "
+      );
       // Normalize whitespace and limit consecutive blank lines
-      text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-      text = text.replace(/\n{3,}/g, '\n\n');
+      text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+      text = text.replace(/\n{3,}/g, "\n\n");
       return text.trim();
     }
     // Fallback regex-based conversion
     return html
-      .replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, (_m, href, inner) => {
-        const t = String(inner).replace(/<[^>]+>/g, '').trim();
-        return t ? `${t}: ${href}` : href;
-      })
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
+      .replace(
+        /<a\b[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi,
+        (_m, href, inner) => {
+          const t = String(inner)
+            .replace(/<[^>]+>/g, "")
+            .trim();
+          return t ? `${t}: ${href}` : href;
+        }
+      )
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
       .trim();
   }
 
   // Submit the re-collect request: generate messages via SP and send Email (+ optional SMS)
   async sendDisapprove(): Promise<void> {
-    if (!this.disapproveDoc || !this.disapproveReasonValid || this.disapproveSending) return;
-    const idApplicant = this.resolveApplicantId(this.applicant) || this.applicantId;
+    if (
+      !this.disapproveDoc ||
+      !this.disapproveReasonValid ||
+      this.disapproveSending
+    )
+      return;
+    const idApplicant =
+      this.resolveApplicantId(this.applicant) || this.applicantId;
     if (!idApplicant) {
-      Utilities.showToast('Applicant id not found', 'warning');
+      Utilities.showToast("Applicant id not found", "warning");
       return;
     }
-    const emailTo = (this.applicant?.email || this.applicant?.email_address || '').toString().trim();
-    const smsTo = (this.getApplicantPhone(this.applicant) || '').toString().trim();
+    const emailTo = (
+      this.applicant?.email ||
+      this.applicant?.email_address ||
+      ""
+    )
+      .toString()
+      .trim();
+    const smsTo = (this.getApplicantPhone(this.applicant) || "")
+      .toString()
+      .trim();
     const subject = this.disapproveSubject;
 
     // Require at least Email or (if checked) SMS target
     if (!emailTo && !this.disapproveSendSms) {
-      Utilities.showToast('Applicant email not found', 'warning');
+      Utilities.showToast("Applicant email not found", "warning");
       return;
     }
     if (this.disapproveSendSms && !smsTo) {
-      Utilities.showToast('Applicant phone not found for SMS', 'warning');
+      Utilities.showToast("Applicant phone not found for SMS", "warning");
       return;
     }
 
@@ -3491,9 +3343,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         : this.buildRecollectEmailHtmlFallback();
 
       if (emailTo) {
-        const templateId = this.core.accountCreatedTemplateId || '';
+        const templateId = this.core.accountCreatedTemplateId || "";
         if (!templateId) {
-          Utilities.showToast('Email template is not configured', 'warning');
+          Utilities.showToast("Email template is not configured", "warning");
         } else {
           try {
             await firstValueFrom(
@@ -3505,22 +3357,22 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
               })
             );
           } catch (e) {
-            console.error('[ApplicantPanel] Re-collect email send error', e);
-            Utilities.showToast('Failed to send email', 'error');
+            console.error("[ApplicantPanel] Re-collect email send error", e);
+            Utilities.showToast("Failed to send email", "error");
           }
         }
       }
 
       if (this.disapproveSendSms && smsTo) {
-        let smsText = (this.disapproveMessage || '').toString().trim();
+        let smsText = (this.disapproveMessage || "").toString().trim();
         if (!smsText) {
           smsText = this.htmlToSmsText(emailHtml);
         }
         if (!smsText) {
           smsText = this.currentRecollectDescription();
         }
-        smsText = (smsText || '').trim().slice(0, 1000);
-        const from = '8774142766';
+        smsText = (smsText || "").trim().slice(0, 1000);
+        const from = "8774142766";
         try {
           await firstValueFrom(
             this.core.sendChatSms({
@@ -3531,24 +3383,22 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
             })
           );
         } catch (e) {
-          console.error('[ApplicantPanel] Re-collect SMS send error', e);
-          Utilities.showToast('Failed to send SMS', 'error');
+          console.error("[ApplicantPanel] Re-collect SMS send error", e);
+          Utilities.showToast("Failed to send SMS", "error");
         }
       }
 
       // 3) Update status and log notification in history via SP extra params
-      const eventCode = (this.disapproveReason || '').trim() || null;
-      const typeNotification = this.disapproveSendSms
-        ? (emailTo ? 3 : 1)
-        : 2; // if no SMS, it's email-only; earlier validation ensures at least one channel
-      this.updateDocumentStatus(this.disapproveDoc, 'DISAPPROVED', {
+      const eventCode = (this.disapproveReason || "").trim() || null;
+      const typeNotification = this.disapproveSendSms ? (emailTo ? 3 : 1) : 2; // if no SMS, it's email-only; earlier validation ensures at least one channel
+      this.updateDocumentStatus(this.disapproveDoc, "DISAPPROVED", {
         eventCode,
         sendNotification: true,
         typeNotification,
         dataKeyOverride: this.disapproveDoc?.data_key || null,
         documentNameOverride: this.disapproveDoc?.document_name || null,
       });
-      Utilities.showToast('Re-collect notification sent', 'success');
+      Utilities.showToast("Re-collect notification sent", "success");
       this.closeDisapproveSidebar();
     } finally {
       this.disapproveSending = false;
@@ -3557,7 +3407,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   /** Ensure recollect reason options are loaded (from crm_applicants_recollect_options) */
   private ensureRecollectOptions(): void {
-    if (this.disapproveReasonOptions.length > 0 || this.disapproveOptionsLoading) return;
+    if (
+      this.disapproveReasonOptions.length > 0 ||
+      this.disapproveOptionsLoading
+    )
+      return;
     this.loadRecollectOptions();
   }
 
@@ -3565,7 +3419,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.disapproveOptionsLoading = true;
     this.disapproveOptionsError = null;
     const api: IDriveWhipCoreAPI = {
-      commandName: DriveWhipAdminCommand.crm_applicants_recollect_options as any,
+      commandName:
+        DriveWhipAdminCommand.crm_applicants_recollect_options as any,
       parameters: [],
     } as any;
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
@@ -3577,8 +3432,12 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         const map: Record<string, string> = {};
         for (const r of rows) {
           // SP returns: option (event code), description (label)
-          const code = String(r.option ?? r.OPTION ?? r.event ?? r.EVENT ?? r.code ?? r.CODE ?? '').trim();
-          const description = String(r.description ?? r.DESCRIPTION ?? code).trim();
+          const code = String(
+            r.option ?? r.OPTION ?? r.event ?? r.EVENT ?? r.code ?? r.CODE ?? ""
+          ).trim();
+          const description = String(
+            r.description ?? r.DESCRIPTION ?? code
+          ).trim();
           if (!code || !description) continue;
           if (!map[code]) {
             map[code] = description;
@@ -3589,8 +3448,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         this.disapproveReasonOptions = items;
       },
       error: (err) => {
-        console.error('[ApplicantPanel] loadRecollectOptions error', err);
-        this.disapproveOptionsError = 'Failed to load re-collect reasons';
+        console.error("[ApplicantPanel] loadRecollectOptions error", err);
+        this.disapproveOptionsError = "Failed to load re-collect reasons";
       },
       complete: () => {
         this.disapproveOptionsLoading = false;
@@ -3600,22 +3459,27 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   /** Resolve selected reason description (map code->description or custom text) */
   private currentRecollectDescription(): string {
-    if ((this.disapproveReason || '') === 'RECOLLECT_CUSTOM') return (this.disapproveCustomReason || '').trim();
-    const code = (this.disapproveReason || '').trim();
+    if ((this.disapproveReason || "") === "RECOLLECT_CUSTOM")
+      return (this.disapproveCustomReason || "").trim();
+    const code = (this.disapproveReason || "").trim();
     return this.disapproveReasonMap[code] || code;
   }
 
   /** Build a simple HTML body as fallback if SP returns no email body */
   private buildRecollectEmailHtmlFallback(): string {
     const reason = this.currentRecollectDescription();
-    const reasonHtml = reason ? `<div><strong>Reason:</strong> ${this.escapeHtml(reason)}</div>` : '';
-    const bodyHtml = this.recollectContent ? this.recollectContent : `<div>${this.escapeHtml(this.disapproveMessage || '')}</div>`;
+    const reasonHtml = reason
+      ? `<div><strong>Reason:</strong> ${this.escapeHtml(reason)}</div>`
+      : "";
+    const bodyHtml = this.recollectContent
+      ? this.recollectContent
+      : `<div>${this.escapeHtml(this.disapproveMessage || "")}</div>`;
     return `${reasonHtml}${bodyHtml}`;
   }
 
   /** Helper: whether current selection is custom reason */
   isCustomRecollect(): boolean {
-    return (this.disapproveReason || '') === 'RECOLLECT_CUSTOM';
+    return (this.disapproveReason || "") === "RECOLLECT_CUSTOM";
   }
 
   private updateDocumentStatus(
@@ -3646,7 +3510,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         ? this.currentUserIdentifier()
         : null;
     const data_key = (opts?.dataKeyOverride ?? doc.data_key ?? null) as any;
-    const document_name = (opts?.documentNameOverride ?? doc.document_name ?? null) as any;
+    const document_name = (opts?.documentNameOverride ??
+      doc.document_name ??
+      null) as any;
     const eventCode = (opts?.eventCode ?? null) as any;
     const sendNotification = opts?.sendNotification ? 1 : 0; // BOOL -> tinyint
     const typeNotification = (opts?.typeNotification ?? null) as any;
@@ -3698,7 +3564,12 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const s = (doc.status || "").toString().toUpperCase();
     if (s === "APPROVED") return "text-success";
     if (s === "DISAPPROVED") return "text-danger";
-    if (s === "RECOLLECTING" || s === "RE-COLLECTING" || s === "RE-COLLECTING FILE") return "text-warning";
+    if (
+      s === "RECOLLECTING" ||
+      s === "RE-COLLECTING" ||
+      s === "RE-COLLECTING FILE"
+    )
+      return "text-warning";
     return "text-secondary";
   }
 
@@ -3863,8 +3734,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     return source.map((stage: any) => {
       const rawId =
         stage?.id_stage ?? stage?.id ?? stage?.idStage ?? stage?.ID ?? null;
-      const numId =
-        rawId === null || rawId === undefined ? NaN : Number(rawId);
+      const numId = rawId === null || rawId === undefined ? NaN : Number(rawId);
       const safeId = Number.isFinite(numId) ? numId : -1; // avoid 0/NaN collisions
       return {
         id: safeId,
@@ -4264,7 +4134,6 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   /** Confirm with the user and then move applicant to a specific stage id */
   moveToStage(stageId: number | null, note?: string): void {
-   
     if (!this.applicant || !this.applicant.id) {
       Utilities.showToast("Applicant id not found", "warning");
       return;

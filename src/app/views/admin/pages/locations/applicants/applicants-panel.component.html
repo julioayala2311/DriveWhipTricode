@@ -111,14 +111,17 @@
                         <div>
                           <div class="edit-card-title">Edit applicant</div>
                           <div class="edit-card-subtitle">
-                            Update the applicant's contact details and save your changes.
+                            Update the applicant's contact details and save your
+                            changes.
                           </div>
                         </div>
                       </div>
                       <div class="edit-card-body">
                         <div class="row g-3">
                           <div class="col-12 col-sm-6">
-                            <label class="form-label small" for="editFirstName">First name</label>
+                            <label class="form-label small" for="editFirstName"
+                              >First name</label
+                            >
                             <input
                               id="editFirstName"
                               class="form-control form-control-sm"
@@ -128,7 +131,9 @@
                             />
                           </div>
                           <div class="col-12 col-sm-6">
-                            <label class="form-label small" for="editLastName">Last name</label>
+                            <label class="form-label small" for="editLastName"
+                              >Last name</label
+                            >
                             <input
                               id="editLastName"
                               class="form-control form-control-sm"
@@ -138,7 +143,9 @@
                             />
                           </div>
                           <div class="col-12 col-sm-6">
-                            <label class="form-label small" for="editEmail">Email</label>
+                            <label class="form-label small" for="editEmail"
+                              >Email</label
+                            >
                             <input
                               id="editEmail"
                               class="form-control form-control-sm"
@@ -148,7 +155,9 @@
                             />
                           </div>
                           <div class="col-12 col-sm-6">
-                            <label class="form-label small" for="editPhone">Phone</label>
+                            <label class="form-label small" for="editPhone"
+                              >Phone</label
+                            >
                             <input
                               id="editPhone"
                               class="form-control form-control-sm"
@@ -240,6 +249,18 @@
                       [ngClass]="stageIconClass"
                     ></i
                     >{{ displayStage }}
+                  </li>
+                  <li *ngIf="!isEditingApplicant && applicant.email">
+                    <i class="feather icon-link me-1 text-secondary"></i>
+                    <button
+                      type="button"
+                      class="btn btn-link btn-xxs text-secondary mt-1"
+                      (click)="viewEmploymentSummary()"
+                      [disabled]="!employmentProfileSnapshot"
+                      aria-label="View employment summary"
+                    >
+                      Argyle Information
+                    </button>
                   </li>
                 </ul>
               </div>
@@ -462,11 +483,27 @@
                 >
                   {{ answersError }}
                 </div>
-                <ul class="list-unstyled mb-2 simple-bullet-list" *ngIf="!answersLoading && !answersError">
-                  <li *ngFor="let a of showAllAnswers ? answers : (answers | slice : 0 : 5)" class="qa-item py-1">
-                    <div class="qa-question small text-body-secondary mb-1">{{ a.question || '' }}</div>
+                <ul
+                  class="list-unstyled mb-2 simple-bullet-list"
+                  *ngIf="!answersLoading && !answersError"
+                >
+                  <li
+                    *ngFor="
+                      let a of showAllAnswers
+                        ? answers
+                        : (answers | slice : 0 : 5)
+                    "
+                    class="qa-item py-1"
+                  >
+                    <div class="qa-question small text-body-secondary mb-1">
+                      {{ a.question || "" }}
+                    </div>
                     <div class="qa-answer text-body" style="line-height: 1.15">
-                      <span class="text-truncate-2 d-inline-block" style="max-width: 100%">{{ a.answer_text || 'No answer' }}</span>
+                      <span
+                        class="text-truncate-2 d-inline-block"
+                        style="max-width: 100%"
+                        >{{ a.answer_text || "No answer" }}</span
+                      >
                     </div>
                   </li>
                   <li
@@ -548,13 +585,23 @@
                   <span class="icon"><i class="feather icon-mail"></i></span>
                   <span>Send Email</span>
                 </button>
-                <button type="button" class="menu-item" (click)="openSmsSidebar()">
+                <button
+                  type="button"
+                  class="menu-item"
+                  (click)="openSmsSidebar()"
+                >
                   <span class="icon"
                     ><i class="feather icon-smartphone"></i
                   ></span>
                   <span>Send Text/SMS</span>
                 </button>
-                <button type="button" class="menu-item" [class.disabled]="!canResendMessage()" [disabled]="!canResendMessage()" (click)="canResendMessage() && resendLastMessage()">
+                <button
+                  type="button"
+                  class="menu-item"
+                  [class.disabled]="!canResendMessage()"
+                  [disabled]="!canResendMessage()"
+                  (click)="canResendMessage() && resendLastMessage()"
+                >
                   <span class="icon"><i class="feather icon-repeat"></i></span>
                   <span>Resend Message</span>
                 </button>
@@ -575,7 +622,9 @@
                   <span>Move to Stage...</span>
                   <i
                     class="feather ms-auto"
-                    [ngClass]="stageMenuOpen ? 'icon-chevron-up' : 'icon-chevron-right'"
+                    [ngClass]="
+                      stageMenuOpen ? 'icon-chevron-up' : 'icon-chevron-right'
+                    "
                   ></i>
                 </button>
                 <div
@@ -600,7 +649,9 @@
                       (click)="$event.stopPropagation(); onStageClick(stage.id)"
                     >
                       <span class="submenu-item-name">{{ stage.name }}</span>
-                      <span class="submenu-item-type">{{ stage.typeLabel }}</span>
+                      <span class="submenu-item-type">{{
+                        stage.typeLabel
+                      }}</span>
                     </button>
                   </div>
                 </div>
@@ -635,10 +686,6 @@
               </div>
               <div class="menu-divider"></div>
               <div class="menu-section">
-                <!-- <button type="button" class="menu-item">
-                    <span class="icon"><i class="feather icon-award"></i></span>
-                    <span>Score Applicant</span>
-                  </button> -->
                 <button type="button" class="menu-item">
                   <span class="icon"><i class="feather icon-upload"></i></span>
                   <span>Upload File</span>
@@ -669,14 +716,6 @@
               </div>
             </div>
           </div>
-          <button
-            type="button"
-            class="btn btn-outline-primary btn-sm"
-            (click)="viewEmploymentSummary()"
-            [disabled]="!employmentProfileSnapshot"
-          >
-            <i class="feather icon-user"></i>
-          </button>
         </div>
       </section>
       <section class="panel-column panel-chat">
@@ -805,7 +844,8 @@
                   </div>
                   <h6 class="empty-title mb-1">No history yet</h6>
                   <p class="empty-subtitle mb-0">
-                    Timeline updates will appear here once this applicant has activity.
+                    Timeline updates will appear here once this applicant has
+                    activity.
                   </p>
                 </div>
               </ng-template>
@@ -949,24 +989,45 @@
                     class="mt-3 d-flex flex-wrap align-items-center gap-2"
                     *ngIf="group.items && group.items.length"
                   >
-                    <div class="btn-group btn-group-sm" role="group">
-                      <button
-                        type="button"
-                        class="btn btn-outline-primary"
-                        (click)="approveDocument(group.items[0])"
-                        [disabled]="docsLoading"
-                      >
-                        <i class="feather icon-check me-1"></i>Approve
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline-secondary"
-                        (click)="openDisapproveSidebar(group.items[0])"
-                        [disabled]="docsLoading"
-                      >
-                        <i class="feather icon-x me-1"></i>Disapprove
-                      </button>
-                    </div>
+                    <ng-container
+                      *ngIf="
+                        (group.items[0].status || '') === 'Re-collecting File';
+                        else normalDocButtons
+                      "
+                    >
+                      <div class="btn-group btn-group-sm" role="group">
+                        <button
+                          type="button"
+                          class="btn btn-outline-secondary"
+                          (click)="approveDocument(group.items[0])"
+                          [disabled]="docsLoading"
+                          aria-label="Cancel Re-collection"
+                        >
+                          <i class="feather icon-x me-1"></i>Cancel
+                          Re-collection
+                        </button>
+                      </div>
+                    </ng-container>
+                    <ng-template #normalDocButtons>
+                      <div class="btn-group btn-group-sm" role="group">
+                        <button
+                          type="button"
+                          class="btn btn-outline-primary"
+                          (click)="approveDocument(group.items[0])"
+                          [disabled]="docsLoading"
+                        >
+                          <i class="feather icon-check me-1"></i>Approve
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-outline-secondary"
+                          (click)="openDisapproveSidebar(group.items[0])"
+                          [disabled]="docsLoading"
+                        >
+                          <i class="feather icon-x me-1"></i>Disapprove
+                        </button>
+                      </div>
+                    </ng-template>
                   </div>
 
                   <ul
@@ -1267,7 +1328,9 @@
 
         <div class="event-content">
           <!-- SMS preview inside iPhone frame -->
-          <ng-container *ngIf="(selectedHistoryEvent?.type || '').toLowerCase() === 'sms'">
+          <ng-container
+            *ngIf="(selectedHistoryEvent?.type || '').toLowerCase() === 'sms'"
+          >
             <div class="content-title small text-secondary mb-1">Message</div>
             <div class="device device-iphone">
               <div class="device-notch"></div>
@@ -1275,14 +1338,26 @@
                 <div class="d-flex flex-column gap-2">
                   <div class="d-flex">
                     <div class="chat-bubble mt-4 ms-3" style="max-width: 85%">
-                      <div class="chat-text" [innerText]="eventDetailText || selectedHistoryEvent?.text || ''"></div>
+                      <div
+                        class="chat-text"
+                        [innerText]="
+                          eventDetailText || selectedHistoryEvent?.text || ''
+                        "
+                      ></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div *ngIf="eventDetailLoading" class="small text-secondary mb-3 d-flex align-items-center gap-2">
-              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <div
+              *ngIf="eventDetailLoading"
+              class="small text-secondary mb-3 d-flex align-items-center gap-2"
+            >
+              <span
+                class="spinner-border spinner-border-sm"
+                role="status"
+                aria-hidden="true"
+              ></span>
               Loading details...
             </div>
           </ng-container>
@@ -1399,14 +1474,19 @@
 
           <div
             class="content-title small text-secondary"
-            *ngIf="eventDetailText && (selectedHistoryEvent?.type || '').toLowerCase() !== 'sms'"
+            *ngIf="
+              eventDetailText &&
+              (selectedHistoryEvent?.type || '').toLowerCase() !== 'sms'
+            "
           >
             Details
           </div>
           <div
             class="content-pre"
             *ngIf="eventDetailText as detail; else noDetailBlock"
-            [hidden]="(selectedHistoryEvent?.type || '').toLowerCase() === 'sms'"
+            [hidden]="
+              (selectedHistoryEvent?.type || '').toLowerCase() === 'sms'
+            "
             [innerHTML]="detail"
             style="white-space: pre-wrap"
           ></div>
@@ -1422,19 +1502,35 @@
     </aside>
 
     <!-- Disapprove / Re-collect Sidebar -->
-    <div class="event-sidebar-backdrop" *ngIf="disapproveSidebarOpen" (click)="closeDisapproveSidebar()"></div>
-    <aside class="event-sidebar email-composer" *ngIf="disapproveSidebarOpen" (click)="$event.stopPropagation()" aria-label="Re-collect File">
+    <div
+      class="event-sidebar-backdrop"
+      *ngIf="disapproveSidebarOpen"
+      (click)="closeDisapproveSidebar()"
+    ></div>
+    <aside
+      class="event-sidebar email-composer"
+      *ngIf="disapproveSidebarOpen"
+      (click)="$event.stopPropagation()"
+      aria-label="Re-collect File"
+    >
       <header class="event-sidebar-header">
         <div class="d-flex align-items-center gap-2">
-          <div class="event-icon"><i class="feather icon-alert-circle"></i></div>
+          <div class="event-icon">
+            <i class="feather icon-alert-circle"></i>
+          </div>
           <div class="d-flex flex-column">
             <div class="event-title">Re-collect File</div>
-            <div class="event-subtitle small text-secondary" *ngIf="disapproveDoc as d">{{ d.document_name }}</div>
+            <div
+              class="event-subtitle small text-secondary"
+              *ngIf="disapproveDoc as d"
+            >
+              {{ d.document_name }}
+            </div>
           </div>
         </div>
         <div class="d-flex align-items-center gap-2">
           <button
-            class="btn btn-light btn-xs"
+            class="btn btn-secondary btn-xs"
             type="button"
             [class.active]="disapprovePreviewMode === 'mobile'"
             (click)="setDisapprovePreviewMode('mobile')"
@@ -1443,7 +1539,7 @@
             <i class="feather icon-smartphone"></i>
           </button>
           <button
-            class="btn btn-light btn-xs"
+            class="btn btn-secondary btn-xs"
             type="button"
             [class.active]="disapprovePreviewMode === 'desktop'"
             (click)="setDisapprovePreviewMode('desktop')"
@@ -1451,7 +1547,12 @@
           >
             <i class="feather icon-monitor"></i>
           </button>
-          <button type="button" class="btn btn-link btn-sm text-secondary px-2" (click)="closeDisapproveSidebar()" aria-label="Close">
+          <button
+            type="button"
+            class="btn btn-link btn-sm text-secondary px-2"
+            (click)="closeDisapproveSidebar()"
+            aria-label="Close"
+          >
             <i class="feather icon-x"></i>
           </button>
         </div>
@@ -1461,14 +1562,31 @@
           <div class="col-12 col-lg-7">
             <div class="mb-2">
               <label class="form-label small">Re-Collect Reason</label>
-              <select class="form-select form-select-sm" [ngModel]="disapproveReason" (ngModelChange)="onDisapproveReasonChange($event)">
+              <select
+                class="form-select form-select-sm"
+                [ngModel]="disapproveReason"
+                (ngModelChange)="onDisapproveReasonChange($event)"
+              >
                 <option [ngValue]="''" disabled>Select</option>
-                <option *ngFor="let r of disapproveReasonOptions" [ngValue]="r.code">{{ r.description }}</option>
+                <option
+                  *ngFor="let r of disapproveReasonOptions"
+                  [ngValue]="r.code"
+                >
+                  {{ r.description }}
+                </option>
               </select>
             </div>
             <div class="mb-2" *ngIf="isCustomRecollect()">
-              <label class="form-label small" for="customReason">Custom reason</label>
-              <input id="customReason" type="text" class="form-control form-control-sm" [(ngModel)]="disapproveCustomReason" placeholder="Enter reason" />
+              <label class="form-label small" for="customReason"
+                >Custom reason</label
+              >
+              <input
+                id="customReason"
+                type="text"
+                class="form-control form-control-sm"
+                [(ngModel)]="disapproveCustomReason"
+                placeholder="Enter reason"
+              />
             </div>
             <div class="mb-2">
               <label class="form-label small">Message</label>
@@ -1493,7 +1611,9 @@
                 <select
                   class="form-select form-select-sm"
                   style="width: auto"
-                  (change)="recollectExec('formatBlock', $any($event.target).value)"
+                  (change)="
+                    recollectExec('formatBlock', $any($event.target).value)
+                  "
                 >
                   <option value="P" selected>Normal</option>
                   <option value="H1">Heading 1</option>
@@ -1501,37 +1621,87 @@
                   <option value="H3">Heading 3</option>
                 </select>
                 <span class="mx-1"></span>
-                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('bold')" title="Bold">
+                <button
+                  class="btn btn-secondary btn-xs"
+                  type="button"
+                  (click)="recollectExec('bold')"
+                  title="Bold"
+                >
                   <i class="feather icon-bold"></i>
                 </button>
-                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('italic')" title="Italic">
+                <button
+                  class="btn btn-secondary btn-xs"
+                  type="button"
+                  (click)="recollectExec('italic')"
+                  title="Italic"
+                >
                   <i class="feather icon-italic"></i>
                 </button>
-                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('underline')" title="Underline">
+                <button
+                  class="btn btn-secondary btn-xs"
+                  type="button"
+                  (click)="recollectExec('underline')"
+                  title="Underline"
+                >
                   <i class="feather icon-underline"></i>
                 </button>
                 <span class="mx-1"></span>
-                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('insertUnorderedList')" title="Bulleted list">
+                <button
+                  class="btn btn-secondary btn-xs"
+                  type="button"
+                  (click)="recollectExec('insertUnorderedList')"
+                  title="Bulleted list"
+                >
                   <i class="feather icon-list"></i>
                 </button>
-                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('insertOrderedList')" title="Numbered list">
+                <button
+                  class="btn btn-secondary btn-xs"
+                  type="button"
+                  (click)="recollectExec('insertOrderedList')"
+                  title="Numbered list"
+                >
                   <i class="feather icon-list"></i>
                 </button>
                 <span class="mx-1"></span>
-                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('justifyLeft')" title="Align left">
+                <button
+                  class="btn btn-secondary btn-xs"
+                  type="button"
+                  (click)="recollectExec('justifyLeft')"
+                  title="Align left"
+                >
                   <i class="feather icon-align-left"></i>
                 </button>
-                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('justifyCenter')" title="Align center">
+                <button
+                  class="btn btn-secondary btn-xs"
+                  type="button"
+                  (click)="recollectExec('justifyCenter')"
+                  title="Align center"
+                >
                   <i class="feather icon-align-center"></i>
                 </button>
-                <button class="btn btn-light btn-xs" type="button" (click)="recollectExec('justifyRight')" title="Align right">
+                <button
+                  class="btn btn-secondary btn-xs"
+                  type="button"
+                  (click)="recollectExec('justifyRight')"
+                  title="Align right"
+                >
                   <i class="feather icon-align-right"></i>
                 </button>
                 <span class="mx-1"></span>
-                <button class="btn btn-light btn-xs" type="button" (click)="recollectInsertLink()" title="Insert link">
+                <button
+                  class="btn btn-secondary btn-xs"
+                  type="button"
+                  (click)="recollectInsertLink()"
+                  title="Insert link"
+                >
                   <i class="feather icon-link-2"></i>
                 </button>
-                <button class="btn btn-light btn-xs" type="button" (click)="toggleRecollectSource()" title="Source">
+                <button
+                  class="btn btn-secondary btn-xs"
+                  type="button"
+                  (click)="toggleRecollectSource()"
+                  title="Source"
+                >
                   <i class="feather icon-code"></i>
                 </button>
               </div>
@@ -1552,23 +1722,43 @@
                   (ngModelChange)="onRecollectSourceChange($event)"
                 ></textarea>
               </ng-template>
-              <div class="d-flex justify-content-between small mt-1 text-secondary" *ngIf="disapproveSendSms">
+              <div
+                class="d-flex justify-content-between small mt-1 text-secondary"
+                *ngIf="disapproveSendSms"
+              >
                 <span>{{ recollectCharCount }}/1000 Characters</span>
                 <span>Segments: {{ recollectSmsSegments }}</span>
               </div>
             </div>
             <div class="form-check mt-2">
-              <input id="sendSmsToo" class="form-check-input" type="checkbox" [(ngModel)]="disapproveSendSms" />
-              <label class="form-check-label small" for="sendSmsToo">Send via SMS in addition to email (Recommended)</label>
+              <input
+                id="sendSmsToo"
+                class="form-check-input"
+                type="checkbox"
+                [(ngModel)]="disapproveSendSms"
+              />
+              <label class="form-check-label small" for="sendSmsToo"
+                >Send via SMS in addition to email (Recommended)</label
+              >
             </div>
             <div class="form-check mt-2">
-              <input id="notifyOwner" class="form-check-input" type="checkbox" [(ngModel)]="disapproveNotifyOwner" />
-              <label class="form-check-label small" for="notifyOwner">Notify job owner when resubmission is complete</label>
+              <input
+                id="notifyOwner"
+                class="form-check-input"
+                type="checkbox"
+                [(ngModel)]="disapproveNotifyOwner"
+              />
+              <label class="form-check-label small" for="notifyOwner"
+                >Notify job owner when resubmission is complete</label
+              >
             </div>
           </div>
           <div class="col-12 col-lg-5">
             <!-- Desktop preview (Mac) -->
-            <div *ngIf="disapprovePreviewMode === 'desktop'" class="device device-mac">
+            <div
+              *ngIf="disapprovePreviewMode === 'desktop'"
+              class="device device-mac"
+            >
               <div class="device-screen">
                 <div class="preview-email">
                   <div class="small text-secondary">To: {{ disapproveTo }}</div>
@@ -1579,7 +1769,10 @@
               </div>
             </div>
             <!-- Mobile preview (iPhone) -->
-            <div *ngIf="disapprovePreviewMode === 'mobile'" class="device device-iphone">
+            <div
+              *ngIf="disapprovePreviewMode === 'mobile'"
+              class="device device-iphone"
+            >
               <div class="device-notch"></div>
               <div class="device-screen">
                 <div class="preview-email" style="padding: 12px">
@@ -1593,9 +1786,25 @@
           </div>
         </div>
         <div class="d-flex justify-content-end gap-2 mt-3">
-          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeDisapproveSidebar()">Cancel</button>
-          <button type="button" class="btn btn-primary btn-sm" (click)="sendDisapprove()" [disabled]="disapproveSending || !disapproveReasonValid">
-            <span *ngIf="disapproveSending" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            (click)="closeDisapproveSidebar()"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="sendDisapprove()"
+            [disabled]="disapproveSending || !disapproveReasonValid"
+          >
+            <span
+              *ngIf="disapproveSending"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+              aria-hidden="true"
+            ></span>
             Send
           </button>
         </div>
@@ -1622,7 +1831,7 @@
         </div>
         <div class="d-flex align-items-center gap-2">
           <button
-            class="btn btn-light btn-xs"
+            class="btn btn-secondary btn-xs"
             type="button"
             [class.active]="emailPreviewMode === 'mobile'"
             (click)="setEmailPreviewMode('mobile')"
@@ -1631,7 +1840,7 @@
             <i class="feather icon-smartphone"></i>
           </button>
           <button
-            class="btn btn-light btn-xs"
+            class="btn btn-secondary btn-xs"
             type="button"
             [class.active]="emailPreviewMode === 'desktop'"
             (click)="setEmailPreviewMode('desktop')"
@@ -1707,7 +1916,7 @@
                 </select>
                 <span class="mx-1"></span>
                 <button
-                  class="btn btn-light btn-xs"
+                  class="btn btn-secondary btn-xs"
                   type="button"
                   (click)="emailExec('bold')"
                   title="Bold"
@@ -1715,7 +1924,7 @@
                   <i class="feather icon-bold"></i>
                 </button>
                 <button
-                  class="btn btn-light btn-xs"
+                  class="btn btn-secondary btn-xs"
                   type="button"
                   (click)="emailExec('italic')"
                   title="Italic"
@@ -1723,7 +1932,7 @@
                   <i class="feather icon-italic"></i>
                 </button>
                 <button
-                  class="btn btn-light btn-xs"
+                  class="btn btn-secondary btn-xs"
                   type="button"
                   (click)="emailExec('underline')"
                   title="Underline"
@@ -1732,7 +1941,7 @@
                 </button>
                 <span class="mx-1"></span>
                 <button
-                  class="btn btn-light btn-xs"
+                  class="btn btn-secondary btn-xs"
                   type="button"
                   (click)="emailExec('insertUnorderedList')"
                   title="Bulleted list"
@@ -1740,7 +1949,7 @@
                   <i class="feather icon-list"></i>
                 </button>
                 <button
-                  class="btn btn-light btn-xs"
+                  class="btn btn-secondary btn-xs"
                   type="button"
                   (click)="emailExec('insertOrderedList')"
                   title="Numbered list"
@@ -1749,7 +1958,7 @@
                 </button>
                 <span class="mx-1"></span>
                 <button
-                  class="btn btn-light btn-xs"
+                  class="btn btn-secondary btn-xs"
                   type="button"
                   (click)="emailExec('justifyLeft')"
                   title="Align left"
@@ -1757,7 +1966,7 @@
                   <i class="feather icon-align-left"></i>
                 </button>
                 <button
-                  class="btn btn-light btn-xs"
+                  class="btn btn-secondary btn-xs"
                   type="button"
                   (click)="emailExec('justifyCenter')"
                   title="Align center"
@@ -1765,7 +1974,7 @@
                   <i class="feather icon-align-center"></i>
                 </button>
                 <button
-                  class="btn btn-light btn-xs"
+                  class="btn btn-secondary btn-xs"
                   type="button"
                   (click)="emailExec('justifyRight')"
                   title="Align right"
@@ -1774,7 +1983,7 @@
                 </button>
                 <span class="mx-1"></span>
                 <button
-                  class="btn btn-light btn-xs"
+                  class="btn btn-secondary btn-xs"
                   type="button"
                   (click)="emailInsertLink()"
                   title="Insert link"
@@ -1782,7 +1991,7 @@
                   <i class="feather icon-link-2"></i>
                 </button>
                 <button
-                  class="btn btn-light btn-xs"
+                  class="btn btn-secondary btn-xs"
                   type="button"
                   (click)="toggleEmailSource()"
                   title="Source"
@@ -1844,7 +2053,9 @@
                     }}</span>
                   </div>
                   <hr />
-                  <div [innerHTML]="emailContent ? emailPreviewHtml : '[Message]'"></div>
+                  <div
+                    [innerHTML]="emailContent ? emailPreviewHtml : '[Message]'"
+                  ></div>
                 </div>
               </div>
             </div>
@@ -1880,7 +2091,6 @@
                 </div>
               </div>
             </div>
-    
           </div>
         </div>
         <div class="d-flex justify-content-end gap-2 mt-3">
@@ -1908,10 +2118,19 @@
         </div>
       </div>
     </aside>
-    
+
     <!-- SMS Composer Sidebar -->
-    <div class="event-sidebar-backdrop" *ngIf="smsSidebarOpen" (click)="closeSmsSidebar()"></div>
-    <aside class="event-sidebar email-composer" *ngIf="smsSidebarOpen" (click)="$event.stopPropagation()" aria-label="Send SMS">
+    <div
+      class="event-sidebar-backdrop"
+      *ngIf="smsSidebarOpen"
+      (click)="closeSmsSidebar()"
+    ></div>
+    <aside
+      class="event-sidebar email-composer"
+      *ngIf="smsSidebarOpen"
+      (click)="$event.stopPropagation()"
+      aria-label="Send SMS"
+    >
       <header class="event-sidebar-header">
         <div class="d-flex align-items-center gap-2">
           <div class="event-icon"><i class="feather icon-smartphone"></i></div>
@@ -1920,7 +2139,12 @@
           </div>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <button type="button" class="btn btn-link btn-sm text-secondary px-2" (click)="closeSmsSidebar()" aria-label="Close SMS composer">
+          <button
+            type="button"
+            class="btn btn-link btn-sm text-secondary px-2"
+            (click)="closeSmsSidebar()"
+            aria-label="Close SMS composer"
+          >
             <i class="feather icon-x"></i>
           </button>
         </div>
@@ -1930,30 +2154,60 @@
           <div class="col-12 col-lg-7">
             <div class="mb-2">
               <label class="form-label small">Send From</label>
-              <div class="small"><a href="javascript:void(0)">+{{ smsFrom | slice:0:1 }}{{ smsFrom | slice:1 }}</a></div>
+              <div class="small">
+                <a href="javascript:void(0)"
+                  >+{{ smsFrom | slice : 0 : 1 }}{{ smsFrom | slice : 1 }}</a
+                >
+              </div>
             </div>
             <div class="mb-2">
               <label class="form-label small">Message</label>
-              <textarea class="form-control" style="min-height: 160px;" [ngModel]="smsMessage" (ngModelChange)="onSmsInput($event)" placeholder="Enter your message"></textarea>
-              <div class="d-flex justify-content-between small mt-1 text-secondary">
+              <textarea
+                class="form-control"
+                style="min-height: 160px"
+                [ngModel]="smsMessage"
+                (ngModelChange)="onSmsInput($event)"
+                placeholder="Enter your message"
+              ></textarea>
+              <div
+                class="d-flex justify-content-between small mt-1 text-secondary"
+              >
                 <span>{{ smsCharCount }}/1000 Characters</span>
                 <span>Segments: {{ smsSegments }}</span>
               </div>
             </div>
             <div class="form-check mt-2">
-              <input id="delay-sms" class="form-check-input" type="checkbox" [ngModel]="smsDelay" (ngModelChange)="smsDelay=$event"/>
-              <label class="form-check-label small" for="delay-sms">Delay sending message</label>
+              <input
+                id="delay-sms"
+                class="form-check-input"
+                type="checkbox"
+                [ngModel]="smsDelay"
+                (ngModelChange)="smsDelay = $event"
+              />
+              <label class="form-check-label small" for="delay-sms"
+                >Delay sending message</label
+              >
             </div>
-            <div class="text-secondary small mt-1">This message may be broken into multiple segments. Messages may be queued to prevent carriers from blocking.</div>
+            <div class="text-secondary small mt-1">
+              This message may be broken into multiple segments. Messages may be
+              queued to prevent carriers from blocking.
+            </div>
           </div>
           <div class="col-12 col-lg-5">
             <div class="d-flex align-items-center justify-content-center">
               <div class="device device-iphone">
                 <div class="device-notch"></div>
                 <div class="device-screen">
-                  <div class="text-center small py-2" style="background:#eef2ff; border-radius: 20px 20px 0 0;">{{ '+' + smsFrom }}</div>
+                  <div
+                    class="text-center small py-2"
+                    style="background: #eef2ff; border-radius: 20px 20px 0 0"
+                  >
+                    {{ "+" + smsFrom }}
+                  </div>
                   <div class="d-flex justify-content-end p-2">
-                    <span class="badge bg-primary">{{ smsMessage || '[Message]' }}</span>
+                    <span class="badge bg-primary">{{
+                      smsMessage || "[Message]"
+                    }}</span>
                   </div>
                 </div>
               </div>
@@ -1961,9 +2215,25 @@
           </div>
         </div>
         <div class="d-flex justify-content-end gap-2 mt-3">
-          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeSmsSidebar()">Cancel</button>
-          <button type="button" class="btn btn-primary btn-sm" (click)="sendSms()" [disabled]="smsSending || !smsMessage.trim()">
-            <span *ngIf="smsSending" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            (click)="closeSmsSidebar()"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="sendSms()"
+            [disabled]="smsSending || !smsMessage.trim()"
+          >
+            <span
+              *ngIf="smsSending"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+              aria-hidden="true"
+            ></span>
             Send
           </button>
         </div>

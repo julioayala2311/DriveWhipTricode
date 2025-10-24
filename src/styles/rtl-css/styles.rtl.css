@@ -3190,7 +3190,7 @@ quill-editor .ql-container .ql-tooltip .input-group.has-validation > .form-float
   --bs-btn-disabled-border-color: #ff3366;
 }
 
-.btn-light {
+.btn-secondary {
   --bs-btn-color: #000;
   --bs-btn-bg: #e9ecef;
   --bs-btn-border-color: #e9ecef;
@@ -17080,7 +17080,7 @@ body {
   transform: translate(-100%);
 }
 .horizontal-menu .navbar .navbar-content .navbar-nav .nav-item.theme-switcher-wrapper .box.dark i {
-  color: #fbbc06;
+  color: var(--bs-primary); 
 }
 .horizontal-menu .navbar .navbar-toggler {
   height: 23px;
@@ -18554,7 +18554,7 @@ ngb-datepicker .ngb-dp-content .ngb-dp-month .ngb-dp-week.ngb-dp-weekdays .ngb-d
 ngb-datepicker .ngb-dp-content .ngb-dp-month .ngb-dp-week .ngb-dp-day:focus {
   outline: none;
 }
-ngb-datepicker .ngb-dp-content .ngb-dp-month .ngb-dp-week .ngb-dp-day .btn-light:hover, ngb-datepicker .ngb-dp-content .ngb-dp-month .ngb-dp-week .ngb-dp-day .btn-light.active {
+ngb-datepicker .ngb-dp-content .ngb-dp-month .ngb-dp-week .ngb-dp-day .btn-secondary:hover, ngb-datepicker .ngb-dp-content .ngb-dp-month .ngb-dp-week .ngb-dp-day .btn-secondary.active {
   background-color: rgba(121, 135, 161, 0.2);
 }
 

@@ -633,6 +633,9 @@ body.dark .chat-input .composer:focus-within {
   flex-direction: column;
   gap: 0.65rem;
   z-index: 1055;
+  /* Ensure submenu doesn't grow beyond viewport and allow internal scrolling */
+  max-height: calc(100vh - 120px);
+  overflow: hidden;
 }
 
 .submenu::before {
@@ -661,6 +664,11 @@ body.dark .chat-input .composer:focus-within {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  /* Make the list scrollable when many items are present */
+  max-height: calc(60vh);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 0.25rem; /* small breathing room for scrollbar */
 }
 
 .submenu-item {
@@ -1378,8 +1386,8 @@ body.dark .image-viewer .viewer-toolbar {
 
 /* Email toolbar + preview refinements */
 .btn-xs { --bs-btn-padding-y: .15rem; --bs-btn-padding-x: .35rem; --bs-btn-font-size: .75rem; }
-.btn-light.btn-xs { border: 1px solid var(--bs-border-color, rgba(0,0,0,.08)); }
-.btn-light.btn-xs.active { background: rgba(var(--bs-primary-rgb,13,110,253),.12); color: var(--bs-primary,#0d6efd); border-color: rgba(var(--bs-primary-rgb,13,110,253),.25); }
+.btn-secondary.btn-xs { border: 1px solid var(--bs-border-color, rgba(0,0,0,.08)); }
+.btn-secondary.btn-xs.active { background: rgba(var(--bs-primary-rgb,13,110,253),.12); color: var(--bs-primary,#0d6efd); border-color: rgba(var(--bs-primary-rgb,13,110,253),.25); }
 .event-sidebar-body .card .card-body hr { margin: .5rem 0; }
 .event-sidebar-body .form-control[contenteditable="true"] { background: var(--bs-body-bg); }
 
@@ -1568,4 +1576,28 @@ body.dark :host ::ng-deep .employment-profile .accordion-stack details.acc:not(:
     grid-template-columns: 1fr;
   }
   :host ::ng-deep .employment-profile .profile-row .label::after { content: none; }
+}
+
+.employment-profile-popup {
+  .swal2-html-container {
+    text-align: left !important;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .card {
+    border-radius: 0.75rem;
+  }
+
+  h6 {
+    font-size: 0.95rem;
+  }
+
+  .border-bottom {
+    border-color: #eaeaea !important;
+  }
+
+  .badge {
+    font-size: 0.8rem;
+  }
 }

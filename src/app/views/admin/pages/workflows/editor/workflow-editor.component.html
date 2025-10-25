@@ -1375,10 +1375,7 @@
               class="form-select form-select-sm"
               [value]="newStageTypeId() ?? ''"
               (focus)="ensureStageTypes()"
-              (change)="
-                newStageTypeId.set(+$any($event.target).value || null);
-                isAddingDataCollection() ? ensureDcForms() : null
-              "
+              (change)="onStageTypeChange($any($event.target).value)"
               [disabled]="stageTypesLoading()"
             >
               <option value="">Select type…</option>
@@ -1423,6 +1420,44 @@
             </div>
             <div *ngIf="dcFormsError()" class="form-text small text-danger">
               {{ dcFormsError() }}
+            </div>
+          </div>
+          <div class="col-12" *ngIf="isAddingCustom()">
+            <label class="form-label small fw-semibold"
+              >Custom Type <span class="text-danger">*</span></label
+            >
+            <select
+              class="form-select form-select-sm"
+              [value]="newStageCustomTypeCode() ?? ''"
+              (focus)="ensureCustomTypes()"
+              (change)="onCustomTypeChange($any($event.target).value)"
+              [disabled]="customTypesLoading()"
+            >
+              <option value="">Select custom type…</option>
+              <option *ngFor="let opt of customTypeOptions()" [value]="opt.code">
+                {{ opt.description || opt.code }}
+              </option>
+            </select>
+            <div *ngIf="customTypesLoading()" class="form-text small text-secondary">
+              Loading custom types…
+            </div>
+            <div *ngIf="customTypesError()" class="form-text small text-danger">
+              {{ customTypesError() }}
+            </div>
+          </div>
+          <div class="col-12" *ngIf="isAddingCustom() && customTypeRequiresUrl()">
+            <label class="form-label small fw-semibold"
+              >Custom URL <span class="text-danger">*</span></label
+            >
+            <input
+              type="url"
+              class="form-control form-control-sm"
+              placeholder="https://example.com/path"
+              [value]="newStageCustomUrl()"
+              (input)="newStageCustomUrl.set($any($event.target).value)"
+            />
+            <div class="form-text small text-secondary">
+              Provide a full URL (including http/https) shown to applicants.
             </div>
           </div>
           <p class="mt-2 text-muted">Upon landing on a Data Collection stage, applicants will receive a message with a link asking them to complete a form (and upload files/answer questions). This information will be securely appended to their applicant profile.</p>
@@ -1532,11 +1567,11 @@
               class="form-select form-select-sm"
               [value]="newRuleTypeId() ?? ''"
               (focus)="ensureRuleTypes()"
-              (change)="newRuleTypeId.set(+$any($event.target).value || null)"
+              (change)="newRuleTypeId.set(($any($event.target).value || '').toString() || null)"
               [disabled]="ruleTypesLoading()"
             >
               <option value="">Select type…</option>
-              <option *ngFor="let rt of ruleTypeOptions()" [value]="rt.id">
+              <option *ngFor="let rt of ruleTypeOptions()" [value]="rt.code">
                 {{ rt.name }}
               </option>
             </select>

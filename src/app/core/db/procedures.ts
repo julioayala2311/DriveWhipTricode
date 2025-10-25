@@ -20,6 +20,7 @@ export enum DriveWhipAdminCommand {
     crm_stages_sections_reason_crud = "crm_stages_sections_reason_crud", // Reasons catalog CRUD
     crm_stages_type_crud = "crm_stages_type_crud", // Stage type catalog CRUD
     crm_rules_types_crud = "crm_rules_types_crud", // Rule types catalog CRUD
+    crm_stages_customs_types_crud = "crm_stages_customs_types_crud", // Custom stage types catalog CRUD
     
     
     crm_locations_list = "crm_locations_list",

@@ -140,7 +140,7 @@ body.dark .data-collection-card .form-switch-grid .form-check:not(:last-child) {
 .rules-card { border-radius:.85rem; }
 .rules-card .card-header { border-bottom:1px solid var(--bs-border-color,rgba(0,0,0,.08)); background:transparent; }
 .rules-card .rules-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:1rem 1.25rem; }
-.rules-card .form-label { font-size:.6rem; letter-spacing:.25px; text-transform:uppercase; }
+.rules-card .form-label { font-size:.6rem; letter-spacing:.25px; }
 body.dark .rules-card .card-header { border-color: rgba(255,255,255,.12); }
 .rules-card select.form-select, .rules-card input.form-control { font-size:.7rem; }
 .rules-card h6 { font-size:.8rem; }
@@ -201,7 +201,7 @@ body.dark .empty-icon-wrapper .gradient-ring { background:linear-gradient(135deg
 .dw-acc-dialog .card-header { background:transparent; border-bottom:1px solid var(--bs-border-color,rgba(0,0,0,.08)); }
 body.dark .dw-acc-dialog .card-header { border-color: rgba(255,255,255,.12); }
 .dw-acc-dialog h6 { font-size:.85rem; letter-spacing:.3px; }
-.dw-acc-dialog .form-label { font-size:.6rem; letter-spacing:.25px; text-transform:uppercase; }
+.dw-acc-dialog .form-label { font-size:.6rem; letter-spacing:.25px; }
 .dw-acc-dialog select.form-select, .dw-acc-dialog input.form-control { font-size:.7rem; }
 
 @keyframes pulseHalo {

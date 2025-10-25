@@ -279,7 +279,10 @@ export class WorkflowEditorComponent implements OnInit {
         null, // p_is_active
         null, // p_created_by
         currentUser, // p_updated_by
-        null // p_form_code
+        null, // p_form_code
+        null, // p_code_custom_type
+        null, // p_url_custom_type
+        null  // p_rule_type
       ];
       const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
       this.deletingStageId.set(stageId);
@@ -407,6 +410,8 @@ export class WorkflowEditorComponent implements OnInit {
   newStageName = signal('');
   newStageTypeId = signal<number | null>(null);
   newStageFormCode = signal<string | null>(null); // only for Data Collection
+  newStageCustomTypeCode = signal<string | null>(null); // only for Custom
+  newStageCustomUrl = signal<string>('');
   // Whether current newStageTypeId corresponds to Data Collection
   readonly isAddingDataCollection = computed(() => {
     const typeId = this.newStageTypeId();
@@ -414,10 +419,29 @@ export class WorkflowEditorComponent implements OnInit {
     const match = this.stageTypeOptions().find(t => t.id === typeId);
     return (match?.label || '').toLowerCase() === 'data collection';
   });
+  readonly isAddingCustom = computed(() => {
+    const typeId = this.newStageTypeId();
+    if (!typeId) return false;
+    const match = this.stageTypeOptions().find(t => t.id === typeId);
+    return (match?.label || '').toLowerCase() === 'custom';
+  });
+  readonly customTypeOptions = signal<Array<{ code: string; description: string }>>([]);
+  readonly customTypesLoading = signal(false);
+  readonly customTypesError = signal<string | null>(null);
+  readonly customTypeRequiresUrl = computed(() => {
+    if (!this.isAddingCustom()) return false;
+    const code = this.newStageCustomTypeCode();
+    if (!code) return false;
+    const option = this.customTypeOptions().find(opt => opt.code === code);
+    const label = option?.description || '';
+    const normalizedLabel = label.trim().toLowerCase();
+    const normalizedCode = code.trim().toLowerCase();
+    return normalizedCode === 'web page' || normalizedCode === 'web_page' || normalizedCode === 'webpage' || normalizedCode === 'web-page';
+  });
   // Placement: 'top' or stringified id_stage of the stage AFTER which to insert
   newStagePlacement = signal('top');
   newRuleValue = signal('');
-  newRuleTypeId = signal<number | null>(null);
+  newRuleTypeId = signal<string | null>(null);
   newRulePlacement = signal('end');
   private tempStageIdCounter = -1; // negative ids for newly added unsaved stages
 
@@ -430,6 +454,9 @@ export class WorkflowEditorComponent implements OnInit {
     this.newStageTypeId.set(null);
     this.newStagePlacement.set('top');
     this.newStageFormCode.set(null);
+    this.newStageCustomTypeCode.set(null);
+    this.newStageCustomUrl.set('');
+    this.customTypesError.set(null);
     this.ensureStageTypes();
   }
   private resetRuleForm(): void { this.newRuleValue.set(''); this.newRuleTypeId.set(null); this.newRulePlacement.set('end'); this.ensureRuleTypes(); }
@@ -441,6 +468,20 @@ export class WorkflowEditorComponent implements OnInit {
     // If Data Collection selected and we show the Form selector, require a selection
     if (this.isAddingDataCollection() && !this.newStageFormCode()) {
       Utilities.showToast('Select a Form for Data Collection','warning');
+      return;
+    }
+    if (this.isAddingCustom() && !this.newStageCustomTypeCode()) {
+      Utilities.showToast('Select a custom type','warning');
+      return;
+    }
+    const trimmedCustomUrl = this.newStageCustomUrl().trim();
+    const requiresCustomUrl = this.customTypeRequiresUrl();
+    if (this.isAddingCustom() && requiresCustomUrl && !trimmedCustomUrl) {
+      Utilities.showToast('Enter a URL for the selected custom type','warning');
+      return;
+    }
+    if (this.isAddingCustom() && requiresCustomUrl && trimmedCustomUrl && !/^https?:\/\//i.test(trimmedCustomUrl)) {
+      Utilities.showToast('URL must start with http:// or https://','warning');
       return;
     }
     if (this.workflowId == null) { Utilities.showToast('Workflow context missing','error'); return; }
@@ -471,10 +512,13 @@ export class WorkflowEditorComponent implements OnInit {
         stage.id_stage_type,
         stage.name,
         (stage.sort_order||0) + 1,
-        1,
+        stage.is_active ?? 1,
         null,
         currentUser,
-        stage.form_code ?? null
+        stage.form_code ?? null,
+        stage.code_custom_type ?? null,
+        stage.url_custom_type ?? null,
+        stage.rule_type ?? null
       ];
       const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
       return this.core.executeCommand<DriveWhipCommandResponse>(api);
@@ -482,6 +526,8 @@ export class WorkflowEditorComponent implements OnInit {
 
     // New stage order will be pivotOrder + 1
     const newSortOrder = pivotOrder + 1;
+  const customTypeCode = this.isAddingCustom() ? ((this.newStageCustomTypeCode() ?? '').trim() || null) : null;
+  const customUrlValue = this.isAddingCustom() ? (trimmedCustomUrl || null) : null;
     const createParams: any[] = [
       'C',
       null,
@@ -492,9 +538,11 @@ export class WorkflowEditorComponent implements OnInit {
       1,
       currentUser,
       null,
-      this.isAddingDataCollection() ? (this.newStageFormCode() ?? null) : null
+      this.isAddingDataCollection() ? (this.newStageFormCode() ?? null) : null,
+  customTypeCode,
+      this.isAddingCustom() ? customUrlValue : null,
+      null
     ];
-    console.log(createParams);
     const createApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: createParams };
 
     this.newStageSaving.set(true);
@@ -549,6 +597,64 @@ export class WorkflowEditorComponent implements OnInit {
     });
   }
 
+  ensureCustomTypes(): void {
+    if (!this.isAddingCustom()) return;
+    if (this.customTypesLoading() || this.customTypeOptions().length > 0) return;
+    this.customTypesLoading.set(true);
+    this.customTypesError.set(null);
+    const params: any[] = ['R', null, null, null, null];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_customs_types_crud as any, parameters: params };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(() => this.customTypesLoading.set(false))).subscribe({
+      next: res => {
+        if (!res.ok) {
+          this.customTypesError.set('Failed to load custom stage types');
+          return;
+        }
+        let rows: any[] = [];
+        if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+        const mapped = (rows || []).map(r => ({
+          code: (r.code_custom_type ?? r.code ?? r.id ?? '').toString(),
+          description: (r.description ?? r.name ?? r.label ?? r.code_custom_type ?? '').toString()
+        })).filter(opt => opt.code);
+        this.customTypeOptions.set(mapped);
+        if (mapped.length === 1 && !this.newStageCustomTypeCode()) {
+          this.newStageCustomTypeCode.set(mapped[0].code);
+        }
+      },
+      error: () => this.customTypesError.set('Failed to load custom stage types')
+    });
+  }
+
+  onStageTypeChange(raw: any): void {
+    const value = raw === '' || raw === null || raw === undefined ? null : Number(raw);
+    this.newStageTypeId.set(isNaN(value as number) ? null : (value as number));
+    // Data collection specific handling
+    if (this.isAddingDataCollection()) {
+      this.ensureDcForms();
+    } else {
+      this.newStageFormCode.set(null);
+    }
+    // Custom type handling
+    if (this.isAddingCustom()) {
+      this.newStageCustomTypeCode.set(null);
+      this.newStageCustomUrl.set('');
+      this.ensureCustomTypes();
+    } else {
+      this.newStageCustomTypeCode.set(null);
+      this.newStageCustomUrl.set('');
+      this.customTypesError.set(null);
+      this.customTypesLoading.set(false);
+    }
+  }
+
+  onCustomTypeChange(raw: any): void {
+    const value = (raw ?? '').toString().trim();
+    this.newStageCustomTypeCode.set(value || null);
+    if (!this.customTypeRequiresUrl()) {
+      this.newStageCustomUrl.set('');
+    }
+  }
+
   confirmAddRule(): void {
     if (!this.newRuleValue().trim() || !this.newRuleTypeId()) { Utilities.showToast('Rule value & type required','warning'); return; }
     if (this.workflowId == null) { Utilities.showToast('Workflow context missing','error'); return; }
@@ -581,16 +687,21 @@ export class WorkflowEditorComponent implements OnInit {
         stage.id_stage_type,
         stage.name,
         (stage.sort_order||0) + 1,
-        1,
+        stage.is_active ?? 1,
         null,
         currentUser, 
-        stage.form_code ?? null
+        stage.form_code ?? null,
+        stage.code_custom_type ?? null,
+        stage.url_custom_type ?? null,
+        stage.rule_type ?? null
       ];
       const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
       return this.core.executeCommand<DriveWhipCommandResponse>(api);
     });
     // New stage order will be pivotOrder + 1
     const newSortOrder = pivotOrder + 1;
+  const selectedRuleType = this.ruleTypeOptions().find(rt => rt.code === this.newRuleTypeId()) || null;
+  const ruleTypeValue = (selectedRuleType?.code ?? this.newRuleTypeId() ?? '').trim();
     const createParams: any[] = [
       'C',
       null,
@@ -601,7 +712,10 @@ export class WorkflowEditorComponent implements OnInit {
       1,
       currentUser,
       null,
-      null
+      null,
+      null,
+      null,
+      ruleTypeValue || null
     ];
     const createApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: createParams };
     this.newStageSaving.set(true);
@@ -643,8 +757,13 @@ export class WorkflowEditorComponent implements OnInit {
         if (!res.ok) { this.ruleTypesError.set('Failed to load rule types'); return; }
         let rows: any[] = [];
         if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
-        const mapped = rows.map(r => ({ id: r.id_rule_type, code: r.code, name: r.name, is_active: r.is_active !== 0 && r.is_active !== false }));
-        this.ruleTypeOptions.set(mapped.filter(r=>r.name));
+        const mapped = rows.map(r => ({
+          id: r.id_rule_type,
+          code: (r.code ?? r.id_rule_type ?? '').toString(),
+          name: r.name,
+          is_active: r.is_active !== 0 && r.is_active !== false
+        }));
+  this.ruleTypeOptions.set(mapped.filter(r=>r.name && r.code));
       },
       error: () => this.ruleTypesError.set('Failed to load rule types')
     });
@@ -1731,7 +1850,11 @@ export class WorkflowEditorComponent implements OnInit {
             applicants_count: r.applicants_count,
             sort_order: r.sort_order,
             form_code: r.form_code,
-            form_names: r.form_name
+            form_names: r.form_name,
+            is_active: r.is_active ?? 1,
+            code_custom_type: r.code_custom_type ?? r.custom_type_code ?? null,
+            url_custom_type: r.url_custom_type ?? r.custom_type_url ?? null,
+            rule_type: r.rule_type ?? null
           }))
           .filter((s) => s.name)
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)); 
@@ -2037,9 +2160,12 @@ export class WorkflowEditorComponent implements OnInit {
    * Persist order calling crm_stages_crud with action 'U' for each stage whose position changed.
    * SP signature:
    *  crm_stages_crud(
-   *    p_action, p_id_stage, p_id_workflow, p_id_stage_type, p_name, p_sort_order, p_is_active, p_created_by, p_updated_by
+  *    p_action, p_id_stage, p_id_workflow, p_id_stage_type, p_name, p_sort_order,
+  *    p_is_active, p_created_by, p_updated_by, p_form_code, p_code_custom_type,
+  *    p_url_custom_type, p_rule_type
    *  )
-   * For update we must send: 'U', id_stage, id_workflow, id_stage_type, name, sort_order, is_active, NULL(created_by), currentUser(updated_by)
+  * For update we must send: 'U', id_stage, id_workflow, id_stage_type, name, sort_order, is_active,
+  * NULL(created_by), currentUser(updated_by), existing form_code/custom type/url/rule type values.
    */
   private persistOrder(payload: { id_stage: number; sort_order: number }[]): void {
     // Determine which stages actually moved (position changed compared to initialOrder)
@@ -2060,10 +2186,13 @@ export class WorkflowEditorComponent implements OnInit {
         stage.id_stage_type, // p_id_stage_type
         stage.name,          // p_name
         stage.sort_order,    // p_sort_order
-        1,                   // p_is_active (preserve active state; could read from stage if exists)
+        stage.is_active ?? 1, // p_is_active
         null,                // p_created_by ignored on update
         currentUser,         // p_updated_by
-        stage.form_code ?? null // p_form_code
+        stage.form_code ?? null, // p_form_code
+        stage.code_custom_type ?? null, // p_code_custom_type
+        stage.url_custom_type ?? null,  // p_url_custom_type
+        stage.rule_type ?? null         // p_rule_type
       ];
       const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
       return this.core.executeCommand<DriveWhipCommandResponse>(api);

@@ -96,7 +96,7 @@ export interface WorkflowDialogResult {
                      name="sort_order" [(ngModel)]="sort_order" />
             </div> -->
 
-            <div class="col-12">
+            <div class="col-12" style="display: none;">
               <label class="form-label small fw-semibold">Notes</label>
               <textarea class="form-control form-control-sm" name="notes"
                         [(ngModel)]="notes" rows="3"></textarea>

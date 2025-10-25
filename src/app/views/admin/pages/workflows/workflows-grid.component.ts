@@ -101,6 +101,8 @@ export class WorkflowsGridComponent implements OnChanges {
         return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
       }
     },
+    { headerName: 'State', field: 'state_name', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
+    
     {
       headerName: 'Created On',
       field: 'created_at',

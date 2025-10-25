@@ -88,7 +88,7 @@ export class HomeGridComponent implements OnChanges {
     },
     { headerName: 'Workflow', field: 'workflow_name', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'git-branch' } },
 
-    { headerName: 'Address', field: 'market_address', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
+    { headerName: 'State', field: 'state_name', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
 
     {
       headerName: 'Applicants',

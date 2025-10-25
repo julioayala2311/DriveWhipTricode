@@ -21,7 +21,11 @@ import { Utilities } from '../../../../Utilities/Utilities';
 })
 export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
 
-  workflowsRows: WorkflowRecord[] = [];
+  workflowsRows: WorkflowRecord[] = [];  
+  rowsForGrid: WorkflowRecord[] = [];
+  
+  
+  filterMode: 'all' | 'active' | 'inactive' = 'active';
 
   /** UI state */
   private readonly _loading = signal(false);
@@ -67,6 +71,25 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit(): void { Promise.resolve().then(() => this.updateTransform()); }
   ngOnDestroy(): void { window.removeEventListener('resize', this.resizeHandler); }
 
+    /** Filtrado con referencia estable */
+  applyFilter(): void {
+    if (!Array.isArray(this.workflowsRows)) {
+      this.rowsForGrid = [];
+      return;
+    }
+    switch (this.filterMode) {
+      case 'active':
+        this.rowsForGrid = this.workflowsRows.filter(r => Number((r as any)?.active ?? (r as any)?.is_active) === 1);
+        break;
+      case 'inactive':
+        this.rowsForGrid = this.workflowsRows.filter(r => Number((r as any)?.active ?? (r as any)?.is_active) !== 1);
+        break;
+      default:
+        this.rowsForGrid = this.workflowsRows;
+        break;
+    }
+  }
+
   /** Main list load */
   workflowsList(): void {
     this._loading.set(true);
@@ -90,11 +113,13 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
           } else {
             this.workflowsRows = [];
           }
+          this.applyFilter();
           this._loading.set(false);
         },
         error: (err) => {
           console.error('[WorkFlowsComponent] list error', err);
           this.workflowsRows = [];
+          this.rowsForGrid = [];
           this.errorMsg = 'Request failed';
           this._loading.set(false);
         }

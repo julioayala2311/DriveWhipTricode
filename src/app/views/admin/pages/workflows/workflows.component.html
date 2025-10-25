@@ -1,5 +1,16 @@
 <div class="d-flex align-items-center mb-3">
   <h5 class="mb-0">WorkFlows</h5>
+  <div class="ms-3">
+    <label class="me-2 small text-muted">Show:</label>
+    <select class="form-select form-select-sm d-inline-block w-auto"
+            [(ngModel)]="filterMode"
+            (ngModelChange)="applyFilter()"
+            aria-label="Filter locations by state">
+      <option value="all">All</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
+  </div>
   <div class="ms-auto d-flex align-items-center gap-2">
     <button
       class="btn btn-sm btn-ghost"
@@ -38,7 +49,7 @@
 
 <!-- Grid (conecta eventos de acciones) -->
 <app-workflows-grid
-  [rowData]="workflowsRows"
+  [rowData]="rowsForGrid"
   (editRow)="openEdit($event)"
   (deleteRow)="delete($event)">
 </app-workflows-grid>

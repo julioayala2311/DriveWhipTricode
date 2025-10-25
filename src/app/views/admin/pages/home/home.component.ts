@@ -25,7 +25,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
   locationsRows: LocationsRecord[] = [];
   rowsForGrid: LocationsRecord[] = [];
 
-  filterMode: 'all' | 'active' | 'inactive' = 'all';
+  filterMode: 'all' | 'active' | 'inactive' = 'active';
 
   
   private authSession = inject(AuthSessionService);

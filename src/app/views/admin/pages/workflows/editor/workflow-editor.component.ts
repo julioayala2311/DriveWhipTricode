@@ -515,8 +515,8 @@ export class WorkflowEditorComponent implements OnInit {
         stage.is_active ?? 1,
         null,
         currentUser,
-        stage.form_code ?? null,
-        stage.code_custom_type ?? null,
+        (stage.form_code ?? stage.formCode ?? stage.form?.code) ?? null,
+        stage.form_name ?? null,
         stage.url_custom_type ?? null,
         stage.rule_type ?? null
       ];
@@ -539,7 +539,7 @@ export class WorkflowEditorComponent implements OnInit {
       currentUser,
       null,
       this.isAddingDataCollection() ? (this.newStageFormCode() ?? null) : null,
-  customTypeCode,
+      customTypeCode,
       this.isAddingCustom() ? customUrlValue : null,
       null
     ];
@@ -690,7 +690,7 @@ export class WorkflowEditorComponent implements OnInit {
         stage.is_active ?? 1,
         null,
         currentUser, 
-        stage.form_code ?? null,
+        (stage.form_code ?? stage.formCode ?? stage.form?.code) ?? null,
         stage.code_custom_type ?? null,
         stage.url_custom_type ?? null,
         stage.rule_type ?? null
@@ -1849,8 +1849,8 @@ export class WorkflowEditorComponent implements OnInit {
             type: r.type,
             applicants_count: r.applicants_count,
             sort_order: r.sort_order,
-            form_code: r.form_code,
-            form_names: r.form_name,
+            form_code: r.form_code ?? r.formCode ?? r.p_form_code ?? r.form?.code ?? null,
+            form_name: r.form_name,
             is_active: r.is_active ?? 1,
             code_custom_type: r.code_custom_type ?? r.custom_type_code ?? null,
             url_custom_type: r.url_custom_type ?? r.custom_type_url ?? null,
@@ -2189,7 +2189,7 @@ export class WorkflowEditorComponent implements OnInit {
         stage.is_active ?? 1, // p_is_active
         null,                // p_created_by ignored on update
         currentUser,         // p_updated_by
-        stage.form_code ?? null, // p_form_code
+        (stage.form_code ?? stage.formCode ?? stage.form?.code) ?? null, // p_form_code
         stage.code_custom_type ?? null, // p_code_custom_type
         stage.url_custom_type ?? null,  // p_url_custom_type
         stage.rule_type ?? null         // p_rule_type

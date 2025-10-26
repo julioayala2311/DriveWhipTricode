@@ -99,6 +99,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
     /* Allow multi-line content in cells and avoid clipping */
     :host ::ng-deep .ag-theme-quartz .ag-cell-wrap-text { white-space: normal !important; }
     :host ::ng-deep .ag-theme-quartz .status-badge { line-height: 1; }
+    :host ::ng-deep .ag-theme-quartz .status-badge-action { cursor: pointer; }
     :host ::ng-deep .ag-theme-quartz .ag-cell div.d-flex.flex-wrap { align-items: center; gap: .25rem; }
   `]
 })
@@ -139,12 +140,49 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
         if (!list.length) return '';
         const renderOne = (item: any) => {
           const complete = !!item.isComplete;
-          const stage = item.stage || 'Stage';
-          const statusName = item.statusName || (complete ? 'complete' : 'incomplete');
-          const text = `${stage} - ${statusName}`;
-          const colorClass = complete ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary';
-          const icon = complete ? 'icon-check-circle' : 'icon-shield';
-          return `<span class="badge ${colorClass} d-inline-flex align-items-center gap-1 status-badge"><i class="feather ${icon}"></i><span>${text}</span></span>`;
+          const stageRaw = (item.stage || 'Stage').toString();
+          const stage = stageRaw.trim();
+          const isReviewFiles = stage.toLowerCase() === 'review files';
+          const isAllFilesApproved = stage.toLowerCase() === 'all files approved';
+          // If the stage indicates a re-collecting flow (e.g., "1 Re-collecting", "2 Re-collecting"), treat specially
+          const isRecollecting = !isReviewFiles && !isAllFilesApproved && /\bre-collecting\b/i.test(stage);
+          // statusName may be normalized elsewhere; still compute a safe display value
+          const rawStatus = (item.statusName ?? '').toString().trim();
+          const statusName = rawStatus !== '' ? rawStatus : (complete ? 'complete' : 'incomplete');
+
+          let text: string;
+          if (isReviewFiles || isAllFilesApproved) {
+            // For Review Files and All Files Approved show only the stage text
+            text = stage;
+          } else if (isRecollecting) {
+            text = stage;
+          } else {
+            text = `${stage || 'Stage'} - ${statusName}`;
+          }
+
+          let colorClass = '';
+          let icon = '';
+          if (isAllFilesApproved) {
+            // Special: treat as success and show only the stage text (no "- incomplete")
+            colorClass = 'bg-success-subtle text-success';
+            icon = 'icon-check-circle';
+          } else if (isReviewFiles) {
+            colorClass = 'bg-info text-white';
+            icon = 'icon-folder';
+          } else if (isRecollecting) {
+            colorClass = 'bg-info-subtle text-info';
+            icon = 'icon-clock';
+          } else if (complete) {
+            colorClass = 'bg-success-subtle text-success';
+            icon = 'icon-check-circle';
+          } else {
+            colorClass = 'bg-primary-subtle text-primary';
+            icon = 'icon-shield';
+          }
+
+          const actionAttr = isReviewFiles ? ' data-status-action="open-files"' : '';
+          const extraClass = isReviewFiles ? ' status-badge-action' : '';
+          return `<span class="badge ${colorClass} d-inline-flex align-items-center gap-1 status-badge${extraClass}"${actionAttr}><i class="feather ${icon}"></i><span>${text}</span></span>`;
         };
         // Optionally de-duplicate repeated statuses keeping the last occurrence
         const seen = new Set<string>();
@@ -332,19 +370,30 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
   }
 
   onCellClicked(event: CellClickedEvent): void {
+    const clickTarget = (event.event?.target as HTMLElement | null) ?? null;
+    if (event.colDef.field === 'status' && event.data && clickTarget) {
+      const actionable = clickTarget.closest('[data-status-action]') as HTMLElement | null;
+      if (actionable?.dataset.statusAction === 'open-files') {
+        event.event?.preventDefault();
+        event.event?.stopPropagation();
+        this.openPanel(event.data.id, 'files');
+        return;
+      }
+    }
+
     if (event.colDef.field === 'name' && event.data) {
       this.openPanel(event.data.id);
     }
   }
 
-  openPanel(applicantId: string): void {
+  openPanel(applicantId: string, initialTab: PanelTab = 'messages'): void {
     const applicant = this.rowData.find(row => row.id === applicantId);
     if (applicant) {
       this.enrichApplicantMeta(applicant);
     }
     this.activeApplicant = applicant;
     this.panelOpen = true;
-    this.activeTab = 'messages';
+    this.activeTab = initialTab;
     this.trackApplicant(applicant);
   }
 

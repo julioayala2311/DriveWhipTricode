@@ -1382,6 +1382,53 @@ body.dark .image-viewer .viewer-toolbar {
   border-radius: 10px;
 }
 
+/* Move To Modal (inline, above everything) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 3000; /* above panel and menus */
+}
+
+.modal-centered {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3001; /* above backdrop */
+  padding: 1rem;
+}
+
+.modal-card {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.12));
+  border-radius: 12px;
+  width: min(520px, 96vw);
+  max-height: 85vh;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.modal-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.08));
+}
+.modal-body {
+  padding: 0.9rem 1rem;
+}
+.modal-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.08));
+  background: var(--bs-body-bg);
+}
+
+body.dark .modal-card {
+  background: #1b2027;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
 /* sidebar document preview uses Bootstrap utilities; no extra styles to keep within budget */
 
 /* Email toolbar + preview refinements */

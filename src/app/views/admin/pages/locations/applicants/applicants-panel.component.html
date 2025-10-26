@@ -667,7 +667,7 @@
                   ></span>
                   <span>Move to Next Stage</span>
                 </button>
-                <button type="button" class="menu-item">
+                <button type="button" class="menu-item" (click)="openMoveToModal()">
                   <span class="icon"><i class="feather icon-share-2"></i></span>
                   <span>Move to...</span>
                 </button>
@@ -685,6 +685,15 @@
                 </button>
               </div>
               <div class="menu-divider"></div>
+              <!-- Approve as Driver (only when backend signals go_to_driver) -->
+              <div class="menu-section" *ngIf="showApproveDriver">
+                <button type="button" class="menu-item">
+                  <span class="icon"><i class="feather icon-user-check"></i></span>
+                  <span>Approve as Driver</span>
+                </button>
+              </div>
+              <div class="menu-divider" *ngIf="showApproveDriver"></div>
+              
               <div class="menu-section">
                 <button type="button" class="menu-item">
                   <span class="icon"><i class="feather icon-upload"></i></span>
@@ -2239,5 +2248,51 @@
         </div>
       </div>
     </aside>
+    
+    <!-- Move To Modal -->
+    <div class="modal-backdrop" *ngIf="moveToOpen" (click)="closeMoveToModal()"></div>
+    <div class="modal-centered" *ngIf="moveToOpen" (click)="$event.stopPropagation()">
+      <div class="modal-card shadow-lg">
+        <div class="modal-header d-flex align-items-center justify-content-between">
+          <h5 class="m-0">Move Applicant</h5>
+          <button type="button" class="btn btn-link btn-sm text-secondary px-2" (click)="closeMoveToModal()" aria-label="Close">
+            <i class="feather icon-x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2 small">
+            You are moving <strong>{{ applicant?.first_name }} {{ applicant?.last_name }}</strong>
+            <ng-container *ngIf="moveToStageOptions && moveToStageId as sid">
+              to <strong>{{ displayStageName(sid) }}</strong>
+            </ng-container>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Location</label>
+            <select class="form-select" [disabled]="moveToLocationsLoading" [ngModel]="moveToLocationId" (ngModelChange)="onMoveToLocationChange($event)">
+              <option [ngValue]="null">Select a location…</option>
+              <option *ngFor="let loc of moveToLocationOptions" [ngValue]="loc.id">{{ loc.name }}</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Stage</label>
+            <select class="form-select" [disabled]="moveToStagesLoading || !moveToWorkflowId" [ngModel]="moveToStageId" (ngModelChange)="onMoveToStageChange($event)">
+              <option [ngValue]="null">Select a stage…</option>
+              <option *ngFor="let st of moveToStageOptions" [ngValue]="st.id">{{ st.name }}</option>
+            </select>
+          </div>
+          <div class="text-secondary small mt-2">
+            <ng-template #noStageSelected>Pick a stage to continue.</ng-template>
+          </div>
+          <div class="text-warning small mt-2" *ngIf="moveToError">{{ moveToError }}</div>
+        </div>
+        <div class="modal-footer d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeMoveToModal()">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" (click)="submitMoveTo()" [disabled]="moveToSaving || !moveToLocationId || !moveToStageId">
+            <span *ngIf="moveToSaving" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            Submit
+          </button>
+        </div>
+      </div>
+    </div>
   </aside>
 </div>

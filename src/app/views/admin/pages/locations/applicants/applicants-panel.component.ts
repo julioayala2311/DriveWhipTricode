@@ -208,6 +208,28 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   employmentProfileSnapshot: string = '{"id":"61192fe2-c13d-3e6b-b28e-1155147845a2","account":"019a0b0b-62a0-25bd-5102-11b4d292a7e8","address":{"city":null,"line1":null,"line2":null,"state":null,"country":"SV","postal_code":null},"first_name":"Juan","last_name":"Zamora","full_name":"Juan Zamora","birth_date":null,"email":"zamora125@hotmail.com","phone_number":"+50377461468","picture_url":"https://api.argyle.com/v2/payroll-documents/019a0b0e-9a2c-eca8-a5b6-a2d9c921e31c/file","employment_status":null,"employment_type":"contractor","job_title":"Driver","ssn":null,"marital_status":null,"gender":null,"hire_date":"2020-04-04","original_hire_date":"2020-04-04","termination_date":null,"termination_reason":null,"employer":"uber","base_pay":{"amount":null,"period":null,"currency":null},"pay_cycle":null,"platform_ids":{"employee_id":null,"position_id":null,"platform_user_id":null},"created_at":"2025-10-22T08:34:57.708Z","updated_at":"2025-10-22T08:34:57.708Z","metadata":{"driverStatus":"scanner_common.data.MissingT","raw_employment_type":"Contractor"},"employment":"8675e413-ef4f-3ea0-8f4f-008128c81d47"}'; 
 
+  // --- Move To Modal state ---
+  moveToOpen = false;
+  moveToSaving = false;
+  moveToError: string | null = null;
+  moveToLocationsLoading = false;
+  moveToLocationOptions: Array<{ id: number; name: string }> = [];
+  moveToLocationId: number | null = null;
+  moveToWorkflowsLoading = false;
+  moveToWorkflowId: number | null = null;
+  moveToStagesLoading = false;
+  moveToStageOptions: Array<{ id: number; name: string }> = [];
+  moveToStageId: number | null = null;
+
+  /** Resolve stage name from current Move To stage options by id */
+  displayStageName(id: number | null | undefined): string {
+    if (id === null || id === undefined) return "";
+    const sid = Number(id);
+    if (!Number.isFinite(sid)) return "";
+    const found = (this.moveToStageOptions || []).find((st) => Number(st.id) === sid);
+    return found?.name || "";
+  }
+
   // Open SMS composer using iPhone preview
   openSmsSidebar(): void {
     this.closeMenus();
@@ -1037,6 +1059,154 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.emailSidebarOpen = false;
   }
 
+  // --- Move To modal handlers ---
+  openMoveToModal(): void {
+    this.closeMenus();
+    this.moveToError = null;
+    this.moveToLocationId = null;
+    this.moveToWorkflowId = null;
+    this.moveToStageId = null;
+    this.ensureMoveToLocations();
+    this.moveToOpen = true;
+  }
+
+  closeMoveToModal(): void {
+    this.moveToOpen = false;
+  }
+
+  onMoveToLocationChange(raw: any): void {
+    const id = Number(raw);
+    this.moveToLocationId = Number.isFinite(id) && id > 0 ? id : null;
+    this.moveToWorkflowId = null;
+    this.moveToStageId = null;
+    if (this.moveToLocationId) this.loadWorkflowsForLocation(this.moveToLocationId);
+  }
+
+  onMoveToStageChange(raw: any): void {
+    const id = Number(raw);
+    this.moveToStageId = Number.isFinite(id) && id > 0 ? id : null;
+  }
+
+  private ensureMoveToLocations(): void {
+    if (this.moveToLocationsLoading || this.moveToLocationOptions.length) return;
+    this.moveToLocationsLoading = true;
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_locations_dropdown, parameters: [] } as any;
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        this.moveToLocationsLoading = false;
+        try {
+          let rows: any[] = [];
+          if (res.ok && Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+          const mapped = (rows || []).map(r => ({
+            id: Number(r.id_location ?? r.ID_LOCATION ?? r.id ?? r.value),
+            name: String(r.name ?? r.NAME ?? r.label ?? r.LABEL ?? '')
+          })).filter(x => Number.isFinite(x.id) && x.name);
+          mapped.sort((a,b)=> a.name.localeCompare(b.name));
+          this.moveToLocationOptions = mapped;
+          // preselect current by name if possible
+          const currentLocName = (this.locationName || '').trim().toLowerCase();
+          const preset = mapped.find(m => m.name.trim().toLowerCase() === currentLocName);
+          if (preset) {
+            this.moveToLocationId = preset.id;
+            this.loadWorkflowsForLocation(preset.id);
+          }
+        } catch (e) {
+          this.moveToError = 'Failed to parse locations list';
+        }
+      },
+      error: () => {
+        this.moveToLocationsLoading = false;
+        this.moveToError = 'Failed to load locations';
+      }
+    });
+  }
+
+  private loadWorkflowsForLocation(locationId: number): void {
+    if (!locationId) return;
+    this.moveToWorkflowsLoading = true;
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_workflows_list, parameters: [] } as any;
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        this.moveToWorkflowsLoading = false;
+        try {
+          let rows: any[] = [];
+          if (res.ok && Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+          const filtered = (rows || []).filter(r => Number(r.id_location ?? r.ID_LOCATION ?? 0) === Number(locationId));
+          const wf = filtered[0];
+          this.moveToWorkflowId = wf ? Number(wf.id_workflow ?? wf.ID_WORKFLOW ?? wf.id) : null;
+          if (this.moveToWorkflowId) this.loadStagesForWorkflow(this.moveToWorkflowId);
+          else this.moveToStageOptions = [];
+        } catch {
+          this.moveToError = 'Failed to parse workflows list';
+        }
+      },
+      error: () => {
+        this.moveToWorkflowsLoading = false;
+        this.moveToError = 'Failed to load workflows';
+      }
+    });
+  }
+
+  private loadStagesForWorkflow(workflowId: number): void {
+    if (!workflowId) return;
+    this.moveToStagesLoading = true;
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_list, parameters: [workflowId] } as any;
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        this.moveToStagesLoading = false;
+        try {
+          let rows: any[] = [];
+          if (res.ok && Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+          const mapped = (rows || []).map(r => ({ id: Number(r.id_stage ?? r.ID_STAGE ?? r.id), name: String(r.name ?? r.stage_name ?? r.NAME ?? '') }))
+            .filter(x => Number.isFinite(x.id) && x.name)
+            .sort((a,b)=> a.name.localeCompare(b.name));
+          this.moveToStageOptions = mapped;
+          const currentId = this.currentStageIdNum;
+          if (currentId != null && mapped.some(m => m.id === currentId)) this.moveToStageId = currentId;
+          else this.moveToStageId = mapped.length ? mapped[0].id : null;
+        } catch {
+          this.moveToError = 'Failed to parse stages list';
+        }
+      },
+      error: () => {
+        this.moveToStagesLoading = false;
+        this.moveToError = 'Failed to load stages';
+      }
+    });
+  }
+
+  submitMoveTo(): void {
+    if (this.moveToSaving) return;
+    const applId = this.resolveApplicantId(this.applicant) || this.applicantId;
+    if (!this.moveToLocationId || !this.moveToStageId || !applId) {
+      this.moveToError = 'Select a location and stage';
+      return;
+    }
+    const user = this.currentUserIdentifier();
+    // SP signature: (p_id_location, p_id_stage, p_id_applicant, p_user)
+    const params: any[] = [ this.moveToLocationId, this.moveToStageId, applId, user ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_applicants_moveto_new, parameters: params } as any;
+    this.moveToSaving = true;
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        this.moveToSaving = false;
+        if (!res.ok) {
+          this.moveToError = String(res.error || 'Failed to move applicant');
+          Utilities.showToast(this.moveToError, 'error');
+          return;
+        }
+        Utilities.showToast('Applicant moved', 'success');
+        this.moveToOpen = false;
+        if (applId && this.moveToStageId) this.stageMoved.emit({ idApplicant: String(applId), toStageId: Number(this.moveToStageId) });
+      },
+      error: () => {
+        this.moveToSaving = false;
+        this.moveToError = 'Failed to move applicant';
+        Utilities.showToast(this.moveToError, 'error');
+      }
+    });
+  }
+
   // Basic contenteditable toolbar actions (lightweight, no extra deps)
   emailExec(cmd: string, value?: string): void {
     try {
@@ -1591,16 +1761,20 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         "R",
         idApplicantDocument, // p_id_applicant_document
         idApplicant, // p_id_applicant
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
+        null, // p_id_stage
+        null, // p_data_key
+        null, // p_document_name
+        null, // p_status
+        null, // p_approved_at
+        null, // p_approved_by
+        null, // p_disapproved_at
+        null, // p_disapproved_by
+        null, // p_eventcode
+        null, // p_send_notification
+        null, // p_type_notification
       ];
       const api: IDriveWhipCoreAPI = {
-        commandName: DriveWhipAdminCommand.crm_applicants_documents_crud as any,
+        commandName: DriveWhipAdminCommand.crm_applicants_documents_crud_new as any,
         parameters: params,
       } as any;
       this._eventDocSub = this.core
@@ -1713,6 +1887,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   openTimelineEvent(ev: any): void {
     if (!ev) return;
+
+    const finish = (detailText?: string) => {
+      console.log('Finished processing event:', detailText);
+    };
+
     const who = ev.actorName
       ? `<div><strong>By:</strong> ${this.escapeHtml(ev.actorName)}</div>`
       : "";
@@ -1734,9 +1913,6 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
             <div class="mt-3"><pre style="white-space:pre-wrap;">${this.escapeHtml(
               detailText || ev.body || ev.text || ""
             )}</pre></div>
-            <div class="mt-2 text-muted small">Status: ${this.escapeHtml(
-              ev.status || "unknown"
-            )}</div>
           `;
           break;
         case "transition":
@@ -1789,24 +1965,6 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           )}</div>`;
       }
       return bodyHtml;
-    };
-
-    const finish = (detail?: string) => {
-      const bodyHtml = baseBodyFor(detail);
-      void Swal.fire({
-        title: this.escapeHtml(
-          ev.type ? ev.type.toString().toUpperCase() : "Event"
-        ),
-        html:
-          bodyHtml +
-          `<div class="mt-2 text-muted small">${this.escapeHtml(
-            ev.time || ""
-          )}</div>`,
-        width: "720px",
-        showCloseButton: true,
-        showConfirmButton: false,
-        customClass: { popup: "history-event-modal" },
-      });
     };
 
     // If event is marked with_detail, fetch detail text
@@ -2404,16 +2562,20 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       "R",
       null, // p_id_applicant_document
       applicantId, // p_id_applicant
-      null,
-      null,
-      null, // p_data_key, p_document_name, p_status
-      null,
-      null, // p_approved_at, p_approved_by
-      null,
-      null, // p_disapproved_at, p_disapproved_by
+      null, // p_id_stage
+      null, // p_data_key
+      null, // p_document_name
+      null, // p_status
+      null, // p_approved_at
+      null, // p_approved_by
+      null, // p_disapproved_at
+      null, // p_disapproved_by
+      null, // p_eventcode
+      null, // p_send_notification
+      null, // p_type_notification
     ];
     const api: IDriveWhipCoreAPI = {
-      commandName: DriveWhipAdminCommand.crm_applicants_documents_crud as any,
+      commandName: DriveWhipAdminCommand.crm_applicants_documents_crud_new,
       parameters: params,
     } as any;
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
@@ -3513,6 +3675,12 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const document_name = (opts?.documentNameOverride ??
       doc.document_name ??
       null) as any;
+    const id_stage =
+      (doc as any)?.id_stage ??
+      this.currentStageIdNum ??
+      this.applicant?.stageId ??
+      this.applicant?.raw?.id_stage ??
+      null;
     const eventCode = (opts?.eventCode ?? null) as any;
     const sendNotification = opts?.sendNotification ? 1 : 0; // BOOL -> tinyint
     const typeNotification = (opts?.typeNotification ?? null) as any;
@@ -3520,6 +3688,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       "U", // p_action
       doc.id_applicant_document, // p_id_applicant_document
       doc.id_applicant, // p_id_applicant
+      id_stage, // p_id_stage
       data_key, // p_data_key
       document_name, // p_document_name
       status, // p_status
@@ -3532,7 +3701,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       typeNotification, // p_type_notification (1 sms, 2 email, 3 ambos)
     ];
     const api: IDriveWhipCoreAPI = {
-      commandName: DriveWhipAdminCommand.crm_applicants_documents_crud as any,
+      commandName: DriveWhipAdminCommand.crm_applicants_documents_crud_new,
       parameters: params,
     } as any;
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
@@ -3550,6 +3719,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           // force reload
           this.docsLoadedForApplicantId = null;
           this.loadApplicantDocuments(String(id));
+          // Notify parent (grid) that applicant data changed so it can refresh status column
+          try {
+            this.applicantSaved.emit({ id: String(id), payload: {} });
+          } catch {}
         }
       },
       error: (err) => {
@@ -3679,6 +3852,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       allow_msg_updates: allowMsgUpdates,
       allow_calls: allowCalls,
       is_active: isActive,
+      // returned by READ branch of crm_applicants_crud when p_id_applicant provided
+      go_to_driver: this.booleanize(
+        (record.go_to_driver ?? (record.GO_TO_DRIVER as any)) ?? false
+      ),
       country_code: countryCode,
       state_code: stateCode,
       street,
@@ -3727,6 +3904,12 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const icon =
       (this.stageIcon ?? "").trim() || (this.applicant?.stageIcon ?? "").trim();
     return icon || "icon-layers";
+  }
+
+  // Whether to show the Approve-as-Driver CTA in More actions
+  get showApproveDriver(): boolean {
+    const v = (this.applicant as any)?.go_to_driver ?? (this.applicant as any)?.GO_TO_DRIVER;
+    return this.booleanize(v);
   }
 
   get stageMenuOptions(): StageMenuOption[] {

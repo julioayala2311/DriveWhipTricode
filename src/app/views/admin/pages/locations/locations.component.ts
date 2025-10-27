@@ -129,6 +129,13 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch (e) { /* best effort */ }
   }
 
+  /** Public: refresh the stages/cards by re-querying crm_stages_applicants_list
+   *  keep the current grid visibility (showGrid) when reloading so caller's view is preserved
+   */
+  public refreshStages(): void {
+    this.loadStagesForWorkflow(this.showGrid);
+  }
+
   onPostToJobBoards(): void {
     const iframeMarkup = '<iframe width="1000" height="700" frameborder="0" src="https://app.smartsheet.com/b/publish?EQBCT=f01b75e6050a45409a03f85cf81ac4c7"></iframe>';
     void Swal.fire({

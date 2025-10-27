@@ -37,6 +37,10 @@ export const routes: Routes = [
         loadChildren: () => import('./views/admin/pages/workflows/workflows.routes')
       },
       {
+        path: 'messenger',
+        loadChildren: () => import('./views/admin/pages/messenger/messenger.routes')
+      },
+      {
         path: 'icons',
         loadChildren: () => import('./views/icons/icons.routes')
       },

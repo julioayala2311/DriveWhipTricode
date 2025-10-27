@@ -25,6 +25,10 @@ import {
 import { DriveWhipAdminCommand } from "../../../../../core/db/procedures";
 import { Utilities } from "../../../../../Utilities/Utilities";
 import { AuthSessionService } from "../../../../../core/services/auth/auth-session.service";
+import {
+  ApplicantChatRealtimeMessage,
+  SmsChatSignalRService,
+} from "../../../../../core/services/signalr/sms-chat-signalr.service";
 
 @Component({
   selector: "app-applicant-panel",
@@ -48,6 +52,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   recollectEditorRef?: ElementRef<HTMLDivElement>;
   private authSession = inject(AuthSessionService);
   private sanitizer = inject(DomSanitizer);
+  private smsRealtime = inject(SmsChatSignalRService);
   @Input() applicant: any;
   @Input() applicantId: string | null = null;
   @Input() activeTab: "messages" | "history" | "files" = "messages";
@@ -138,6 +143,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   chatError: string | null = null;
   chatPage = 1;
   private chatLoadedForApplicantId: string | null = null;
+  private realtimeSub: Subscription | null = null;
+  private currentRealtimeApplicantId: string | null = null;
+  private realtimeRefreshTimer: any = null;
 
   // History (timeline) state
   historyLoading = false;
@@ -856,6 +864,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       } else {
         this.notes = [];
       }
+      this.updateRealtimeSubscription(id);
       if (id && id !== this.lastLoadedApplicantId) {
         this.loadApplicantDetails(id);
         // If opening with only ID, ensure there is a lightweight stub so header and info placeholders render
@@ -990,12 +999,28 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.realtimeSub = this.smsRealtime
+      .messages()
+      .subscribe((msg) => this.handleRealtimeMessage(msg));
     // use capture phase to avoid being canceled by stopPropagation on inner handlers
     document.addEventListener("click", this._outsideClickListener, true);
   }
 
   ngOnDestroy(): void {
+    if (this.realtimeSub) {
+      this.realtimeSub.unsubscribe();
+      this.realtimeSub = null;
+    }
+    if (this.currentRealtimeApplicantId) {
+      this.smsRealtime.leaveApplicant(this.currentRealtimeApplicantId).catch(() => {});
+      this.currentRealtimeApplicantId = null;
+    }
+    this.smsRealtime.disconnectIfIdle().catch(() => {});
     document.removeEventListener("click", this._outsideClickListener, true);
+    if (this.realtimeRefreshTimer) {
+      clearTimeout(this.realtimeRefreshTimer);
+      this.realtimeRefreshTimer = null;
+    }
   }
 
   isSectionOpen(section: string): boolean {
@@ -1440,6 +1465,108 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           this.chatSending = false;
         },
       });
+  }
+
+  private updateRealtimeSubscription(applicantId: string | null): void {
+    const normalized = this.normalizeApplicantIdValue(applicantId);
+    if (normalized === this.currentRealtimeApplicantId) {
+      return;
+    }
+
+    const previous = this.currentRealtimeApplicantId;
+    this.currentRealtimeApplicantId = normalized;
+
+    if (previous) {
+      this.smsRealtime.leaveApplicant(previous).catch((err) => {
+        console.error("[ApplicantPanel] SignalR leave failed", err);
+      });
+    }
+
+    if (normalized) {
+      this.smsRealtime.joinApplicant(normalized).catch((err) => {
+        console.error("[ApplicantPanel] SignalR join failed", err);
+      });
+    }
+  }
+
+  private normalizeApplicantIdValue(value: string | null | undefined): string | null {
+    const str = (value ?? "").toString().trim();
+    return str ? str.toLowerCase() : null;
+  }
+
+  private handleRealtimeMessage(evt: ApplicantChatRealtimeMessage): void {
+    if (!evt) return;
+    const activeId = this.resolveApplicantId(this.applicant) || this.applicantId;
+    const normalizedActive = this.normalizeApplicantIdValue(activeId);
+    if (!normalizedActive) return;
+
+    const incomingId = this.normalizeApplicantIdValue(evt.applicantId);
+    if (!incomingId || incomingId !== normalizedActive) return;
+
+    const body = (evt.body || "").toString();
+    if (!body.trim()) return;
+
+    const candidateId = evt.chatId != null
+      ? String(evt.chatId)
+      : evt.messageSid
+      ? `sid-${evt.messageSid}`
+      : null;
+
+    if (candidateId) {
+      const duplicate = (this.messages || []).some(
+        (m) => (m.id || "").toString() === candidateId
+      );
+      if (duplicate) {
+        return;
+      }
+    }
+
+    const direction: "inbound" | "outbound" =
+      (evt.direction || "").toLowerCase() === "outbound" ? "outbound" : "inbound";
+    const sentSource = evt.sentAtUtc || evt.createdAtUtc || new Date().toISOString();
+    const sentDate = new Date(sentSource);
+    const timestampLabel = new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(Number.isNaN(sentDate.getTime()) ? new Date() : sentDate);
+
+    const status: MessageStatus | undefined =
+      direction === "outbound" ? "delivered" : undefined;
+
+    const message: ApplicantMessage = {
+      id: candidateId || `rt-${direction}-${Date.now()}`,
+      direction,
+      sender:
+        direction === "outbound"
+          ? this.authSession.user?.user || "You"
+          : this.applicant?.first_name || "Applicant",
+      body,
+      timestamp: timestampLabel,
+      channel: (evt.channel || "SMS").toString() || "SMS",
+      status,
+      statusLabel: this.defaultStatusLabel(status),
+      automated: false,
+      dayLabel: "",
+      sentAt: sentSource,
+      createdBy: direction === "outbound" ? this.authSession.user?.user || null : null,
+    };
+
+    const base = this.messages ?? [];
+    this.messages = [...base, message];
+    this.refreshResolvedMessages();
+    this.scrollMessagesToBottomSoon();
+
+    if (this.realtimeRefreshTimer) {
+      clearTimeout(this.realtimeRefreshTimer);
+    }
+    const applicantKey = (activeId || "").toString();
+    if (applicantKey) {
+      this.realtimeRefreshTimer = setTimeout(() => {
+        this.loadChatHistory(applicantKey, 1, true);
+        this.realtimeRefreshTimer = null;
+      }, 800);
+    }
   }
 
   private getApplicantPhone(applicant: any): string | null {

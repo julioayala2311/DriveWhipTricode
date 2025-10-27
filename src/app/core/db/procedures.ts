@@ -51,7 +51,11 @@ export enum DriveWhipAdminCommand {
     crm_applicant_event_options = "crm_applicant_event_options",
     crm_applicant_event_detail = "crm_applicant_event_detail",
     crm_applicants_recollect_options = "crm_applicants_recollect_options",
-    crm_applicants_recollect_menssage = "crm_applicants_recollect_menssage"
+    crm_applicants_recollect_menssage = "crm_applicants_recollect_menssage",
+    crm_applicants_chat_list = "crm_applicants_chat_list",
+    // New procedure that accepts a location id to filter conversations
+    crm_applicants_chat_list_location = "crm_applicants_chat_list_location"
+    ,crm_applicants_chat_count_location = "crm_applicants_chat_count_location"
 }
 
 export enum DriveWhipAplicantsCommand {

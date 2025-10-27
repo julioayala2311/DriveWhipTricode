@@ -81,7 +81,7 @@ type StateOption = { code: string; name: string };
             </div>
 
             <!-- Notes -->
-            <div class="col-12">
+            <div class="col-12" style="display: none;">
               <div class="section-divider"></div>
               <label class="form-label small fw-semibold">Notes</label>
               <textarea class="form-control form-control-sm" name="notes"

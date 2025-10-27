@@ -82,6 +82,12 @@
     <div *ngIf="locationsError" class="text-danger small">
       {{ locationsError }}
     </div>
+    <div class="d-flex align-items-center ms-2">
+      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="refreshStages()" title="Refresh stages">
+        <i class="feather icon-refresh-cw me-1"></i>
+        Refresh Stages
+      </button>
+    </div>
   </div>
 </div>
 

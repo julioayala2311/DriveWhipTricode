@@ -185,6 +185,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
       this.extractTopCreate();
     }
 
+    this.ensureMessengerMenuEntry();
+
   // Load profile info from storage
   this.loadProfileFromStorage();
 
@@ -229,6 +231,40 @@ export class NavbarComponent implements OnInit, OnDestroy {
     if (specialEl) {
       try { ev.preventDefault(); ev.stopPropagation(); } catch { /* ignore */ }
       return;
+    }
+  }
+
+  private ensureMessengerMenuEntry(): void {
+    try {
+      const normalizedTarget = this.normalizePath('/messenger');
+      const hasMessenger = this.menuItems.some((item) => {
+        const direct = this.normalizePath(item.link);
+        if (direct === normalizedTarget) return true;
+        if (Array.isArray(item.subMenus)) {
+          for (const group of item.subMenus) {
+            if (!group?.subMenuItems) continue;
+            for (const sub of group.subMenuItems) {
+              if (this.normalizePath(sub.link) === normalizedTarget) {
+                return true;
+              }
+            }
+          }
+        }
+        return false;
+      });
+
+      if (!hasMessenger) {
+        this.menuItems = [
+          ...this.menuItems,
+          {
+            label: 'Messenger',
+            icon: 'message-square',
+            link: '/messenger'
+          }
+        ];
+      }
+    } catch (err) {
+      console.warn('[Navbar] Unable to ensure messenger menu entry', err);
     }
   }
 

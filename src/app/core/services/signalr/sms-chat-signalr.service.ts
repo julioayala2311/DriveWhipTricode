@@ -35,6 +35,23 @@ export class SmsChatSignalRService {
   private readonly messagesSubject =
     new Subject<ApplicantChatRealtimeMessage>();
   private readonly joinedApplicants = new Set<string>();
+  private readonly joinedPhonePairs = new Set<string>();
+  // Lightweight debug toggle: enable by setting sessionStorage.smsChatDebug = '1'
+  private debugEnabled(): boolean {
+    try {
+      const ss = (globalThis as any)?.sessionStorage;
+      if (ss && ss.getItem('smsChatDebug') === '1') return true;
+      const gg = (globalThis as any)?.SMS_CHAT_DEBUG;
+      return gg === '1' || gg === true;
+    } catch {
+      return false;
+    }
+  }
+  private debug(...args: any[]): void {
+    if (this.debugEnabled()) {
+      try { console.debug('[SmsChatSR]', ...args); } catch {}
+    }
+  }
 
   messages(): Observable<ApplicantChatRealtimeMessage> {
     return this.messagesSubject.asObservable();
@@ -52,6 +69,7 @@ export class SmsChatSignalRService {
       return;
     }
 
+    this.debug('JoinApplicant ->', normalized);
     await this.hubConnection.invoke("JoinApplicant", normalized);
     this.joinedApplicants.add(normalized);
   }
@@ -67,10 +85,11 @@ export class SmsChatSignalRService {
     }
 
     try {
+      this.debug('LeaveApplicant ->', normalized);
       await this.hubConnection.invoke("LeaveApplicant", normalized);
     } finally {
       this.joinedApplicants.delete(normalized);
-      if (!this.joinedApplicants.size) {
+      if (!this.joinedApplicants.size && !this.joinedPhonePairs.size) {
         await this.disconnectIfIdle();
       }
     }
@@ -80,7 +99,8 @@ export class SmsChatSignalRService {
     if (
       this.hubConnection &&
       this.hubConnection.state !== HubConnectionState.Disconnected &&
-      !this.joinedApplicants.size
+      !this.joinedApplicants.size &&
+      !this.joinedPhonePairs.size
     ) {
       try {
         await this.hubConnection.stop();
@@ -102,8 +122,10 @@ export class SmsChatSignalRService {
       return this.connectionPromise;
     }
 
+    const hubUrl = this.resolveHubUrl();
+    this.debug('Building connection', hubUrl);
     const connection = new HubConnectionBuilder()
-      .withUrl(this.resolveHubUrl(), {
+      .withUrl(hubUrl, {
         accessTokenFactory: () => this.core.getCachedToken() ?? "",
         withCredentials: false,
       })
@@ -114,19 +136,40 @@ export class SmsChatSignalRService {
     connection.on("ReceiveMessage", (payload: unknown) =>
       this.handleIncoming(payload)
     );
+    connection.onreconnecting((err) => {
+      this.debug('Reconnecting...', err);
+    });
     connection.onclose(() => {
+      this.debug('Connection closed');
       this.connectionPromise = null;
       this.hubConnection = null;
     });
     connection.onreconnected(() => {
+      this.debug('Reconnected; rejoining groups...');
       const ids = Array.from(this.joinedApplicants);
       ids.forEach((id) => {
+        this.debug('Rejoin applicant', id);
         this.hubConnection?.invoke("JoinApplicant", id).catch(() => {});
+      });
+      const pairs = Array.from(this.joinedPhonePairs);
+      pairs.forEach((key) => {
+        const [a, b] = key.split("|");
+        if (a && b) {
+          this.debug('Rejoin phonePair', key);
+          this.hubConnection?.invoke("JoinPhonePair", a, b).catch(() => {});
+        }
       });
     });
 
     this.hubConnection = connection;
+    // Expose a minimal debug handle in window when debug is enabled
+    try {
+      if (this.debugEnabled()) {
+        (globalThis as any).smsChatSR = this;
+      }
+    } catch {}
     const startPromise = connection.start().catch((err: unknown) => {
+      this.debug('Start failed', err);
       this.connectionPromise = null;
       this.hubConnection = null;
       throw err;
@@ -143,10 +186,30 @@ export class SmsChatSignalRService {
   }
 
   private handleIncoming(payload: unknown): void {
+    console.log("Incoming payload:", payload);
     const normalized = this.normalizePayload(payload);
     if (!normalized) {
       return;
     }
+    // Compute local phone-pair key and compare with server metadata for diagnostics
+    const [na, nb] = this.normalizePhonePair(normalized.from, normalized.to);
+    const localPairKey = na && nb ? `${na}|${nb}` : null;
+    const localPairGroup = localPairKey ? `smspair:${localPairKey}` : null;
+    const meta = (payload as any)?.metadata || (payload as any)?.Metadata || {};
+    const metaPairGroup = meta.phonePairGroup || meta.PhonePairGroup || meta.phonepairgroup || null;
+    const metaApplicantGroup = meta.applicantGroup || meta.ApplicantGroup || meta.applicantgroup || null;
+    const subscribed = localPairKey ? this.joinedPhonePairs.has(localPairKey) : false;
+
+    this.debug('ReceiveMessage <-', {
+      applicantId: normalized.applicantId,
+      from: normalized.from,
+      to: normalized.to,
+      dir: normalized.direction,
+      sid: normalized.messageSid || normalized.smsSid,
+      meta: { phonePairGroup: metaPairGroup, applicantGroup: metaApplicantGroup },
+      localPairGroup,
+      subscribedToPair: subscribed,
+    });
     this.messagesSubject.next(normalized);
   }
 
@@ -210,5 +273,65 @@ export class SmsChatSignalRService {
     }
     const date = value instanceof Date ? value : new Date(value as any);
     return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+  }
+
+  // --- Phone-pair subscriptions (fallback when applicantId is unknown) ---
+  async joinPhonePair(phoneA: string | null | undefined, phoneB: string | null | undefined): Promise<void> {
+    const [a, b] = this.normalizePhonePair(phoneA, phoneB);
+    if (!a || !b) return;
+    await this.ensureConnection();
+    const key = `${a}|${b}`;
+    if (this.joinedPhonePairs.has(key)) return;
+    this.debug('JoinPhonePair ->', key);
+    await this.hubConnection!.invoke("JoinPhonePair", a, b);
+    this.joinedPhonePairs.add(key);
+  }
+
+  async leavePhonePair(phoneA: string | null | undefined, phoneB: string | null | undefined): Promise<void> {
+    const [a, b] = this.normalizePhonePair(phoneA, phoneB);
+    if (!a || !b || !this.hubConnection) return;
+    const key = `${a}|${b}`;
+    try {
+      this.debug('LeavePhonePair ->', key);
+      await this.hubConnection.invoke("LeavePhonePair", a, b);
+    } finally {
+      this.joinedPhonePairs.delete(key);
+      if (!this.joinedApplicants.size && !this.joinedPhonePairs.size) {
+        await this.disconnectIfIdle();
+      }
+    }
+  }
+
+  private normalizePhone(input: string | null | undefined): string | null {
+    const raw = (input ?? "").trim();
+    if (!raw) return null;
+    // Strict E.164-like normalization: '+' + digits only; collapse extra '+'
+    const digits = raw
+      .split("")
+      .filter((ch) => /\d/.test(ch))
+      .join("");
+    return digits ? `+${digits}` : null;
+  }
+
+  private normalizePhonePair(a?: string | null, b?: string | null): [string | null, string | null] {
+    const na = this.normalizePhone(a);
+    const nb = this.normalizePhone(b);
+    if (!na || !nb) return [null, null];
+    return na <= nb ? [na, nb] : [nb, na];
+  }
+
+  // --- Public helpers for components to reason about current subscriptions ---
+  isSubscribedToPhonePair(phoneA: string | null | undefined, phoneB: string | null | undefined): boolean {
+    const [a, b] = this.normalizePhonePair(phoneA, phoneB);
+    if (!a || !b) return false;
+    return this.joinedPhonePairs.has(`${a}|${b}`);
+  }
+
+  getJoinedPhonePairs(): string[] {
+    return Array.from(this.joinedPhonePairs);
+  }
+
+  getConnectionState(): HubConnectionState | null {
+    return this.hubConnection?.state ?? null;
   }
 }

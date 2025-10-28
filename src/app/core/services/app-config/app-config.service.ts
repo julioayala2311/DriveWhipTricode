@@ -6,6 +6,7 @@ export interface EnvironmentEntry {
   driveWhipCoreServiceUser: string;
   driveWhipCoreServicePassword: string;
   googleClientId: string;
+  token_environment: string;
   [key: string]: any;
 }
 
@@ -65,5 +66,6 @@ export class AppConfigService {
   get driveWhipCoreServiceUser(): string { return this.active.driveWhipCoreServiceUser || ''; }
   get driveWhipCoreServicePassword(): string { return this.active.driveWhipCoreServicePassword || ''; }
   get googleClientId(): string { return this.active.googleClientId || ''; }
+  get token_environment(): string { return this.active.token_environment || ''; }
   get googleEnv(): string { return this.environment; } // Backward compatibility name
 }

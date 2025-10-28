@@ -32,6 +32,7 @@ export class DriveWhipCoreService {
   get servicePassword(): string { return this.appConfig.driveWhipCoreServicePassword; }
   get siteBaseUrl(): string { return this.appConfig.get<string>('siteBaseUrl', ''); }
   get accountCreatedTemplateId(): string { return this.appConfig.get<string>('accountCreatedTemplateId', ''); }
+  get token_environment(): string { return this.appConfig.get<string>('token_environment', ''); }
 
   getCachedToken(): string | null {
     const encrypted = this.readFromStorage(AUTH_TOKEN_STORAGE_KEY);
@@ -53,9 +54,9 @@ export class DriveWhipCoreService {
   private buildHeaders(extra?: Record<string,string>): HttpHeaders {
     let headers = new HttpHeaders({
       'Accept': 'application/json',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'token_environment': this.token_environment
     });
-
     const storedToken = this.getCachedToken();
     if (storedToken) {
       headers = headers.set('Authorization', `Bearer ${storedToken}`);

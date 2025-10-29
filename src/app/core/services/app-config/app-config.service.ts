@@ -7,6 +7,7 @@ export interface EnvironmentEntry {
   driveWhipCoreServicePassword: string;
   googleClientId: string;
   token_environment: string;
+  smsDefaultFromNumber?: string;
   [key: string]: any;
 }
 
@@ -68,4 +69,8 @@ export class AppConfigService {
   get googleClientId(): string { return this.active.googleClientId || ''; }
   get token_environment(): string { return this.active.token_environment || ''; }
   get googleEnv(): string { return this.environment; } // Backward compatibility name
+  get smsDefaultFromNumber(): string {
+    const value = (this.active.smsDefaultFromNumber || "").toString().trim();
+    return value || "+18774142766";
+  }
 }

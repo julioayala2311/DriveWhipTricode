@@ -29,6 +29,7 @@ import {
   ApplicantChatRealtimeMessage,
   SmsChatSignalRService,
 } from "../../../../../core/services/signalr/sms-chat-signalr.service";
+import { AppConfigService } from "../../../../../core/services/app-config/app-config.service";
 
 @Component({
   selector: "app-applicant-panel",
@@ -53,6 +54,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private authSession = inject(AuthSessionService);
   private sanitizer = inject(DomSanitizer);
   private smsRealtime = inject(SmsChatSignalRService);
+  private appConfig = inject(AppConfigService);
   @Input() applicant: any;
   @Input() applicantId: string | null = null;
   @Input() activeTab: "messages" | "history" | "files" = "messages";
@@ -244,13 +246,14 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (this.eventSidebarOpen) this.closeEventSidebar();
     if (this.emailSidebarOpen) this.closeEmailSidebar();
 
-    const to = this.getApplicantPhone(this.applicant) || "";
-    const defaultFrom = "8774142766";
+  const to = this.getApplicantPhone(this.applicant) || "";
+  const defaultFrom = this.defaultSmsFromNumber();
     this.smsFrom = defaultFrom;
     this.smsTo = to;
     this.smsMessage = "";
     this.smsDelay = false;
     this.smsSidebarOpen = true;
+    this.updatePhoneSubscription().catch(() => {});
   }
 
   closeSmsSidebar(): void {
@@ -462,7 +465,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
     const id = this.resolveApplicantId(this.applicant) || this.applicantId;
     const to = (this.getApplicantPhone(this.applicant) || "").trim();
-    const from = (this.smsFrom || "8774142766").trim();
+  const from = (this.smsFrom || this.defaultSmsFromNumber()).trim();
     if (!id || !to || !from) {
       Utilities.showToast(
         "Missing phone or applicant id for resend",
@@ -1011,17 +1014,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       this.realtimeSub.unsubscribe();
       this.realtimeSub = null;
     }
-    if (this.currentRealtimeApplicantId) {
-      this.smsRealtime.leaveApplicant(this.currentRealtimeApplicantId).catch(() => {});
-      this.currentRealtimeApplicantId = null;
-    }
-    // Leave phone-pair group if joined
-    if (this.currentRealtimePhonePairKey) {
-      const [a, b] = this.currentRealtimePhonePairKey.split("|");
-      if (a && b) {
-        (this.smsRealtime as any).leavePhonePair?.(a, b)?.catch?.(() => {});
-      }
-      this.currentRealtimePhonePairKey = null;
+    this.currentRealtimeApplicantId = null;
+    if (this.currentRealtimePhoneNumber) {
+      this.smsRealtime.leavePhone(this.currentRealtimePhoneNumber).catch(() => {});
+      this.currentRealtimePhoneNumber = null;
     }
     this.smsRealtime.disconnectIfIdle().catch(() => {});
     document.removeEventListener("click", this._outsideClickListener, true);
@@ -1423,7 +1419,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.scrollMessagesToBottomSoon();
 
     this.chatSending = true;
-    const fromNumber = "8774142766";
+  const fromNumber = this.defaultSmsFromNumber();
     this.core
       .sendChatSms({
         from: fromNumber,
@@ -1477,31 +1473,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   private updateRealtimeSubscription(applicantId: string | null): void {
     const normalized = this.normalizeApplicantIdValue(applicantId);
-    if (normalized === this.currentRealtimeApplicantId) {
-      // Even if applicantId didn't change, ensure phone-pair subscription is up-to-date
-      this.updatePhonePairSubscription();
-      return;
-    }
-
-    const previous = this.currentRealtimeApplicantId;
     this.currentRealtimeApplicantId = normalized;
-
-    if (previous) {
-      this.smsRealtime.leaveApplicant(previous).catch((err) => {
-        console.debug("[ApplicantPanel] leaveApplicant", previous, err);
-      });
-    }
-
-    if (normalized) {
-      this.smsRealtime.joinApplicant(normalized).then(() => {
-        console.debug("[ApplicantPanel] joinApplicant", normalized);
-      }).catch((err) => {
-        console.debug("[ApplicantPanel] joinApplicant error", normalized, err);
-      });
-    }
-
-    // Also (re)join phone-pair group based on current applicant phone and active From number
-    this.updatePhonePairSubscription();
+    this.updatePhoneSubscription().catch((err: unknown) => {
+      console.debug("[ApplicantPanel] updatePhoneSubscription error", err);
+    });
   }
 
   private normalizeApplicantIdValue(value: string | null | undefined): string | null {
@@ -1521,11 +1496,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         accept = true;
       }
     }
-    if (!accept) {
-      // Fallback: match by normalized phone pair (order-insensitive)
-      if (this.matchesCurrentPhonePair(evt)) {
-        accept = true;
-      }
+    if (!accept && this.matchesCurrentPhone(evt)) {
+      accept = true;
     }
     if (!accept) return;
 
@@ -1595,12 +1567,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
   }
 
-  // --- Realtime by phone-pair (fallback when applicantId is missing) ---
-  private currentRealtimePhonePairKey: string | null = null;
+  // --- Realtime subscription helpers ---
+  private currentRealtimePhoneNumber: string | null = null;
 
   private defaultSmsFromNumber(): string {
-    // Keep in sync with openSmsSidebar/resend logic
-    return "8774142766";
+    return this.appConfig.smsDefaultFromNumber;
   }
 
   private normalizePhone(raw?: string | null): string | null {
@@ -1612,68 +1583,56 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     return `+${digits}`;
   }
 
-  private normalizedPairKey(a?: string | null, b?: string | null): string | null {
-    const na = this.normalizePhone(a);
-    const nb = this.normalizePhone(b);
-    if (!na || !nb) return null;
-    return na <= nb ? `${na}|${nb}` : `${nb}|${na}`;
-    }
-
-  private updatePhonePairSubscription(): void {
+  private async updatePhoneSubscription(): Promise<void> {
     try {
       const to = this.getApplicantPhone(this.applicant) || this.smsTo || null;
-      const from = this.smsFrom || this.defaultSmsFromNumber();
-      const key = this.normalizedPairKey(from, to);
-      if (!key) {
-        // Leave previous if any
-        if (this.currentRealtimePhonePairKey) {
-          const [pa, pb] = this.currentRealtimePhonePairKey.split("|");
-          if (pa && pb) (this.smsRealtime as any).leavePhonePair?.(pa, pb)?.then?.(() => {
-            console.debug('[ApplicantPanel] leavePhonePair', this.currentRealtimePhonePairKey, 'group=smspair:' + this.currentRealtimePhonePairKey);
-          })?.catch?.((e: unknown) => console.debug('[ApplicantPanel] leavePhonePair error', e));
-          this.currentRealtimePhonePairKey = null;
-        }
+      const normalizedTo = this.normalizePhone(to);
+      const current = this.currentRealtimePhoneNumber;
+
+      if (normalizedTo === current) {
         return;
       }
-      if (key === this.currentRealtimePhonePairKey) return;
-      // Leave previous first
-      if (this.currentRealtimePhonePairKey) {
-        const [pa, pb] = this.currentRealtimePhonePairKey.split("|");
-        if (pa && pb) (this.smsRealtime as any).leavePhonePair?.(pa, pb)?.then?.(() => {
-          console.debug('[ApplicantPanel] leavePhonePair', this.currentRealtimePhonePairKey, 'group=smspair:' + this.currentRealtimePhonePairKey);
-        })?.catch?.((e: unknown) => console.debug('[ApplicantPanel] leavePhonePair error', e));
+
+      if (current && current !== normalizedTo) {
+        try {
+          await this.smsRealtime.leavePhone(current);
+          console.debug('[ApplicantPanel] leavePhone', current, 'group=sms:' + current);
+        } catch (err: unknown) {
+          console.debug('[ApplicantPanel] leavePhone error', current, err);
+        } finally {
+          this.currentRealtimePhoneNumber = null;
+        }
       }
-      const [a, b] = key.split("|");
-      // Log the smspair group name and attempt to join it. Use the service's joinPhonePair (may be cast to any).
-      (this.smsRealtime as any)
-        .joinPhonePair?.(a, b)
-        ?.then?.(() => {
-          this.currentRealtimePhonePairKey = key;
-          console.debug('[ApplicantPanel] joinPhonePair', key, 'group=smspair:' + key);
-          // If debug helpers are available on the service, show subscription state
-          try {
-            const subscribed = (this.smsRealtime as any).isSubscribedToPhonePair?.(a, b) ?? null;
-            console.debug('[ApplicantPanel] subscribedToPhonePair', subscribed, 'joinedPhonePairs=', (this.smsRealtime as any).getJoinedPhonePairs?.() ?? null);
-          } catch (e) {
-            console.debug('[ApplicantPanel] subscription inspect error', e);
-          }
-        })
-        ?.catch?.((err: unknown) => console.debug("[ApplicantPanel] joinPhonePair error", err));
-    } catch (e) {
-      console.debug("[ApplicantPanel] updatePhonePairSubscription error", e);
+
+      if (!normalizedTo) {
+        return;
+      }
+
+      await this.smsRealtime.joinPhone(normalizedTo);
+      this.currentRealtimePhoneNumber = normalizedTo;
+      console.debug('[ApplicantPanel] joinPhone', normalizedTo, 'group=sms:' + normalizedTo);
+      try {
+        console.debug('[ApplicantPanel] joinedPhones=', this.smsRealtime.getJoinedPhones());
+        // console.log('[ApplicantPanel] Active SignalR group', `sms:${normalizedTo}`);
+      } catch {}
+    } catch (err: unknown) {
+      console.debug('[ApplicantPanel] updatePhoneSubscription inner error', err);
     }
   }
 
-  private matchesCurrentPhonePair(evt: ApplicantChatRealtimeMessage): boolean {
+  private matchesCurrentPhone(evt: ApplicantChatRealtimeMessage): boolean {
     try {
       if (!evt) return false;
-      const to = this.getApplicantPhone(this.applicant) || this.smsTo || null;
-      const from = this.smsFrom || this.defaultSmsFromNumber();
-      const activeKey = this.normalizedPairKey(from, to);
-      if (!activeKey) return false;
-      const evtKey = this.normalizedPairKey(evt.from, evt.to);
-      console.debug('[ApplicantPanel] match phonePair?', { activeKey, evtKey, meta: (evt as any)?.metadata });
-      return !!evtKey && evtKey === activeKey;
+      const target = this.normalizePhone(
+        this.getApplicantPhone(this.applicant) ||
+          this.smsTo ||
+          this.currentRealtimePhoneNumber
+      );
+      if (!target) return false;
+      const from = this.normalizePhone(evt.from);
+      const to = this.normalizePhone(evt.to);
+      console.debug('[ApplicantPanel] match phone?', { target, from, to, meta: (evt as any)?.metadata });
+      return from === target || to === target;
     } catch {
       return false;
     }
@@ -2126,7 +2085,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (!ev) return;
 
     const finish = (detailText?: string) => {
-      console.log('Finished processing event:', detailText);
+      // console.log('Finished processing event:', detailText);
     };
 
     const who = ev.actorName
@@ -3771,7 +3730,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           smsText = this.currentRecollectDescription();
         }
         smsText = (smsText || "").trim().slice(0, 1000);
-        const from = "8774142766";
+  const from = this.defaultSmsFromNumber();
         try {
           await firstValueFrom(
             this.core.sendChatSms({
@@ -4001,6 +3960,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const normalized = this.normalizeApplicantRecord(record);
     this.applicant = { ...this.applicant, ...normalized };
     this.editableApplicant = { ...this.applicant };
+    this.updatePhoneSubscription().catch(() => {});
   }
 
   private normalizeApplicantRecord(record: any): any {

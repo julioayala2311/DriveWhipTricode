@@ -34,8 +34,7 @@ export class SmsChatSignalRService {
   private connectionPromise: Promise<void> | null = null;
   private readonly messagesSubject =
     new Subject<ApplicantChatRealtimeMessage>();
-  private readonly joinedApplicants = new Set<string>();
-  private readonly joinedPhonePairs = new Set<string>();
+  private readonly joinedPhones = new Set<string>();
   // Lightweight debug toggle: enable by setting sessionStorage.smsChatDebug = '1'
   private debugEnabled(): boolean {
     try {
@@ -57,50 +56,11 @@ export class SmsChatSignalRService {
     return this.messagesSubject.asObservable();
   }
 
-  async joinApplicant(applicantId: string | null | undefined): Promise<void> {
-    const normalized = this.normalizeApplicantId(applicantId);
-    if (!normalized) {
-      return;
-    }
-
-    await this.ensureConnection();
-    if (!this.hubConnection || this.joinedApplicants.has(normalized)) {
-      this.joinedApplicants.add(normalized);
-      return;
-    }
-
-    this.debug('JoinApplicant ->', normalized);
-    await this.hubConnection.invoke("JoinApplicant", normalized);
-    this.joinedApplicants.add(normalized);
-  }
-
-  async leaveApplicant(applicantId: string | null | undefined): Promise<void> {
-    const normalized = this.normalizeApplicantId(applicantId);
-    if (
-      !normalized ||
-      !this.hubConnection ||
-      !this.joinedApplicants.has(normalized)
-    ) {
-      return;
-    }
-
-    try {
-      this.debug('LeaveApplicant ->', normalized);
-      await this.hubConnection.invoke("LeaveApplicant", normalized);
-    } finally {
-      this.joinedApplicants.delete(normalized);
-      if (!this.joinedApplicants.size && !this.joinedPhonePairs.size) {
-        await this.disconnectIfIdle();
-      }
-    }
-  }
-
   async disconnectIfIdle(): Promise<void> {
     if (
       this.hubConnection &&
       this.hubConnection.state !== HubConnectionState.Disconnected &&
-      !this.joinedApplicants.size &&
-      !this.joinedPhonePairs.size
+      !this.joinedPhones.size
     ) {
       try {
         await this.hubConnection.stop();
@@ -133,8 +93,11 @@ export class SmsChatSignalRService {
       .configureLogging(LogLevel.Error)
       .build();
 
-    connection.on("ReceiveMessage", (payload: unknown) =>
-      this.handleIncoming(payload)
+    connection.on("ReceiveInboundMessage", (payload: unknown) =>
+      this.handleInbound(payload)
+    );
+    connection.on("ReceiveOutboundMessage", (payload: unknown) =>
+      this.handleOutbound(payload)
     );
     connection.onreconnecting((err) => {
       this.debug('Reconnecting...', err);
@@ -145,19 +108,10 @@ export class SmsChatSignalRService {
       this.hubConnection = null;
     });
     connection.onreconnected(() => {
-      this.debug('Reconnected; rejoining groups...');
-      const ids = Array.from(this.joinedApplicants);
-      ids.forEach((id) => {
-        this.debug('Rejoin applicant', id);
-        this.hubConnection?.invoke("JoinApplicant", id).catch(() => {});
-      });
-      const pairs = Array.from(this.joinedPhonePairs);
-      pairs.forEach((key) => {
-        const [a, b] = key.split("|");
-        if (a && b) {
-          this.debug('Rejoin phonePair', key);
-          this.hubConnection?.invoke("JoinPhonePair", a, b).catch(() => {});
-        }
+      this.debug('Reconnected; rejoining phone groups...', this.joinedPhones);
+      const phones = Array.from(this.joinedPhones);
+      phones.forEach((p) => {
+        this.hubConnection?.invoke("JoinPhone", p).catch(() => {});
       });
     });
 
@@ -180,64 +134,43 @@ export class SmsChatSignalRService {
   }
 
   private resolveHubUrl(): string {
-    const base = this.appConfig.apiBaseUrl;
-    const trimmed = base.endsWith("/") ? base : `${base}/`;
-    return `${trimmed}hubs/sms-chat`;
-  }
-
-  private handleIncoming(payload: unknown): void {
-    console.log("Incoming payload:", payload);
-    const normalized = this.normalizePayload(payload);
-    if (!normalized) {
-      return;
+    const base = this.appConfig.apiBaseUrl || "";
+    const trimmed = base.endsWith("/") ? base.slice(0, -1) : base;
+    if (trimmed.toLowerCase().endsWith("/api")) {
+      return `${trimmed}/hubs/sms-chat`;
     }
-    // Compute local phone-pair key and compare with server metadata for diagnostics
-    const [na, nb] = this.normalizePhonePair(normalized.from, normalized.to);
-    const localPairKey = na && nb ? `${na}|${nb}` : null;
-    const localPairGroup = localPairKey ? `smspair:${localPairKey}` : null;
-    const meta = (payload as any)?.metadata || (payload as any)?.Metadata || {};
-    const metaPairGroup = meta.phonePairGroup || meta.PhonePairGroup || meta.phonepairgroup || null;
-    const metaApplicantGroup = meta.applicantGroup || meta.ApplicantGroup || meta.applicantgroup || null;
-    const subscribed = localPairKey ? this.joinedPhonePairs.has(localPairKey) : false;
-
-    this.debug('ReceiveMessage <-', {
-      applicantId: normalized.applicantId,
-      from: normalized.from,
-      to: normalized.to,
-      dir: normalized.direction,
-      sid: normalized.messageSid || normalized.smsSid,
-      meta: { phonePairGroup: metaPairGroup, applicantGroup: metaApplicantGroup },
-      localPairGroup,
-      subscribedToPair: subscribed,
-    });
+    return `${trimmed}/api/hubs/sms-chat`;
+  }
+  
+  private handleInbound(payload: unknown): void {
+    const normalized = this.normalizePayload(payload, "inbound");
+    if (!normalized) return;
+    this.debug('ReceiveInboundMessage <-', normalized);
     this.messagesSubject.next(normalized);
   }
 
-  private normalizeApplicantId(
-    applicantId: string | null | undefined
-  ): string | null {
-    const value = (applicantId ?? "").toString().trim();
-    return value ? value.toLowerCase() : null;
+  private handleOutbound(payload: unknown): void {
+    const normalized = this.normalizePayload(payload, "outbound");
+    if (!normalized) return;
+    this.debug('ReceiveOutboundMessage <-', normalized);
+    this.messagesSubject.next(normalized);
   }
 
-  private normalizePayload(payload: any): ApplicantChatRealtimeMessage | null {
+  private normalizePayload(payload: any, fallbackDirection: "inbound" | "outbound"): ApplicantChatRealtimeMessage | null {
     if (!payload) {
       return null;
     }
-    const applicantId = this.normalizeApplicantId(
-      payload.applicantId ?? payload.ApplicantId
-    );
-    const directionRaw = (payload.direction ?? payload.Direction ?? "")
+    const directionRaw = (payload.direction ?? payload.Direction ?? fallbackDirection)
       .toString()
       .toLowerCase();
     const direction = directionRaw === "outbound" ? "outbound" : "inbound";
 
     return {
-      applicantId: applicantId ?? "",
+      applicantId: (payload.applicantId ?? payload.ApplicantId ?? "").toString(),
       body: (payload.body ?? payload.Body ?? "").toString(),
       direction,
-      from: (payload.from ?? payload.From ?? "").toString(),
-      to: (payload.to ?? payload.To ?? "").toString(),
+      from: this.normalizePhone(payload.from ?? payload.From) ?? (payload.from ?? payload.From ?? "").toString(),
+      to: this.normalizePhone(payload.to ?? payload.To) ?? (payload.to ?? payload.To ?? "").toString(),
       status: (payload.status ?? payload.Status ?? undefined)?.toString(),
       messageSid:
         (payload.messageSid ?? payload.MessageSid ?? "").toString() ||
@@ -275,28 +208,35 @@ export class SmsChatSignalRService {
     return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
   }
 
-  // --- Phone-pair subscriptions (fallback when applicantId is unknown) ---
-  async joinPhonePair(phoneA: string | null | undefined, phoneB: string | null | undefined): Promise<void> {
-    const [a, b] = this.normalizePhonePair(phoneA, phoneB);
-    if (!a || !b) return;
+  async joinPhone(phone: string | null | undefined): Promise<void> {
+    const p = this.normalizePhone(phone);
+    if (!p) return;
     await this.ensureConnection();
-    const key = `${a}|${b}`;
-    if (this.joinedPhonePairs.has(key)) return;
-    this.debug('JoinPhonePair ->', key);
-    await this.hubConnection!.invoke("JoinPhonePair", a, b);
-    this.joinedPhonePairs.add(key);
+    if (this.joinedPhones.has(p)) return;
+    this.debug('JoinPhone ->', p, 'group=sms:' + p);
+    try {
+      if (this.debugEnabled()) {
+        console.log('[SmsChatSR] Joining SignalR group', `sms:${p}`);
+      }
+    } catch {}
+    await this.hubConnection!.invoke("JoinPhone", p);
+    this.joinedPhones.add(p);
   }
 
-  async leavePhonePair(phoneA: string | null | undefined, phoneB: string | null | undefined): Promise<void> {
-    const [a, b] = this.normalizePhonePair(phoneA, phoneB);
-    if (!a || !b || !this.hubConnection) return;
-    const key = `${a}|${b}`;
+  async leavePhone(phone: string | null | undefined): Promise<void> {
+    const p = this.normalizePhone(phone);
+    if (!p || !this.hubConnection) return;
     try {
-      this.debug('LeavePhonePair ->', key);
-      await this.hubConnection.invoke("LeavePhonePair", a, b);
+      this.debug('LeavePhone ->', p, 'group=sms:' + p);
+      try {
+        if (this.debugEnabled()) {
+          console.log('[SmsChatSR] Leaving SignalR group', `sms:${p}`);
+        }
+      } catch {}
+      await this.hubConnection.invoke("LeavePhone", p);
     } finally {
-      this.joinedPhonePairs.delete(key);
-      if (!this.joinedApplicants.size && !this.joinedPhonePairs.size) {
+      this.joinedPhones.delete(p);
+      if (!this.joinedPhones.size) {
         await this.disconnectIfIdle();
       }
     }
@@ -313,22 +253,13 @@ export class SmsChatSignalRService {
     return digits ? `+${digits}` : null;
   }
 
-  private normalizePhonePair(a?: string | null, b?: string | null): [string | null, string | null] {
-    const na = this.normalizePhone(a);
-    const nb = this.normalizePhone(b);
-    if (!na || !nb) return [null, null];
-    return na <= nb ? [na, nb] : [nb, na];
+  getJoinedPhones(): string[] {
+    return Array.from(this.joinedPhones);
   }
 
-  // --- Public helpers for components to reason about current subscriptions ---
-  isSubscribedToPhonePair(phoneA: string | null | undefined, phoneB: string | null | undefined): boolean {
-    const [a, b] = this.normalizePhonePair(phoneA, phoneB);
-    if (!a || !b) return false;
-    return this.joinedPhonePairs.has(`${a}|${b}`);
-  }
-
-  getJoinedPhonePairs(): string[] {
-    return Array.from(this.joinedPhonePairs);
+  isSubscribedToPhone(phone: string | null | undefined): boolean {
+    const p = this.normalizePhone(phone);
+    return !!p && this.joinedPhones.has(p);
   }
 
   getConnectionState(): HubConnectionState | null {

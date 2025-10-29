@@ -1614,7 +1614,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       console.debug('[ApplicantPanel] joinPhone', normalizedTo, 'group=sms:' + normalizedTo);
       try {
         console.debug('[ApplicantPanel] joinedPhones=', this.smsRealtime.getJoinedPhones());
-        // console.log('[ApplicantPanel] Active SignalR group', `sms:${normalizedTo}`);
+        console.log('[ApplicantPanel] Active SignalR group', `sms:${normalizedTo}`);
       } catch {}
     } catch (err: unknown) {
       console.debug('[ApplicantPanel] updatePhoneSubscription inner error', err);
@@ -2086,7 +2086,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (!ev) return;
 
     const finish = (detailText?: string) => {
-      // console.log('Finished processing event:', detailText);
+      console.log('Finished processing event:', detailText);
     };
 
     const who = ev.actorName

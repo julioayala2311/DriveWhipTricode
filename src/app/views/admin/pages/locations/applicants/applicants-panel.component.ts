@@ -17,6 +17,7 @@ import { Subscription, firstValueFrom } from "rxjs";
 import Swal from "sweetalert2";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
+import { NgxMaskDirective } from "ngx-mask";
 import { DriveWhipCoreService } from "../../../../../core/services/drivewhip-core/drivewhip-core.service";
 import {
   DriveWhipCommandResponse,
@@ -34,7 +35,7 @@ import { AppConfigService } from "../../../../../core/services/app-config/app-co
 @Component({
   selector: "app-applicant-panel",
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, NgxMaskDirective],
   templateUrl: "./applicants-panel.component.html",
   styleUrls: ["./applicants-panel.component.scss"],
 })

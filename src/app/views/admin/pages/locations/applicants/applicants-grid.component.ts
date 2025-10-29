@@ -1,9 +1,10 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApplicantPanelComponent } from './applicants-panel.component';
+import { ApplicantActionsCellComponent, ApplicantQuickAction } from './applicant-actions-cell.component';
 import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, GridApi, GridReadyEvent, IHeaderParams, CellClickedEvent } from 'ag-grid-community';
+import { ColDef, GridApi, GridReadyEvent, IHeaderParams, CellClickedEvent, GridOptions } from 'ag-grid-community';
 import { IHeaderAngularComp } from 'ag-grid-angular';
 import { DriveWhipCoreService } from '../../../../../core/services/drivewhip-core/drivewhip-core.service';
 import { DriveWhipAdminCommand } from '../../../../../core/db/procedures';
@@ -34,7 +35,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
 @Component({
   selector: 'app-applicants-grid',
   standalone: true,
-  imports: [CommonModule, FormsModule, AgGridAngular, ApplicantPanelComponent],
+    imports: [CommonModule, FormsModule, AgGridAngular, ApplicantPanelComponent],
   template: `
   <div class="d-flex flex-wrap gap-2 align-items-center mb-4">
     <h6 class="mb-0 fw-semibold">Applicants
@@ -54,6 +55,8 @@ export class GridHeaderComponent implements IHeaderAngularComp {
                    [rowData]="rowData"
                    [columnDefs]="columnDefs"
                    [defaultColDef]="defaultColDef"
+                   [context]="context"
+                   [gridOptions]="gridOptions"
                    rowSelection="multiple"
                    [suppressRowClickSelection]="true"
                    [pagination]="true"
@@ -101,9 +104,13 @@ export class GridHeaderComponent implements IHeaderAngularComp {
     :host ::ng-deep .ag-theme-quartz .status-badge { line-height: 1; }
     :host ::ng-deep .ag-theme-quartz .status-badge-action { cursor: pointer; }
     :host ::ng-deep .ag-theme-quartz .ag-cell div.d-flex.flex-wrap { align-items: center; gap: .25rem; }
+    :host ::ng-deep .ag-theme-quartz .actions-cell-wrapper { padding: 0 !important; }
   `]
 })
 export class ApplicantsGridComponent implements OnInit, OnChanges {
+  @ViewChild(ApplicantPanelComponent) panelComponent?: ApplicantPanelComponent;
+
+  context = { componentParent: this };
   @Output() stageMoved = new EventEmitter<{ idApplicant: string; toStageId: number }>();
   @Output() applicantDeleted = new EventEmitter<string>();
   @Input() cardId!: number | null; // stage id
@@ -123,8 +130,15 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
   rowRangeStart = 0;
   rowRangeEnd = 0;
 
+  gridOptions: GridOptions = {
+    components: {
+      applicantActionsCell: ApplicantActionsCellComponent,
+    },
+  };
+
   columnDefs: ColDef[] = [
     { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
+    // { headerName: '', field: '__actions', width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true, cellClass: 'actions-cell-wrapper', cellRenderer: 'applicantActionsCell' },
     { headerName: 'Name', field: 'name', minWidth: 160, flex: 1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-user' }, cellRenderer: (p: any) => {
         const value = (p.value ?? '').toString().replace(/</g,'<').replace(/>/g,'>');
         return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
@@ -277,7 +291,7 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
           const parsed = this.parseStatuses(r.Status);
           const statusObj = parsed.last;
           // Extract applicant id from any known property that may contain it
-          const applicantId = (r?.id_applicant ?? r?.ID_APPLICANT ?? r?.id ?? r?.ID ?? r?.Id ?? r?.uuid ?? r?.guid ?? r?.applicant_id) ?? null;
+          const applicantId = (r?.id_applicant ?? r?.ID_APPLICANT ?? r?.IdApplicant ?? r?.idApplicant ?? r?.applicantId ?? r?.applicant_id ?? r?.id ?? r?.ID ?? r?.Id ?? r?.uuid ?? r?.guid ?? r?.ID_APPLICANTS ?? r?.id_applicants ?? r?.IdApplicants ?? r?.idApplicants) ?? null;
           return {
             id: applicantId != null ? String(applicantId) : null,
             name: r.Name ?? r.name ?? '',
@@ -386,15 +400,23 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     }
   }
 
-  openPanel(applicantId: string, initialTab: PanelTab = 'messages'): void {
-    const applicant = this.rowData.find(row => row.id === applicantId);
+  openPanel(applicantId: string, initialTab: PanelTab = 'messages', postOpenAction?: (panel: ApplicantPanelComponent) => void): void {
+    const applicant = this.rowData.find(row => row.id === applicantId) ?? this.recentApplicants.find(row => row.id === applicantId) ?? null;
     if (applicant) {
       this.enrichApplicantMeta(applicant);
     }
     this.activeApplicant = applicant;
     this.panelOpen = true;
     this.activeTab = initialTab;
-    this.trackApplicant(applicant);
+    if (applicant) {
+      this.trackApplicant(applicant);
+    }
+
+    if (postOpenAction) {
+      const expectedId = applicant?.id ?? applicantId;
+      // Run on next microtask to allow the component to instantiate
+      setTimeout(() => this.deferPanelAction(postOpenAction, 0, expectedId), 0);
+    }
   }
 
   closePanel(): void {
@@ -405,6 +427,105 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
 
   setTab(tab: PanelTab): void {
     this.activeTab = tab;
+  }
+
+  handleQuickAction(applicant: ApplicantRow | null, action: ApplicantQuickAction): void {
+    if (!applicant) {
+      return;
+    }
+
+    const applicantId = this.resolveApplicantId(applicant);
+    if (!applicantId) {
+      Utilities.showToast('No pudimos identificar a este solicitante. Intenta actualizar la lista.', 'warning');
+      return;
+    }
+
+    switch (action) {
+      case 'openPanel':
+        this.openPanel(applicantId, 'messages');
+        break;
+      case 'sendEmail':
+        this.ensurePanelAction(applicantId, (panel) => panel.openEmailSidebar());
+        break;
+      case 'sendSms':
+        this.ensurePanelAction(applicantId, (panel) => panel.openSmsSidebar());
+        break;
+      case 'resendSms':
+        this.ensurePanelAction(applicantId, (panel) => {
+          if (!panel.canResendMessage()) {
+            Utilities.showToast('No outbound SMS available to resend', 'info');
+            return;
+          }
+          panel.resendLastMessage();
+        });
+        break;
+      case 'moveToModal':
+        this.ensurePanelAction(applicantId, (panel) => panel.openMoveToModal());
+        break;
+      case 'moveNext':
+        this.ensurePanelAction(applicantId, (panel) => panel.moveToNextStage());
+        break;
+      case 'reject':
+        this.ensurePanelAction(applicantId, (panel) => panel.rejectApplicant());
+        break;
+      default:
+        break;
+    }
+  }
+
+  private ensurePanelAction(applicantId: string, action: (panel: ApplicantPanelComponent) => void, tab: PanelTab = 'messages'): void {
+    if (!applicantId) return;
+
+    const sameApplicant = this.panelOpen && this.activeApplicant?.id === applicantId;
+    if (!this.panelOpen || !sameApplicant) {
+      this.openPanel(applicantId, tab, action);
+      return;
+    }
+
+    this.deferPanelAction(action, 0, applicantId);
+  }
+
+  private resolveApplicantId(applicant: ApplicantRow | null): string | null {
+    if (!applicant) return null;
+    if (applicant.id) return applicant.id;
+    const raw = applicant.raw || {};
+    const candidates = [
+      raw.id_applicant,
+      raw.ID_APPLICANT,
+      raw.IdApplicant,
+      raw.idApplicant,
+      raw.applicantId,
+      raw.applicant_id,
+      raw.ID_APPLICANTS,
+      raw.id_applicants,
+      raw.IdApplicants,
+      raw.idApplicants,
+      raw.id,
+      raw.ID,
+      raw.Id,
+      raw.uuid,
+      raw.guid,
+    ];
+    const found = candidates.find((val: unknown) => val !== null && val !== undefined && val !== '');
+    return found !== undefined ? String(found) : null;
+  }
+
+  private deferPanelAction(action: (panel: ApplicantPanelComponent) => void, attempt = 0, expectedId?: string | null): void {
+    const panel = this.panelComponent;
+    if (panel && (!expectedId || panel.applicantId === expectedId)) {
+      try {
+        action(panel);
+      } catch (err) {
+        console.error('[ApplicantsGrid] panel action error', err);
+      }
+      return;
+    }
+
+    if (attempt >= 12) {
+      return;
+    }
+
+    setTimeout(() => this.deferPanelAction(action, attempt + 1, expectedId), 50);
   }
 
   onSendMessage(event: Event): void {

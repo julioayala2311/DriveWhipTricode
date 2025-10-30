@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, computed } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
@@ -6,11 +6,12 @@ import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { WorkflowsGridComponent } from './workflows-grid.component';
 
 import { CryptoService } from '../../../../core/services/crypto/crypto.service';
-import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
+import { DriveWhipCoreService, AUTH_USER_STORAGE_KEY } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
 import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/models/entities.model';
 import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
 import { WorkflowsDialogComponent, WorkflowDialogResult, WorkflowRecord } from './workflows-dialog.component';
 import { Utilities } from '../../../../Utilities/Utilities';
+import { AuthSessionService } from '../../../../core/services/auth/auth-session.service';
 
 @Component({
   selector: 'app-workflow',
@@ -56,6 +57,8 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
     private driveWhipCore: DriveWhipCoreService,
     private crypto: CryptoService
   ) {}
+
+  private authSession = inject(AuthSessionService);
 
   ngOnInit(): void {
     this.updatePerView();
@@ -224,24 +227,11 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Try to get a user string for audit fields, fallback to 'system' */
   private resolveActor(): string {
-    try {
-      const u = localStorage.getItem('dw.auth.user') || localStorage.getItem('user');
-      if (!u) return 'system';
-      // If values are encrypted the decrypt may return a JSON string or plain text; keep it defensive
-      let s: string | null = null;
-      try { s = this.crypto.decrypt(u) as unknown as string; } catch { /* ignore */ }
-      const raw = s || u;
-      try {
-        const obj = JSON.parse(raw);
-        return obj?.email || obj?.username || obj?.name || 'system';
-      } catch {
-        // Not JSON, return trimmed string if reasonable
-        const t = raw.trim();
-        return t.length > 2 ? t : 'system';
-      }
-    } catch {
-      return 'system';
+    const sessionUser = this.authSession.user;
+    if (sessionUser) {
+      if (sessionUser.user) return sessionUser.user;
     }
+    return 'system';
   }
 
   /* ------- layout helpers (optional) ------- */

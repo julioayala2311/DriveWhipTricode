@@ -81,89 +81,259 @@
   </section>
 
   <section class="messenger-column detail">
-    <header class="column-header">
-      <h2>Conversation Detail</h2>
-      <span class="column-subtitle" *ngIf="selectedApplicantName">{{ selectedApplicantName }}</span>
-      <span class="column-subtitle" *ngIf="!selectedApplicantName">Select an applicant to view details</span>
-    </header>
-    <div class="column-body column-body--panel">
-      <ng-container *ngIf="selectedApplicantId; else emptyState">
-        <div class="inline-applicant-panel h-100 d-flex flex-column">
-          <div class="panel-header d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
-            <div class="d-flex gap-2">
-              <button type="button" class="btn btn-sm" [class.active]="activeTab === 'general'" (click)="onTabChange('general')">General</button>
-              <button type="button" class="btn btn-sm" [class.active]="activeTab === 'messages'" (click)="onTabChange('messages')">Messages</button>
-              <button type="button" class="btn btn-sm" [class.active]="activeTab === 'history'" (click)="onTabChange('history')">History</button>
-              <button type="button" class="btn btn-sm" [class.active]="activeTab === 'files'" (click)="onTabChange('files')">Files</button>
+    <ng-container *ngIf="hasSelectedApplicant; else emptyState">
+      <div class="detail-surface">
+        <header class="detail-header">
+          <div class="detail-leading">
+            <button
+              type="button"
+              class="detail-close btn btn-link btn-sm px-2 text-secondary"
+              (click)="onClosePanel()"
+              aria-label="Close panel"
+            >
+              <i class="feather icon-x"></i>
+            </button>
+            <div class="detail-avatar">{{ applicantInitials }}</div>
+            <div class="detail-summary">
+              <h2 class="detail-name">{{ applicantDisplayName }}</h2>
+              <div class="detail-subtitle">
+                <ng-container *ngIf="applicantStage">
+                  <span>{{ applicantStage }}</span>
+                </ng-container>
+                <span *ngIf="applicantStage && applicantLocation" class="divider">•</span>
+                <ng-container *ngIf="applicantLocation">
+                  <span>{{ applicantLocation }}</span>
+                </ng-container>
+              </div>
+              <div class="detail-trail" *ngIf="selectedThread?.hours_since_last_message">
+                Last activity {{ selectedThread?.hours_since_last_message }}
+              </div>
             </div>
-            <div class="text-muted small">{{ selectedApplicantName }}</div>
           </div>
-          <div class="panel-body p-3 overflow-auto flex-fill">
-            <!-- General -->
-            <div *ngIf="activeTab === 'general'">
-              <h5 class="mb-2">{{ applicant?.first_name }} {{ applicant?.last_name }}</h5>
-              <dl class="row">
-                <dt class="col-4">Email</dt>
-                <dd class="col-8">{{ applicant?.email ?? applicant?.EMAIL ?? '—' }}</dd>
-                <dt class="col-4">Phone</dt>
-                <dd class="col-8">{{ applicant?.phone ?? applicant?.phone_mobile ?? '—' }}</dd>
-                <dt class="col-4">Location</dt>
-                <dd class="col-8">{{ getSelectedLocationName() || applicant?.location_name || '—' }}</dd>
-                <dt class="col-4">Status</dt>
-                <dd class="col-8">{{ applicant?.stage_name ?? applicant?.stage ?? '—' }}</dd>
-              </dl>
-            </div>
-
-            <!-- Messages -->
-            <div *ngIf="activeTab === 'messages'">
-              <div *ngIf="panelMessagesLoading" class="small text-secondary">Loading messages…</div>
-              <div *ngIf="panelMessagesError" class="text-warning small">{{ panelMessagesError }}</div>
-              <div *ngFor="let m of panelMessages" class="mb-3">
-                <div [class.text-end]="m.direction === 'outbound'">
-                  <div class="d-inline-block p-2 rounded" [ngClass]="m.direction === 'outbound' ? 'bg-primary text-white' : 'bg-light'">
-                    {{ m.body }}
-                  </div>
-                  <div class="small text-muted mt-1">{{ m.timestamp }} • {{ m.channel }}</div>
+          <div class="panel-tabs detail-tabs">
+            <button type="button" class="panel-tab" [class.active]="activeTab === 'general'" (click)="onTabChange('general')">
+              <i class="feather icon-user"></i>
+              General
+            </button>
+            <button type="button" class="panel-tab" [class.active]="activeTab === 'messages'" (click)="onTabChange('messages')">
+              <i class="feather icon-message-circle"></i>
+              Messages
+            </button>
+            <button type="button" class="panel-tab" [class.active]="activeTab === 'history'" (click)="onTabChange('history')">
+              <i class="feather icon-clock"></i>
+              History
+            </button>
+            <button type="button" class="panel-tab" [class.active]="activeTab === 'files'" (click)="onTabChange('files')">
+              <i class="feather icon-file-text"></i>
+              Files
+            </button>
+          </div>
+        </header>
+        <div class="detail-body">
+          <ng-container [ngSwitch]="activeTab">
+            <div *ngSwitchCase="'general'" class="tab-general">
+              <div *ngIf="applicantLoading" class="state state-loading">
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Loading applicant…
+              </div>
+              <div *ngIf="applicantError" class="state state-error">
+                {{ applicantError }}
+              </div>
+              <div
+                *ngIf="!applicantLoading && !applicantError && (generalInfoRows.length || latestMessage || selectedThread?.last_message); else noGeneralInfo"
+                class="general-grid"
+              >
+                <div class="general-card" *ngFor="let row of generalInfoRows">
+                  <span class="label">{{ row.label }}</span>
+                  <a *ngIf="row.kind === 'email'" [href]="'mailto:' + row.value">{{ row.value }}</a>
+                  <a *ngIf="row.kind === 'phone'" [href]="'tel:' + row.value">{{ row.value }}</a>
+                  <span *ngIf="!row.kind">{{ row.value }}</span>
+                </div>
+                <div class="general-card" *ngIf="latestMessage as lastMsg; else lastMessageFallback">
+                  <span class="label">Latest Message</span>
+                  <p class="mb-1">{{ lastMsg.body }}</p>
+                  <small class="muted">{{ formatMessageTimestamp(lastMsg.timestamp) }} · {{ lastMsg.channel }}</small>
                 </div>
               </div>
-              <div class="mt-3 d-flex gap-2 align-items-center">
-                <input class="form-control" [(ngModel)]="draftMessage" (ngModelChange)="onDraftMessageChange($event)" placeholder="Enter your messages" />
+              <ng-template #lastMessageFallback>
+                <div class="general-card" *ngIf="selectedThread?.last_message">
+                  <span class="label">Latest Message</span>
+                  <p class="mb-1">{{ selectedThread?.last_message }}</p>
+                  <small class="muted" *ngIf="selectedThread?.hours_since_last_message">
+                    {{ selectedThread?.hours_since_last_message }}
+                  </small>
+                </div>
+              </ng-template>
+              <ng-template #noGeneralInfo>
+                <p class="text-muted small mb-0">Applicant details are not available yet.</p>
+              </ng-template>
+            </div>
+
+            <div *ngSwitchCase="'messages'" class="tab-messages">
+              <div class="messages-scroll" *ngIf="!panelMessagesLoading && !panelMessagesError; else messagesState" #messagesScroll>
+                <div class="chat-empty-state text-center py-5" *ngIf="!panelMessages.length">
+                  <div class="empty-icon-wrapper mx-auto mb-3">
+                    <div class="gradient-ring">
+                      <i class="feather icon-message-circle empty-main-icon"></i>
+                    </div>
+                  </div>
+                  <h5 class="empty-title mb-2">No chat history yet</h5>
+                  <p class="empty-subtitle mb-0">Start the conversation by sending a message.</p>
+                </div>
+                <div class="chat-message" *ngFor="let m of panelMessages" [ngClass]="m.direction">
+                  <div class="chat-content">
+                    <div class="chat-bubble" [ngClass]="m.direction" [innerHTML]="m.body"></div>
+                    <div class="chat-meta">
+                      <span>{{ formatMessageTimestamp(m.timestamp) }}</span>
+                      <span class="dot">•</span>
+                      <span>{{ m.channel }}</span>
+                      <span class="dot" *ngIf="m.status">•</span>
+                      <span *ngIf="m.status">{{ m.status }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="composer">
+                <input class="form-control" [(ngModel)]="draftMessage" (ngModelChange)="onDraftMessageChange($event)" placeholder="Write a message…" />
                 <button class="btn btn-primary" type="button" [disabled]="!draftMessage.trim()">Send</button>
               </div>
             </div>
+            <ng-template #messagesState>
+              <div class="state state-loading" *ngIf="panelMessagesLoading">
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Loading messages…
+              </div>
+              <div class="state state-error" *ngIf="!panelMessagesLoading && panelMessagesError">
+                {{ panelMessagesError }}
+              </div>
+            </ng-template>
 
-            <!-- History -->
-            <div *ngIf="activeTab === 'history'">
-              <div *ngIf="panelHistoryLoading" class="small text-secondary">Loading history…</div>
-              <div *ngIf="panelHistoryError" class="text-warning small">{{ panelHistoryError }}</div>
-              <ul class="list-unstyled">
-                <li *ngFor="let ev of panelHistory" class="mb-3">
-                  <div class="small text-secondary">{{ ev.time }}</div>
-                  <div>{{ ev.text }}</div>
-                </li>
-              </ul>
+            <div *ngSwitchCase="'history'" class="tab-history">
+              <div *ngIf="panelHistoryLoading" class="state state-loading">
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Loading history…
+              </div>
+              <div *ngIf="panelHistoryError" class="state state-error">
+                {{ panelHistoryError }}
+              </div>
+              <div *ngIf="!panelHistoryLoading && !panelHistoryError">
+                <div class="timeline-wrapper" *ngIf="panelHistoryGroups.length; else emptyHistory">
+                  <div class="timeline-day" *ngFor="let group of panelHistoryGroups">
+                    <div class="timeline-day-label">{{ group.dayLabel }}</div>
+                    <ul class="timeline list-unstyled m-0 p-0">
+                      <li class="timeline-item" *ngFor="let ev of group.events">
+                        <div class="timeline-line"></div>
+                        <div class="timeline-marker" [ngClass]="timelineMarkerClass(ev.type)">
+                          <i class="feather" [ngClass]="timelineIcon(ev.type)"></i>
+                        </div>
+                        <div class="timeline-card">
+                          <div class="timeline-text" [innerHTML]="ev.text || 'Event logged'"></div>
+                          <div class="timeline-meta">
+                            <span class="timeline-time">{{ timelineDisplayTime(ev) }}</span>
+                            <span
+                              *ngIf="ev.actorName"
+                              class="timeline-actor"
+                              [ngClass]="timelineActorBadgeClass(ev.actorRole)"
+                            >
+                              {{ ev.actorName }} · {{ timelineActorLabel(ev.actorRole) }}
+                            </span>
+                          </div>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <ng-template #emptyHistory>
+                  <div class="state empty text-center py-5">
+                    <div class="empty-icon-wrapper mx-auto mb-3">
+                      <div class="gradient-ring">
+                        <i class="feather icon-clock empty-main-icon"></i>
+                      </div>
+                    </div>
+                    <h6 class="empty-title mb-1">No history yet</h6>
+                    <p class="empty-subtitle mb-0">Timeline updates will appear here once this applicant has activity.</p>
+                  </div>
+                </ng-template>
+              </div>
             </div>
 
-            <!-- Files -->
-            <div *ngIf="activeTab === 'files'">
-              <div *ngIf="panelDocsLoading" class="small text-secondary">Loading files…</div>
-              <div *ngIf="panelDocsError" class="text-warning small">{{ panelDocsError }}</div>
-              <ul class="list-unstyled">
-                <li *ngFor="let f of panelDocs" class="mb-2">
-                  <a *ngIf="f.url" [href]="f.url" target="_blank">{{ f.name }}</a>
-                  <span *ngIf="!f.url">{{ f.name }}</span>
-                </li>
-              </ul>
+            <div *ngSwitchCase="'files'" class="tab-files">
+              <div *ngIf="panelDocsLoading" class="state state-loading">
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Loading files…
+              </div>
+              <div *ngIf="panelDocsError" class="state state-error">
+                {{ panelDocsError }}
+              </div>
+              <ng-container *ngIf="!panelDocsLoading && !panelDocsError">
+                <div class="files-empty-state empty-state text-center py-5" *ngIf="!documentGroups.length">
+                  <div class="empty-icon-wrapper mx-auto mb-3">
+                    <div class="gradient-ring">
+                      <i class="feather icon-file-text empty-main-icon"></i>
+                    </div>
+                  </div>
+                  <h6 class="empty-title mb-1">No files uploaded yet</h6>
+                  <p class="empty-subtitle mb-0">This applicant hasn’t uploaded any documents for review.</p>
+                </div>
+                <div class="files-grid" *ngIf="documentGroups.length">
+                  <div class="file-card" *ngFor="let group of documentGroups">
+                    <div class="file-card__header">
+                      <div class="file-card__title">
+                        <i class="feather icon-folder"></i>
+                        <span>{{ group.dataKey }}</span>
+                      </div>
+                      <span
+                        class="file-card__badge"
+                        *ngIf="group.items.length"
+                        [ngClass]="docStatusClass(group.items[0])"
+                      >
+                        {{ docStatusLabel(group.items[0].status) }}
+                      </span>
+                    </div>
+                    <div class="file-card__body" *ngIf="group.items.length">
+                      <div class="file-preview" *ngIf="group.items[0] as primaryDoc">
+                        <div class="file-preview__thumb" [class.file-preview__thumb--empty]="!primaryDoc.url">
+                          <img
+                            *ngIf="primaryDoc.url && isImageDocument(primaryDoc)"
+                            [src]="primaryDoc.url"
+                            [alt]="primaryDoc.document_name"
+                          />
+                          <i *ngIf="!primaryDoc.url || !isImageDocument(primaryDoc)" class="feather icon-file-text"></i>
+                        </div>
+                        <div class="file-preview__info">
+                          <a *ngIf="primaryDoc.url" [href]="primaryDoc.url" target="_blank" rel="noopener">
+                            {{ primaryDoc.document_name }}
+                          </a>
+                          <span *ngIf="!primaryDoc.url">{{ primaryDoc.document_name }}</span>
+                          <small class="text-muted" *ngIf="primaryDoc.status">
+                            {{ docStatusLabel(primaryDoc.status) }}
+                          </small>
+                        </div>
+                      </div>
+                      <ul class="doc-list" *ngIf="group.items.length > 1">
+                        <li class="doc-list__item" *ngFor="let doc of group.items | slice : 1">
+                          <i class="feather icon-paperclip"></i>
+                          <a *ngIf="doc.url" [href]="doc.url" target="_blank" rel="noopener">{{ doc.document_name }}</a>
+                          <span *ngIf="!doc.url">{{ doc.document_name }}</span>
+                          <span class="doc-list__status" [ngClass]="docStatusClass(doc)">
+                            {{ docStatusLabel(doc.status) }}
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </ng-container>
             </div>
-          </div>
+          </ng-container>
         </div>
-      </ng-container>
-      <ng-template #emptyState>
-        <div class="empty-state">
-          <i class="feather icon-message-circle"></i>
-          <p>Select a conversation to preview applicant information, history, and files.</p>
-        </div>
-      </ng-template>
-    </div>
+      </div>
+    </ng-container>
+    <ng-template #emptyState>
+      <div class="empty-state">
+        <i class="feather icon-message-circle"></i>
+        <p>Select a conversation to preview applicant information, history, and files.</p>
+      </div>
+    </ng-template>
   </section>
 </div>

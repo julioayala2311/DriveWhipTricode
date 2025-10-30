@@ -252,17 +252,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
         }
         return false;
       });
-
-      if (!hasMessenger) {
-        this.menuItems = [
-          ...this.menuItems,
-          {
-            label: 'Messenger',
-            icon: 'message-square',
-            link: '/messenger'
-          }
-        ];
-      }
     } catch (err) {
       console.warn('[Navbar] Unable to ensure messenger menu entry', err);
     }

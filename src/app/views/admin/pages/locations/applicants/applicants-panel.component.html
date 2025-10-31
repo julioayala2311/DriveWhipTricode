@@ -760,7 +760,7 @@
             >
               {{ message.dayLabel }}
             </div>
-            <div class="chat-message" [ngClass]="message.direction">
+            <div class="chat-message" [ngClass]="[message.direction, message.__isNew ? 'is-new' : '']">
               <!-- <div class="chat-avatar" *ngIf="message.avatar">
                 <span>{{ message.avatar }}</span>
               </div> -->

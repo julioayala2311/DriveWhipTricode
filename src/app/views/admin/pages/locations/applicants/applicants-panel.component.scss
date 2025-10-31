@@ -291,6 +291,7 @@
   color: rgba(15, 23, 42, 0.45);
   margin: 1rem 0;
   font-size: 0.7rem;
+  animation: dayFadeIn 200ms ease-out;
 }
 .chat-day::before,
 .chat-day::after {
@@ -307,6 +308,17 @@
 .chat-day::after {
   right: 0;
 }
+
+@keyframes dayFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .chat-message {
   max-width: 72%;
   display: flex;
@@ -315,6 +327,23 @@
   align-items: flex-start;
   margin-bottom: 1rem;
   position: relative;
+}
+
+.chat-message.is-new {
+  animation: chatFadeIn 280ms ease-out;
+}
+
+@keyframes chatFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: saturate(120%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: saturate(100%);
+  }
 }
 .chat-message.outbound {
   margin-left: auto;

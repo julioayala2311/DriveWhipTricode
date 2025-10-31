@@ -6,6 +6,9 @@ import { takeUntil } from 'rxjs/operators';
 import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/models/entities.model';
 import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
 import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
+import { AppConfigService } from '../../../../core/services/app-config/app-config.service';
+import { SmsChatSignalRService, ApplicantChatRealtimeMessage } from '../../../../core/services/signalr/sms-chat-signalr.service';
+import { Utilities } from '../../../../Utilities/Utilities';
 
 interface MessengerLocation {
   id: number;
@@ -103,7 +106,16 @@ export class MessengerComponent implements OnInit, OnDestroy {
   private _panelSubs: Subscription[] = [];
   private _scrollTimer: any;
 
-  constructor(private core: DriveWhipCoreService) {}
+  // Realtime chat
+  private destroyRealtime$ = new Subject<void>();
+  private currentRealtimePhone: string | null = null;
+  chatSending = false;
+
+  constructor(
+    private core: DriveWhipCoreService,
+    private appConfig: AppConfigService,
+    private smsRealtime: SmsChatSignalRService,
+  ) {}
 
   ngOnInit(): void {
     this.loadLocations();
@@ -113,9 +125,16 @@ export class MessengerComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    this.destroyRealtime$.next();
+    this.destroyRealtime$.complete();
     if (this._scrollTimer) {
       clearTimeout(this._scrollTimer);
       this._scrollTimer = undefined as any;
+    }
+    // Best-effort: leave phone group on destroy
+    if (this.currentRealtimePhone) {
+      this.smsRealtime.leavePhone(this.currentRealtimePhone).catch(() => {});
+      this.currentRealtimePhone = null;
     }
   }
 
@@ -165,7 +184,10 @@ export class MessengerComponent implements OnInit, OnDestroy {
   onTabChange(tab: 'general' | 'messages' | 'history' | 'files'): void {
     this.activeTab = tab;
     if (tab === 'messages') {
-      this.scrollMessagesToBottomSoon();
+      // Always show the most recent messages at the bottom when returning to Messages
+      this.scrollMessagesToBottomSoon(0, true);
+      // Ensure realtime sub is active when viewing messages
+      this.updatePhoneSubscription().catch(() => {});
     }
   }
 
@@ -179,6 +201,11 @@ export class MessengerComponent implements OnInit, OnDestroy {
     this.draftMessage = '';
     this._panelSubs.forEach((s) => s.unsubscribe());
     this._panelSubs = [];
+    // Leave phone group when closing
+    if (this.currentRealtimePhone) {
+      this.smsRealtime.leavePhone(this.currentRealtimePhone).catch(() => {});
+      this.currentRealtimePhone = null;
+    }
   }
 
   get hasSelectedApplicant(): boolean {
@@ -206,7 +233,7 @@ export class MessengerComponent implements OnInit, OnDestroy {
   }
 
   get applicantPhone(): string | null {
-    return this.readApplicantProp('phone', 'PHONE', 'phone_mobile', 'PHONE_MOBILE');
+    return this.readApplicantProp('phone_number', 'PHONE_NUMBER', 'phone', 'PHONE', 'phone_mobile', 'PHONE_MOBILE');
   }
 
   get applicantLocation(): string | null {
@@ -584,15 +611,22 @@ export class MessengerComponent implements OnInit, OnDestroy {
     return null;
   }
 
-  /** Scroll the messages container to the bottom on the next tick */
-  private scrollMessagesToBottomSoon(delay: number = 50): void {
+  /**
+   * Smoothly stick to bottom if the user is already near the bottom, or force when requested.
+   * This avoids jarring jumps while the user is reading older messages.
+   */
+  private scrollMessagesToBottomSoon(delay: number = 50, force: boolean = false): void {
     try {
       if (this._scrollTimer) clearTimeout(this._scrollTimer);
       this._scrollTimer = setTimeout(() => {
         try {
           const el = this.messagesScroll?.nativeElement;
           if (!el) return;
-          el.scrollTop = el.scrollHeight;
+          const threshold = 120; // px from bottom to auto-stick
+          const distanceFromBottom = el.scrollHeight - el.clientHeight - el.scrollTop;
+          if (force || distanceFromBottom <= threshold) {
+            el.scrollTop = el.scrollHeight;
+          }
         } catch {
           // ignore
         }
@@ -753,6 +787,8 @@ export class MessengerComponent implements OnInit, OnDestroy {
     this.loadPanelChat(applicantId);
     this.loadPanelHistory(applicantId);
     this.loadPanelDocuments(applicantId);
+    // Start realtime subscription for this applicant
+    this.bindRealtime();
   }
 
   private loadApplicantDetails(applicantId: string): void {
@@ -800,6 +836,8 @@ export class MessengerComponent implements OnInit, OnDestroy {
       },
       complete: () => {
         this.applicantLoading = false;
+        // Applicant context is ready; ensure realtime is joined
+        this.updatePhoneSubscription().catch(() => {});
       }
     });
     this._panelSubs.push(sub);
@@ -823,15 +861,28 @@ export class MessengerComponent implements OnInit, OnDestroy {
         if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
         const rows = Array.isArray(raw) ? raw : [];
         // Map raw rows to message objects and render oldest first (newest at the bottom)
-        this.panelMessages = rows.map((r: any) => ({
-          id: r.id ?? r.ID ?? null,
-          direction: (r.Direction ?? r.message_direction ?? '').toString().toLowerCase() === 'outbound' ? 'outbound' : 'inbound',
-          body: String(r.Message ?? r.message_text ?? ''),
-          timestamp: String(r.sent_at ?? r.SENT_AT ?? r.created_at ?? r.CREATED_AT ?? ''),
-          channel: String(r.Channel ?? r.channel ?? 'SMS'),
-          status: r.status ?? r.Status ?? null,
-        })).reverse();
-        this.scrollMessagesToBottomSoon();
+        this.panelMessages = rows
+          .map((r: any) => {
+            // Build a friendly time label (e.g., "1:53 AM")
+            const sent = r.Sent ?? r.sent ?? r.sent_at ?? r.SENT_AT ?? r.create ?? r.created_at ?? r.CREATED_AT ?? null;
+            const ts = sent ? new Date(sent) : null;
+            const timeLabel = ts && !Number.isNaN(ts.getTime())
+              ? new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(ts)
+              : String(sent ?? '');
+            const status = this.inferStatus(r);
+            return {
+              id: r.id ?? r.ID ?? r.id_chat ?? null,
+              direction: (r.Direction ?? r.message_direction ?? '').toString().toLowerCase() === 'outbound' ? 'outbound' : 'inbound',
+              body: String(r.Message ?? r.message_text ?? ''),
+              timestamp: timeLabel,
+              channel: String(r.Channel ?? r.channel ?? 'SMS'),
+              status,
+              statusLabel: this.defaultStatusLabel(status),
+            } as any;
+          })
+          .reverse();
+        // Initial load or explicit load: stick to bottom
+        this.scrollMessagesToBottomSoon(0, true);
       },
       error: (err) => {
         console.error('[Messenger] loadPanelChat error', err);
@@ -840,7 +891,7 @@ export class MessengerComponent implements OnInit, OnDestroy {
       },
       complete: () => {
         this.panelMessagesLoading = false;
-        this.scrollMessagesToBottomSoon();
+        this.scrollMessagesToBottomSoon(0, true);
       }
     });
     this._panelSubs.push(sub);
@@ -947,5 +998,251 @@ export class MessengerComponent implements OnInit, OnDestroy {
       }
     });
     this._panelSubs.push(sub);
+  }
+
+  // --- Chat send + realtime migration ---
+  onSendMessage(ev: Event): void {
+    ev.preventDefault();
+    const text = (this.draftMessage || '').trim();
+    const id = this.selectedApplicantId;
+    const to = this.applicantPhone;
+    if (!text) return;
+    if (!id) { Utilities.showToast('Applicant id not found', 'warning'); return; }
+    if (!to) { Utilities.showToast('Applicant phone not found', 'warning'); return; }
+    if (this.chatSending) return;
+
+    const optimistic = {
+      id: 'temp-' + Date.now(),
+      direction: 'outbound',
+      body: text,
+      timestamp: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date()),
+      channel: 'SMS',
+      status: 'sending',
+      statusLabel: 'Sending'
+    } as any;
+  this.panelMessages = [...(this.panelMessages ?? []), optimistic];
+  // Force-stick on local send to keep the composer anchored
+  this.scrollMessagesToBottomSoon(0, true);
+
+    this.chatSending = true;
+    const fromNumber = this.defaultSmsFromNumber();
+    this.core
+      .sendChatSms({ from: fromNumber, to, message: text, id_applicant: String(id) })
+      .subscribe({
+        next: () => {
+          this.draftMessage = '';
+          this.markOptimisticDelivered(optimistic.id);
+          this.scrollMessagesToBottomSoon(0, true);
+        },
+        error: (err) => {
+          console.error('[Messenger] sendChatSms error', err);
+          Utilities.showToast('Failed to send message', 'error');
+          this.removeOptimistic(optimistic.id);
+        },
+        complete: () => {
+          this.chatSending = false;
+        }
+      });
+  }
+
+  private markOptimisticDelivered(tempId: string): void {
+    if (!this.panelMessages || !tempId) return;
+    this.panelMessages = this.panelMessages.map((m: any) =>
+      (m.id === tempId)
+        ? { ...m, status: 'delivered', statusLabel: 'Delivered' }
+        : m
+    );
+    // If a non-temp outbound with same body exists, drop the temp one to avoid duplicates
+    const temp = this.panelMessages.find((m: any) => m.id === tempId);
+    if (temp && temp.direction === 'outbound') {
+      const hasPersisted = this.panelMessages.some((m: any) =>
+        (m.id || '').toString().startsWith('temp-') === false &&
+        m.direction === 'outbound' &&
+        (m.body || '').toString().trim() === (temp.body || '').toString().trim()
+      );
+      if (hasPersisted) {
+        this.panelMessages = this.panelMessages.filter((m: any) => m.id !== tempId);
+      }
+    }
+  }
+
+  private removeOptimistic(tempId: string): void {
+    if (!this.panelMessages || !tempId) return;
+    this.panelMessages = this.panelMessages.filter((m: any) => m.id !== tempId);
+  }
+
+  private bindRealtime(): void {
+    // Clear prior realtime subscriptions
+    this.destroyRealtime$.next();
+    this.smsRealtime.messages().pipe(takeUntil(this.destroyRealtime$)).subscribe((evt) => {
+      this.handleRealtimeMessage(evt);
+    });
+    // Ensure connection is associated with the selected phone
+    this.updatePhoneSubscription().catch(() => {});
+  }
+
+  private async updatePhoneSubscription(): Promise<void> {
+    try {
+      const to = this.applicantPhone;
+      const normalized = this.normalizePhone(to);
+      if (normalized === this.currentRealtimePhone) return;
+      if (this.currentRealtimePhone && this.currentRealtimePhone !== normalized) {
+        try {
+          await this.smsRealtime.leavePhone(this.currentRealtimePhone);
+          console.debug('[Messenger] leavePhone', this.currentRealtimePhone, 'group=sms:' + this.currentRealtimePhone);
+        } catch (err: unknown) {
+          console.debug('[Messenger] leavePhone error', this.currentRealtimePhone, err);
+        } finally {
+          this.currentRealtimePhone = null;
+        }
+      }
+      if (!normalized) {
+        console.debug('[Messenger] updatePhoneSubscription: no applicant phone to join');
+        return;
+      }
+      await this.smsRealtime.joinPhone(normalized);
+      this.currentRealtimePhone = normalized;
+      console.debug('[Messenger] joinPhone', normalized, 'group=sms:' + normalized);
+      try {
+        console.debug('[Messenger] joinedPhones=', this.smsRealtime.getJoinedPhones());
+        console.log('[Messenger] Active SignalR group', `sms:${normalized}`);
+      } catch {}
+    } catch {}
+  }
+
+  private handleRealtimeMessage(evt: ApplicantChatRealtimeMessage): void {
+    if (!evt) return;
+    // Accept by applicantId match or by phone match
+    let accept = false;
+    const activeId = this.selectedApplicantId ? this.selectedApplicantId.toLowerCase() : null;
+    const incomingId = (evt.applicantId || '').toLowerCase();
+    if (activeId && incomingId && activeId === incomingId) accept = true;
+    if (!accept && this.matchesCurrentPhone(evt)) accept = true;
+    if (!accept) return;
+
+    const body = (evt.body || '').toString();
+    if (!body.trim()) return;
+
+    const direction = (evt.direction || '').toLowerCase() === 'outbound' ? 'outbound' : 'inbound';
+    const sentSource = evt.sentAtUtc || evt.createdAtUtc || new Date().toISOString();
+    const sentDate = new Date(sentSource);
+    const timestampLabel = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      .format(Number.isNaN(sentDate.getTime()) ? new Date() : sentDate);
+    const status = direction === 'outbound' ? 'delivered' : undefined;
+
+    const message: any = {
+      id: (evt.chatId != null ? String(evt.chatId) : (evt.messageSid ? `sid-${evt.messageSid}` : `rt-${Date.now()}`)),
+      direction,
+      body,
+      timestamp: timestampLabel,
+      channel: (evt.channel || 'SMS').toString() || 'SMS',
+      status,
+      statusLabel: this.defaultStatusLabel(status),
+      __isNew: true,
+    };
+    this.panelMessages = [...(this.panelMessages ?? []), message];
+    // If a persisted outbound arrives, drop any matching temp 'sending' bubble
+    if (direction === 'outbound') {
+      const temp = [...this.panelMessages]
+        .reverse()
+        .find((m: any) => (m.id || '').toString().startsWith('temp-') && m.direction === 'outbound' && (m.body || '').toString().trim() === body.trim());
+      if (temp) {
+        this.panelMessages = this.panelMessages.filter((m: any) => m.id !== temp.id);
+      }
+    }
+    // Remove highlight after a short delay
+    try {
+      setTimeout(() => {
+        this.panelMessages = (this.panelMessages || []).map((m: any) =>
+          (m.id || '') === (message.id || '') ? { ...m, __isNew: false } : m
+        );
+      }, 2500);
+    } catch {}
+    // Auto-scroll only if user is near bottom
+    this.scrollMessagesToBottomSoon(0, false);
+  }
+
+  private matchesCurrentPhone(evt: ApplicantChatRealtimeMessage): boolean {
+    try {
+      const target = this.normalizePhone(this.applicantPhone || this.currentRealtimePhone);
+      if (!target) return false;
+      const from = this.normalizePhone(evt.from);
+      const to = this.normalizePhone(evt.to);
+      return from === target || to === target;
+    } catch {
+      return false;
+    }
+  }
+
+  private normalizePhone(input?: string | null): string | null {
+    const raw = (input ?? '').trim();
+    if (!raw) return null;
+    const digits = raw.split('').filter((ch) => /\d/.test(ch)).join('');
+    return digits ? `+${digits}` : null;
+  }
+
+  private defaultSmsFromNumber(): string {
+    return this.appConfig.smsDefaultFromNumber;
+  }
+
+  private inferStatus(r: any): string | null {
+    const statusRaw = String(
+      r.Status ?? r.status ?? r.delivery_status ?? r.DeliveryStatus ?? r.MessageStatus ?? ''
+    ).toLowerCase();
+    let status: 'delivered' | 'not_delivered' | 'pending' | null = null;
+    if (statusRaw.includes('deliver')) {
+      status = (statusRaw.includes('not') || statusRaw.includes('undelivered')) ? 'not_delivered' : 'delivered';
+    } else if (statusRaw.includes('fail') || statusRaw.includes('error')) {
+      status = 'not_delivered';
+    } else if (statusRaw.includes('pending') || statusRaw.includes('queue') || statusRaw.includes('send')) {
+      status = 'pending';
+    }
+    // Default: assume delivered for outbound if missing
+    if (!status) {
+      const dir = (r.Direction ?? r.message_direction ?? '').toString().toLowerCase();
+      if (dir === 'outbound') status = 'delivered';
+    }
+    return status;
+  }
+
+  private defaultStatusLabel(status?: string | null): string {
+    switch ((status || '').toString()) {
+      case 'delivered': return 'Delivered';
+      case 'not_delivered': return 'Not delivered';
+      case 'pending': return 'Pending';
+      case 'sending': return 'Sending';
+      default: return '';
+    }
+  }
+
+  // --- Status UI helpers to match Applicant Panel ---
+  statusMetaClass(status: string | undefined): string {
+    const s = (status || '').toString();
+    switch (s) {
+      case 'delivered':
+        return 'text-success';
+      case 'not_delivered':
+        return 'text-danger';
+      case 'pending':
+      case 'sending':
+        return 'text-secondary';
+      default:
+        return 'text-secondary';
+    }
+  }
+
+  statusMetaIcon(status: string | undefined): string {
+    const s = (status || '').toString();
+    switch (s) {
+      case 'delivered':
+        return 'icon-check-circle';
+      case 'not_delivered':
+        return 'icon-x-circle';
+      case 'pending':
+      case 'sending':
+        return 'icon-clock';
+      default:
+        return 'icon-circle';
+    }
   }
 }

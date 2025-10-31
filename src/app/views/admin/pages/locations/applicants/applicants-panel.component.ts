@@ -1378,7 +1378,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.draftMessageChange.emit(value);
   }
 
-  /** Submit and send an SMS chat message via API, then reload chat history */
+  /** Submit and send an SMS chat message via API without flicker (optimistic + realtime) */
   onSendMessage(ev: Event): void {
     ev.preventDefault();
     const text = (this.draftMessage || "").trim();
@@ -1397,6 +1397,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
     if (this.chatSending) return;
     // Optimistic message so user sees it immediately
+    const nowIso = new Date().toISOString();
     const optimistic: ApplicantMessage = {
       id: "temp-" + Date.now(),
       direction: "outbound",
@@ -1411,13 +1412,14 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       status: "sending",
       statusLabel: "Sending",
       automated: false,
-      dayLabel: "",
-      sentAt: new Date().toISOString(),
+      dayLabel: new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date()),
+      sentAt: nowIso,
       createdBy: this.authSession.user?.user || "You",
     };
     this.messages = [...(this.messages ?? []), optimistic];
-    this.refreshResolvedMessages();
-    this.scrollMessagesToBottomSoon();
+  this.refreshResolvedMessages();
+  // Force-stick on local send to keep view anchored
+  this.scrollMessagesToBottomSoon(0, true);
 
     this.chatSending = true;
   const fromNumber = this.defaultSmsFromNumber();
@@ -1430,36 +1432,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       })
       .subscribe({
         next: (_res) => {
-          // Clear composer, mark optimistic as delivered and refresh history (force) after a tiny delay
+          // Clear composer, mark optimistic as delivered; avoid full reload to prevent flicker
           this.draftMessage = "";
           this.markOptimisticDelivered(optimistic.id!);
-          this.scrollMessagesToBottomSoon();
-          setTimeout(() => {
-            this.loadChatHistory(String(id), 1, true);
-            // extra cleanup shortly after to catch late-arriving persistence
-            setTimeout(() => {
-              try {
-                const outboundBodies = new Set(
-                  (this.messages || [])
-                    .filter(
-                      (m) =>
-                        (m.id || "").toString().startsWith("temp-") === false &&
-                        m.direction === "outbound"
-                    )
-                    .map((m) => (m.body || "").toString().trim())
-                );
-                this.messages = (this.messages || []).filter(
-                  (m) =>
-                    !(
-                      (m.id || "").toString().startsWith("temp-") &&
-                      outboundBodies.has((m.body || "").toString().trim())
-                    )
-                );
-                this.refreshResolvedMessages();
-              } catch {}
-            }, 400);
-          }, 350);
-          Utilities.showToast("Message sent", "success");
+          this.scrollMessagesToBottomSoon(0, true);
         },
         error: (err) => {
           console.error("[ApplicantPanel] sendChatSms error", err);
@@ -1533,6 +1509,21 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const status: MessageStatus | undefined =
       direction === "outbound" ? "delivered" : undefined;
 
+    // Precompute stable day label to avoid divider flicker on first render
+    const dayLabel = (() => {
+      try {
+        const dt = new Date(sentSource);
+        if (!Number.isNaN(dt.getTime())) {
+          return new Intl.DateTimeFormat("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          }).format(dt);
+        }
+      } catch {}
+      return "";
+    })();
+
     const message: ApplicantMessage = {
       id: candidateId || `rt-${direction}-${Date.now()}`,
       direction,
@@ -1546,26 +1537,45 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       status,
       statusLabel: this.defaultStatusLabel(status),
       automated: false,
-      dayLabel: "",
+      dayLabel,
       sentAt: sentSource,
       createdBy: direction === "outbound" ? this.authSession.user?.user || null : null,
+      __isNew: true,
     };
 
     const base = this.messages ?? [];
     this.messages = [...base, message];
+    // If a persisted outbound arrives, drop matching temporary 'sending' bubble by body
+    if (direction === "outbound") {
+      const temp = [...(this.messages || [])]
+        .reverse()
+        .find(
+          (m) =>
+            (m.id || "").toString().startsWith("temp-") &&
+            m.direction === "outbound" &&
+            (m.body || "").toString().trim() === body.trim()
+        );
+      if (temp) {
+        this.messages = (this.messages || []).filter((m) => m.id !== temp.id);
+      }
+    }
     this.refreshResolvedMessages();
-    this.scrollMessagesToBottomSoon();
-
-    if (this.realtimeRefreshTimer) {
-      clearTimeout(this.realtimeRefreshTimer);
-    }
-    const applicantKey = (activeId || "").toString();
-    if (applicantKey) {
-      this.realtimeRefreshTimer = setTimeout(() => {
-        this.loadChatHistory(applicantKey, 1, true);
-        this.realtimeRefreshTimer = null;
-      }, 800);
-    }
+    // Remove the "new" highlight after a short delay (non-blocking)
+    try {
+      setTimeout(() => {
+        const cur = this.messages || [];
+        const next = cur.map((m) =>
+          (m.id || "") === (message.id || "") ? ({ ...(m as any), __isNew: false } as any) : m
+        );
+        // Only update if changed
+        if (next !== cur) {
+          this.messages = next;
+          this.refreshResolvedMessages();
+        }
+      }, 2800);
+    } catch {}
+    // Auto-scroll only if user is already near bottom
+    this.scrollMessagesToBottomSoon(0, false);
   }
 
   // --- Realtime subscription helpers ---
@@ -2827,7 +2837,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       this.chatPage === page &&
       this._resolvedMessages.length
     ) {
-      this.scrollMessagesToBottomSoon();
+      this.scrollMessagesToBottomSoon(0, true);
       return;
     }
     this.chatLoading = true;
@@ -2867,7 +2877,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         this.messages = [...chronological, ...keepOptimistic];
         this.refreshResolvedMessages();
         this.chatLoadedForApplicantId = applicantId;
-        this.scrollMessagesToBottomSoon();
+        this.scrollMessagesToBottomSoon(0, true);
       },
       error: (err) => {
         console.error("[ApplicantPanel] loadChatHistory error", err);
@@ -2980,13 +2990,22 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.refreshResolvedMessages();
   }
 
-  private scrollMessagesToBottomSoon(): void {
+  /**
+   * Smoothly stick to bottom if the user is near the bottom, or force when requested.
+   * Prevents jarring jumps while reading older messages.
+   */
+  private scrollMessagesToBottomSoon(delay: number = 50, force: boolean = false): void {
     setTimeout(() => {
       try {
         const el = this.messagesScroll?.nativeElement;
-        if (el) el.scrollTop = el.scrollHeight;
+        if (!el) return;
+        const threshold = 120;
+        const distanceFromBottom = el.scrollHeight - el.clientHeight - el.scrollTop;
+        if (force || distanceFromBottom <= threshold) {
+          el.scrollTop = el.scrollHeight;
+        }
       } catch {}
-    }, 50);
+    }, delay);
   }
 
   private normalizeDocRecord(r: any): ApplicantDocument {
@@ -4732,6 +4751,8 @@ interface ApplicantMessage {
   // extra metadata used for grouping and avatar resolution
   sentAt?: any;
   createdBy?: string | null;
+  /** transient: highlight new socket messages */
+  __isNew?: boolean;
 }
 
 interface StageMenuOption {

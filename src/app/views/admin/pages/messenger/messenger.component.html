@@ -180,23 +180,36 @@
                   <h5 class="empty-title mb-2">No chat history yet</h5>
                   <p class="empty-subtitle mb-0">Start the conversation by sending a message.</p>
                 </div>
-                <div class="chat-message" *ngFor="let m of panelMessages" [ngClass]="m.direction">
+                <div class="chat-message" *ngFor="let m of panelMessages" [ngClass]="[m.direction, m.__isNew ? 'is-new' : '']">
                   <div class="chat-content">
                     <div class="chat-bubble" [ngClass]="m.direction" [innerHTML]="m.body"></div>
-                    <div class="chat-meta">
+                    <div class="chat-meta small">
                       <span>{{ formatMessageTimestamp(m.timestamp) }}</span>
                       <span class="dot">•</span>
                       <span>{{ m.channel }}</span>
-                      <span class="dot" *ngIf="m.status">•</span>
-                      <span *ngIf="m.status">{{ m.status }}</span>
+                      <span class="dot" *ngIf="m.statusLabel">•</span>
+                      <span
+                        *ngIf="m.statusLabel"
+                        [ngClass]="statusMetaClass(m.status)"
+                        class="d-inline-flex align-items-center gap-1"
+                      >
+                        <i class="feather" [ngClass]="statusMetaIcon(m.status)"></i>{{ m.statusLabel }}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
-              <div class="composer">
-                <input class="form-control" [(ngModel)]="draftMessage" (ngModelChange)="onDraftMessageChange($event)" placeholder="Write a message…" />
-                <button class="btn btn-primary" type="button" [disabled]="!draftMessage.trim()">Send</button>
-              </div>
+              <form class="composer" (submit)="onSendMessage($event)">
+                <input
+                  class="form-control"
+                  name="messageInput"
+                  [(ngModel)]="draftMessage"
+                  (ngModelChange)="onDraftMessageChange($event)"
+                  placeholder="Write a message…"
+                  autocomplete="off"
+                />
+                <button class="btn btn-primary" type="submit" [disabled]="!draftMessage.trim() || chatSending">Send</button>
+              </form>
             </div>
             <ng-template #messagesState>
               <div class="state state-loading" *ngIf="panelMessagesLoading">

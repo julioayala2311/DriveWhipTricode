@@ -95,11 +95,7 @@ export class DriveWhipCoreService {
   login(user: string, secret: string): Observable<any> {
     const url = this.baseUrl + 'auth/login';
     const body = { user, secret };
-    const headers = new HttpHeaders({
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    });
-    return this.http.post(url, body, { headers }).pipe(
+    return this.http.post(url, body, { headers: this.buildHeaders() }).pipe(
       catchError(err => this.handleError(err))
     );
   }

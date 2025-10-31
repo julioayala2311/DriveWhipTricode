@@ -356,6 +356,21 @@
   position: relative;
 }
 
+.chat-message.is-new {
+  animation: chatFadeIn 260ms ease-out;
+}
+
+@keyframes chatFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .chat-message.outbound {
   margin-left: auto;
   justify-content: flex-end;

@@ -137,8 +137,8 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
   };
 
   columnDefs: ColDef[] = [
-    { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
-    // { headerName: '', field: '__actions', width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true, cellClass: 'actions-cell-wrapper', cellRenderer: 'applicantActionsCell' },
+    // { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true },
+  { headerName: '', field: '__actions', width: 48, pinned: 'left', sortable: false, filter: false, resizable: false, suppressSizeToFit: true, cellClass: 'actions-cell-wrapper', cellRenderer: 'applicantActionsCell' },
     { headerName: 'Name', field: 'name', minWidth: 160, flex: 1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-user' }, cellRenderer: (p: any) => {
         const value = (p.value ?? '').toString().replace(/</g,'<').replace(/>/g,'>');
         return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
@@ -429,7 +429,7 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     this.activeTab = tab;
   }
 
-  handleQuickAction(applicant: ApplicantRow | null, action: ApplicantQuickAction): void {
+  handleQuickAction(applicant: ApplicantRow | null, action: ApplicantQuickAction, payload?: any): void {
     if (!applicant) {
       return;
     }
@@ -462,11 +462,28 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
       case 'moveToModal':
         this.ensurePanelAction(applicantId, (panel) => panel.openMoveToModal());
         break;
+      case 'moveToStage':
+        if (payload === undefined || payload === null) {
+          break;
+        }
+        this.ensurePanelAction(applicantId, (panel) =>
+          panel.onStageClick(Number(payload))
+        );
+        break;
       case 'moveNext':
         this.ensurePanelAction(applicantId, (panel) => panel.moveToNextStage());
         break;
       case 'reject':
         this.ensurePanelAction(applicantId, (panel) => panel.rejectApplicant());
+        break;
+      case 'approveDriver':
+        this.openPanel(applicantId, 'messages');
+        break;
+      case 'editApplicant':
+        this.ensurePanelAction(applicantId, (panel) => panel.startEditApplicant());
+        break;
+      case 'deleteApplicant':
+        this.ensurePanelAction(applicantId, (panel) => panel.onDeleteApplicantClick());
         break;
       default:
         break;
@@ -508,6 +525,19 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     ];
     const found = candidates.find((val: unknown) => val !== null && val !== undefined && val !== '');
     return found !== undefined ? String(found) : null;
+  }
+
+  canResendQuickAction(applicant: ApplicantRow | null): boolean {
+    // Replicate panel's validation: only enable when there's an outbound SMS to resend
+    // If the panel is open for this applicant, delegate to its canResendMessage().
+    const id = this.resolveApplicantId(applicant);
+    if (!id) return false;
+    const panel = this.panelComponent;
+    if (panel && this.panelOpen && this.activeApplicant?.id === id) {
+      try { return panel.canResendMessage(); } catch { return false; }
+    }
+    // Without chat context loaded we can't validate existence of last outbound SMS -> keep disabled
+    return false;
   }
 
   private deferPanelAction(action: (panel: ApplicantPanelComponent) => void, attempt = 0, expectedId?: string | null): void {

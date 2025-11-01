@@ -3059,17 +3059,110 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     return /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.bmp|\.svg)$/.test(name);
   }
 
+  documentExtension(doc: ApplicantDocument | null | undefined): string {
+    if (!doc?.document_name) return "";
+    const parts = doc.document_name.split(".");
+    if (parts.length < 2) return "";
+    return parts.pop()!.toLowerCase();
+  }
+
+  private documentKindFromExtension(ext: string): string {
+    if (!ext) return "other";
+    if (/(png|jpg|jpeg|gif|webp|bmp|svg)$/i.test(`.${ext}`)) return "image";
+    if (ext === "pdf") return "pdf";
+    if (["doc", "docx", "rtf", "odt"].includes(ext)) return "word";
+    if (["xls", "xlsx", "csv", "ods"].includes(ext)) return "sheet";
+    if (["ppt", "pptx", "odp"].includes(ext)) return "slides";
+    if (["txt", "md", "json", "xml"].includes(ext)) return "text";
+    if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "archive";
+    if (["mp3", "wav", "aac", "ogg", "flac"].includes(ext)) return "audio";
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "video";
+    return "other";
+  }
+
+  documentTypeLabel(doc: ApplicantDocument | null | undefined): string {
+    const ext = this.documentExtension(doc);
+    const kind = this.documentKindFromExtension(ext);
+    switch (kind) {
+      case "image":
+        return "Image";
+      case "pdf":
+        return "PDF document";
+      case "word":
+        return "Word document";
+      case "sheet":
+        return "Spreadsheet";
+      case "slides":
+        return "Presentation";
+      case "text":
+        return "Text file";
+      case "archive":
+        return "Archive";
+      case "audio":
+        return "Audio";
+      case "video":
+        return "Video";
+      default:
+        return "File";
+    }
+  }
+
+  documentIcon(doc: ApplicantDocument | null | undefined): string {
+    const ext = this.documentExtension(doc);
+    const kind = this.documentKindFromExtension(ext);
+    switch (kind) {
+      case "image":
+        return "icon-image";
+      case "pdf":
+        return "icon-file-text";
+      case "word":
+        return "icon-file";
+      case "sheet":
+        return "icon-grid";
+      case "slides":
+        return "icon-sliders";
+      case "text":
+        return "icon-file-text";
+      case "archive":
+        return "icon-package";
+      case "audio":
+        return "icon-music";
+      case "video":
+        return "icon-film";
+      default:
+        return "icon-file";
+    }
+  }
+
+  docStatusLabel(status: string | null | undefined): string {
+    if (!status) return "Pending";
+    const normalized = status.toString().replace(/[_-]+/g, " ").trim();
+    return normalized.replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  viewDocument(
+    group: DocumentGroup,
+    doc: ApplicantDocument,
+    ev?: Event
+  ): void {
+    if (!doc) return;
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+    if (this.isImageDocument(doc)) {
+      this.openImageViewer(group, doc);
+      return;
+    }
+    this.openDocument(doc);
+  }
+
   /** Open the in-app image viewer for the selected group/doc (falls back to openDocument for non-images) */
   openImageViewer(
     group: DocumentGroup,
-    doc?: ApplicantDocument,
-    ev?: Event
+    doc?: ApplicantDocument
   ): void {
     try {
-      if (ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-      }
       const images = (group?.items || []).filter((d) =>
         this.isImageDocument(d)
       );

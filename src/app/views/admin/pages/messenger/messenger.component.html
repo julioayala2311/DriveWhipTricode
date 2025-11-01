@@ -139,31 +139,77 @@
               <div *ngIf="applicantError" class="state state-error">
                 {{ applicantError }}
               </div>
-              <div
-                *ngIf="!applicantLoading && !applicantError && (generalInfoRows.length || latestMessage || selectedThread?.last_message); else noGeneralInfo"
-                class="general-grid"
-              >
-                <div class="general-card" *ngFor="let row of generalInfoRows">
-                  <span class="label">{{ row.label }}</span>
-                  <a *ngIf="row.kind === 'email'" [href]="'mailto:' + row.value">{{ row.value }}</a>
-                  <a *ngIf="row.kind === 'phone'" [href]="'tel:' + row.value">{{ row.value }}</a>
-                  <span *ngIf="!row.kind">{{ row.value }}</span>
+
+              <ng-container *ngIf="!applicantLoading && !applicantError; else noGeneralInfo">
+                <!-- Information -->
+                <div class="general-section">
+                  <div class="section-title">Information</div>
+                  <ul class="info-list list-unstyled mb-0">
+                    <li *ngFor="let row of generalInfoRows">
+                      <span class="label">{{ row.label }}</span>
+                      <a *ngIf="row.kind === 'email'" [href]="'mailto:' + row.value">{{ row.value }}</a>
+                      <a *ngIf="row.kind === 'phone'" [href]="'tel:' + row.value">{{ row.value }}</a>
+                      <span *ngIf="!row.kind">{{ row.value }}</span>
+                    </li>
+                  </ul>
                 </div>
-                <div class="general-card" *ngIf="latestMessage as lastMsg; else lastMessageFallback">
-                  <span class="label">Latest Message</span>
-                  <p class="mb-1">{{ lastMsg.body }}</p>
-                  <small class="muted">{{ formatMessageTimestamp(lastMsg.timestamp) }} · {{ lastMsg.channel }}</small>
+
+                <!-- Status badges from crm_applicants_crud.Status -->
+                <div class="general-section">
+                  <div class="section-title">Status</div>
+                  <div class="status-badges" *ngIf="resolvedStatuses.length; else noStatuses">
+                    <span class="status-chip" *ngFor="let s of resolvedStatuses" [ngClass]="statusBadgeClass(s)">
+                      {{ s.stage }} · {{ s.statusName | titlecase }}
+                    </span>
+                  </div>
+                  <ng-template #noStatuses>
+                    <p class="text-muted small mb-0">No status recorded.</p>
+                  </ng-template>
                 </div>
-              </div>
-              <ng-template #lastMessageFallback>
-                <div class="general-card" *ngIf="selectedThread?.last_message">
-                  <span class="label">Latest Message</span>
-                  <p class="mb-1">{{ selectedThread?.last_message }}</p>
-                  <small class="muted" *ngIf="selectedThread?.hours_since_last_message">
-                    {{ selectedThread?.hours_since_last_message }}
-                  </small>
+
+                <!-- Notes (read-only) -->
+                <div class="general-section">
+                  <div class="section-title">Notes</div>
+                  <div *ngIf="notesLoading" class="small text-secondary d-flex align-items-center gap-2">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Loading notes…
+                  </div>
+                  <div *ngIf="!notesLoading && notesError" class="alert alert-warning py-1 px-2 small">
+                    {{ notesError }}
+                  </div>
+                  <ul class="notes-list list-unstyled mb-0" *ngIf="!notesLoading && !notesError">
+                    <li *ngFor="let n of notes">
+                      <div class="note-text">{{ n.note ?? n.NOTE ?? n.text }}</div>
+                      <div class="note-meta small text-secondary">
+                        <span>{{ n.created_by ?? n.user ?? 'system' }}</span>
+                        <span class="dot">•</span>
+                        <span>{{ (n.created_at || n.CREATED_AT) | date:'medium' }}</span>
+                      </div>
+                    </li>
+                    <li *ngIf="!notes?.length" class="text-muted small">No notes yet.</li>
+                  </ul>
                 </div>
-              </ng-template>
+
+                <!-- Details (registration answers) -->
+                <div class="general-section">
+                  <div class="section-title">Details</div>
+                  <div *ngIf="answersLoading" class="small text-secondary d-flex align-items-center gap-2">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Loading details…
+                  </div>
+                  <div *ngIf="!answersLoading && answersError" class="alert alert-warning py-1 px-2 small">
+                    {{ answersError }}
+                  </div>
+                  <ul class="simple-bullet-list" *ngIf="!answersLoading && !answersError">
+                    <li class="qa-item" *ngFor="let a of answers">
+                      <div class="small fw-semibold">{{ a.question }}</div>
+                      <div class="small text-secondary">{{ a.answer_text }}</div>
+                    </li>
+                    <li *ngIf="!answers?.length" class="text-muted small">No answers yet.</li>
+                  </ul>
+                </div>
+              </ng-container>
+
               <ng-template #noGeneralInfo>
                 <p class="text-muted small mb-0">Applicant details are not available yet.</p>
               </ng-template>
@@ -230,31 +276,167 @@
                 {{ panelHistoryError }}
               </div>
               <div *ngIf="!panelHistoryLoading && !panelHistoryError">
-                <div class="timeline-wrapper" *ngIf="panelHistoryGroups.length; else emptyHistory">
-                  <div class="timeline-day" *ngFor="let group of panelHistoryGroups">
-                    <div class="timeline-day-label">{{ group.dayLabel }}</div>
-                    <ul class="timeline list-unstyled m-0 p-0">
-                      <li class="timeline-item" *ngFor="let ev of group.events">
-                        <div class="timeline-line"></div>
-                        <div class="timeline-marker" [ngClass]="timelineMarkerClass(ev.type)">
-                          <i class="feather" [ngClass]="timelineIcon(ev.type)"></i>
-                        </div>
-                        <div class="timeline-card">
-                          <div class="timeline-text" [innerHTML]="ev.text || 'Event logged'"></div>
-                          <div class="timeline-meta">
-                            <span class="timeline-time">{{ timelineDisplayTime(ev) }}</span>
-                            <span
-                              *ngIf="ev.actorName"
-                              class="timeline-actor"
-                              [ngClass]="timelineActorBadgeClass(ev.actorRole)"
+                <div *ngIf="panelHistoryGroups.length; else emptyHistory" class="history-layout" [class.detail-open]="eventSidebarOpen">
+                  <div class="history-timeline">
+                    <div class="timeline-wrapper">
+                      <div class="timeline-day" *ngFor="let group of panelHistoryGroups">
+                        <div class="timeline-day-label">{{ group.dayLabel }}</div>
+                        <ul class="timeline list-unstyled m-0 p-0">
+                          <li class="timeline-item" *ngFor="let ev of group.events">
+                            <div class="timeline-line"></div>
+                            <div class="timeline-marker" [ngClass]="timelineMarkerClass(ev.type)">
+                              <i class="feather" [ngClass]="timelineIcon(ev.type)"></i>
+                            </div>
+                            <div
+                              class="timeline-card"
+                              [class.clickable]="ev.with_detail"
+                              [class.noninteractive]="!ev.with_detail"
+                              [class.active]="selectedHistoryEvent?.id === ev.id"
+                              [attr.role]="'button'"
+                              [attr.aria-disabled]="!ev.with_detail ? true : null"
+                              [attr.title]="!ev.with_detail ? 'No details available' : null"
+                              (click)="openEventSidebar(ev)"
                             >
-                              {{ ev.actorName }} · {{ timelineActorLabel(ev.actorRole) }}
-                            </span>
+                              <div class="timeline-text" [innerHTML]="ev.text || 'Event logged'"></div>
+                              <div class="timeline-meta">
+                                <span class="timeline-time">{{ timelineDisplayTime(ev) }}</span>
+                                <span
+                                  *ngIf="ev.actorName"
+                                  class="timeline-actor"
+                                  [ngClass]="timelineActorBadgeClass(ev.actorRole)"
+                                >
+                                  {{ ev.actorName }} · {{ timelineActorLabel(ev.actorRole) }}
+                                </span>
+                              </div>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  <aside class="history-detail" aria-label="Event details" #historyDetailRef>
+                    <ng-container *ngIf="eventSidebarOpen && selectedHistoryEvent; else historyDetailPlaceholder">
+                      <header class="history-detail__header">
+                        <div class="d-flex align-items-start gap-2">
+                          <div class="event-icon"><i class="feather" [ngClass]="timelineIcon(selectedHistoryEvent!.type)"></i></div>
+                          <div class="d-flex flex-column">
+                            <strong class="event-title">{{ selectedHistoryEvent!.text || 'Event details' }}</strong>
+                            <small class="text-secondary">{{ selectedHistoryEvent ? timelineDisplayTime(selectedHistoryEvent!) : '' }}</small>
                           </div>
                         </div>
-                      </li>
-                    </ul>
-                  </div>
+                        <button type="button" class="btn btn-link btn-sm text-secondary px-2" (click)="closeEventSidebar()" aria-label="Close event details">
+                          <i class="feather icon-x"></i>
+                        </button>
+                      </header>
+                      <div class="history-detail__body" #historyDetailBody>
+                        <div *ngIf="eventDetailLoading" class="small text-secondary mb-3 d-flex align-items-center gap-2">
+                          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                          Loading details...
+                        </div>
+                        <div *ngIf="!eventDetailLoading && eventDetailError" class="alert alert-warning py-1 px-2 small mb-3">
+                          {{ eventDetailError }}
+                        </div>
+
+                        <div class="event-meta mb-3">
+                          <div class="meta-row" *ngIf="selectedHistoryEvent!.channel">
+                            <span class="label">Channel</span>
+                            <span class="value">{{ selectedHistoryEvent!.channel }}</span>
+                          </div>
+                          <div class="meta-row" *ngIf="selectedHistoryEvent!.actorName">
+                            <span class="label">By</span>
+                            <span class="value">{{ selectedHistoryEvent!.actorName }}</span>
+                          </div>
+                          <div class="meta-row" *ngIf="selectedHistoryEvent!.event_table">
+                            <span class="label">Table</span>
+                            <span class="value">{{ selectedHistoryEvent!.event_table }}</span>
+                          </div>
+                          <div class="meta-row" *ngIf="selectedHistoryEvent!.previousStage || selectedHistoryEvent!.from">
+                            <span class="label">From</span>
+                            <span class="value">{{ selectedHistoryEvent!.previousStage || selectedHistoryEvent!.from }}</span>
+                          </div>
+                          <div class="meta-row" *ngIf="selectedHistoryEvent!.newStage || selectedHistoryEvent!.to">
+                            <span class="label">To</span>
+                            <span class="value">{{ selectedHistoryEvent!.newStage || selectedHistoryEvent!.to }}</span>
+                          </div>
+                        </div>
+
+                        <div class="event-content">
+                          <ng-container *ngIf="(selectedHistoryEvent!.type || '').toLowerCase() === 'sms'">
+                            <div class="content-title small text-secondary mb-1">Message</div>
+                            <div class="device device-iphone">
+                              <div class="device-notch"></div>
+                              <div class="device-screen">
+                                <div class="d-flex flex-column gap-2">
+                                  <div class="d-flex">
+                                    <div class="chat-bubble mt-4 ms-3" style="max-width: 85%">
+                                      <div class="chat-text" [innerText]="eventDetailText || selectedHistoryEvent!.text || ''"></div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </ng-container>
+
+                          <ng-container *ngIf="selectedHistoryEvent!.type === 'document' || (selectedHistoryEvent!.event_table || '').toLowerCase().startsWith('documents')">
+                            <div *ngIf="eventDocLoading" class="small text-secondary mb-3 d-flex align-items-center gap-2">
+                              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                              Loading file preview...
+                            </div>
+                            <div *ngIf="!eventDocLoading && eventDocError && (!eventDoc || !eventDoc.url)" class="alert alert-warning py-1 px-2 small mb-3">
+                              {{ eventDocError }}
+                            </div>
+                            <div *ngIf="!eventDocLoading && eventDoc && isImageDocument(eventDoc)" class="event-image-preview mb-3">
+                              <div class="event-image-preview__frame">
+                                <img
+                                  [src]="eventDoc.url"
+                                  [alt]="eventDoc.document_name"
+                                  (error)="refreshEventDocUrl(eventDoc)"
+                                />
+                                <button type="button" class="btn btn-secondary btn-sm" title="Expand" (click)="openEventDocument(eventDoc, $event)">
+                                  <i class="feather icon-maximize"></i>
+                                </button>
+                              </div>
+                            </div>
+                            <div *ngIf="!eventDocLoading && eventDoc as d" class="event-doc-card" [hidden]="isImageDocument(d)">
+                              <div class="event-doc-card__thumb">
+                                <img *ngIf="d.url && isImageDocument(d)" [src]="d.url" alt="preview" (error)="refreshEventDocUrl(d)" />
+                                <div *ngIf="!d.url || !isImageDocument(d)" class="thumb-fallback">
+                                  <i class="feather icon-file-text"></i>
+                                </div>
+                              </div>
+                              <div class="event-doc-card__info">
+                                <div class="event-doc-card__name">{{ d.document_name }}</div>
+                                <div class="event-doc-card__status">{{ d.status ?? 'Pending' }}</div>
+                              </div>
+                              <div class="event-doc-card__actions">
+                                <button type="button" class="btn btn-sm btn-outline-primary" (click)="openEventDocument(d, $event)">View</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="downloadEventDocument(d)">Download</button>
+                              </div>
+                            </div>
+                          </ng-container>
+
+                          <div class="content-title small text-secondary" *ngIf="eventDetailText && (selectedHistoryEvent!.type || '').toLowerCase() !== 'sms'">
+                            Details
+                          </div>
+                          <div
+                            class="event-detail-text"
+                            *ngIf="eventDetailText as detail; else noHistoryDetailText"
+                            [hidden]="(selectedHistoryEvent!.type || '').toLowerCase() === 'sms'"
+                            [innerHTML]="detail"
+                            style="white-space: pre-wrap"
+                          ></div>
+                          <ng-template #noHistoryDetailText></ng-template>
+                          <div *ngIf="!eventDetailLoading && !eventDetailText && !eventDoc" class="text-muted small mt-2">No additional details available.</div>
+                        </div>
+                      </div>
+                    </ng-container>
+                    <ng-template #historyDetailPlaceholder>
+                      <div class="history-detail__placeholder">
+                        <i class="feather icon-info"></i>
+                        <p class="mb-0">Select a timeline entry to view its details.</p>
+                      </div>
+                    </ng-template>
+                  </aside>
                 </div>
                 <ng-template #emptyHistory>
                   <div class="state empty text-center py-5">
@@ -305,32 +487,87 @@
                     </div>
                     <div class="file-card__body" *ngIf="group.items.length">
                       <div class="file-preview" *ngIf="group.items[0] as primaryDoc">
-                        <div class="file-preview__thumb" [class.file-preview__thumb--empty]="!primaryDoc.url">
+                        <div
+                          class="file-preview__thumb"
+                          [class.file-preview__thumb--image]="isImageDocument(primaryDoc)"
+                        >
                           <img
                             *ngIf="primaryDoc.url && isImageDocument(primaryDoc)"
                             [src]="primaryDoc.url"
                             [alt]="primaryDoc.document_name"
+                            (error)="refreshDocUrl(primaryDoc)"
                           />
-                          <i *ngIf="!primaryDoc.url || !isImageDocument(primaryDoc)" class="feather icon-file-text"></i>
+                          <div *ngIf="!isImageDocument(primaryDoc)" class="file-preview__fallback">
+                            <i class="feather" [ngClass]="documentIcon(primaryDoc)"></i>
+                            <span
+                              class="file-preview__ext"
+                              *ngIf="documentExtension(primaryDoc)"
+                            >
+                              {{ documentExtension(primaryDoc) | uppercase }}
+                            </span>
+                          </div>
                         </div>
                         <div class="file-preview__info">
-                          <a *ngIf="primaryDoc.url" [href]="primaryDoc.url" target="_blank" rel="noopener">
-                            {{ primaryDoc.document_name }}
-                          </a>
-                          <span *ngIf="!primaryDoc.url">{{ primaryDoc.document_name }}</span>
-                          <small class="text-muted" *ngIf="primaryDoc.status">
-                            {{ docStatusLabel(primaryDoc.status) }}
-                          </small>
+                          <div class="file-preview__name">{{ primaryDoc.document_name }}</div>
+                          <div class="file-preview__meta text-muted small">
+                            <span>{{ documentTypeLabel(primaryDoc) }}</span>
+                            <span *ngIf="documentExtension(primaryDoc)">•</span>
+                            <span *ngIf="documentExtension(primaryDoc)">
+                              {{ documentExtension(primaryDoc) | uppercase }}
+                            </span>
+                          </div>
+                          <div class="file-preview__actions">
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-outline-primary"
+                              (click)="viewDocument(group, primaryDoc, $event)"
+                            >
+                              View
+                            </button>
+                            <!-- <button
+                              type="button"
+                              class="btn btn-sm btn-outline-secondary"
+                              (click)="downloadDocument(primaryDoc)"
+                            >
+                              Download
+                            </button> -->
+                          </div>
                         </div>
                       </div>
                       <ul class="doc-list" *ngIf="group.items.length > 1">
                         <li class="doc-list__item" *ngFor="let doc of group.items | slice : 1">
-                          <i class="feather icon-paperclip"></i>
-                          <a *ngIf="doc.url" [href]="doc.url" target="_blank" rel="noopener">{{ doc.document_name }}</a>
-                          <span *ngIf="!doc.url">{{ doc.document_name }}</span>
-                          <span class="doc-list__status" [ngClass]="docStatusClass(doc)">
-                            {{ docStatusLabel(doc.status) }}
+                          <span class="doc-list__icon">
+                            <i class="feather" [ngClass]="documentIcon(doc)"></i>
                           </span>
+                          <div class="doc-list__body">
+                            <button
+                              type="button"
+                              class="btn btn-link btn-sm p-0 text-start doc-list__link"
+                              (click)="viewDocument(group, doc, $event)"
+                            >
+                              {{ doc.document_name }}
+                            </button>
+                            <div class="doc-list__meta text-muted small">
+                              <span>{{ documentTypeLabel(doc) }}</span>
+                              <span *ngIf="documentExtension(doc)">•</span>
+                              <span *ngIf="documentExtension(doc)">
+                                {{ documentExtension(doc) | uppercase }}
+                              </span>
+                            </div>
+                          </div>
+                          <div class="doc-list__actions">
+                            <span class="doc-list__status" [ngClass]="docStatusClass(doc)">
+                              {{ docStatusLabel(doc.status) }}
+                            </span>
+                            <button
+                              type="button"
+                              class="btn btn-link btn-sm text-secondary"
+                              (click)="downloadDocument(doc)"
+                            >
+                              <i class="feather icon-download"></i>
+                              Download
+                            </button>
+                          </div>
                         </li>
                       </ul>
                     </div>
@@ -350,3 +587,4 @@
     </ng-template>
   </section>
 </div>
+

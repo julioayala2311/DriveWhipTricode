@@ -4,6 +4,9 @@
 // Global icon font
 @import "../public/fonts/feather/style.css";
 
+// Angular CDK overlay styles (required for correct positioning of menus/popovers)
+@import "@angular/cdk/overlay-prebuilt.css";
+
 
 // 3rd party plugins
 @import "highlight.js/styles/atom-one-light.css";
@@ -255,4 +258,9 @@ body.dark .dw-action-btn.danger:hover:not(:disabled) {
 
 .horizontal-menu .navbar .navbar-content .navbar-nav .nav-item.theme-switcher-wrapper .box.dark i {
   color: var(--bs-primary)!important;
+}
+
+/* Elevate Angular CDK overlays above ag-Grid so floating menus/tooltips render over the grid */
+.cdk-overlay-container {
+  z-index: 4000 !important;
 }

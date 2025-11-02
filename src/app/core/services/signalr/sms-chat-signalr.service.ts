@@ -37,6 +37,8 @@ export class SmsChatSignalRService {
   private readonly notificationsSubject =
     new Subject<ApplicantChatRealtimeMessage>();
   private readonly joinedPhones = new Set<string>();
+  private notificationsJoined = false;
+  private notificationsJoinCount = 0;
   // Lightweight debug toggle: enable by setting sessionStorage.smsChatDebug = '1'
   private debugEnabled(): boolean {
     try {
@@ -66,7 +68,8 @@ export class SmsChatSignalRService {
     if (
       this.hubConnection &&
       this.hubConnection.state !== HubConnectionState.Disconnected &&
-      !this.joinedPhones.size
+      !this.joinedPhones.size &&
+      !this.notificationsJoined
     ) {
       try {
         await this.hubConnection.stop();
@@ -115,13 +118,21 @@ export class SmsChatSignalRService {
       this.debug('Connection closed');
       this.connectionPromise = null;
       this.hubConnection = null;
+      // Reset notifications state to avoid stale flags
+      this.notificationsJoined = false;
+      this.notificationsJoinCount = 0;
     });
     connection.onreconnected(() => {
-      this.debug('Reconnected; rejoining phone groups...', this.joinedPhones);
+      this.debug('Reconnected; rejoining groups...', { phones: Array.from(this.joinedPhones), notifications: this.notificationsJoined });
       const phones = Array.from(this.joinedPhones);
       phones.forEach((p) => {
-        this.hubConnection?.invoke("JoinPhone", p).catch(() => {});
+        this.hubConnection?.invoke("JoinPhone", p).catch((err) => this.debug('Re-JoinPhone failed', p, err));
       });
+      if (this.notificationsJoined) {
+        this.hubConnection?.invoke("JoinNotifications").then(() => {
+          this.debug('Re-joined notifications group');
+        }).catch((err) => this.debug('Re-JoinNotifications failed', err));
+      }
     });
 
     this.hubConnection = connection;
@@ -271,22 +282,46 @@ export class SmsChatSignalRService {
   }
 
   async joinNotifications(): Promise<void> {
+    // Reference counting: only invoke hub join when transitioning 0 -> 1
+    const nextCount = this.notificationsJoinCount + 1;
+    this.notificationsJoinCount = nextCount;
+    if (nextCount > 1 && this.notificationsJoined) {
+      this.debug('JoinNotifications (ref++) count=', this.notificationsJoinCount);
+      return;
+    }
     await this.ensureConnection();
     try {
       await this.hubConnection!.invoke("JoinNotifications");
-      this.debug('JoinNotifications -> group=sms:notifications');
+      this.notificationsJoined = true;
+      this.debug('JoinNotifications -> group=sms:notifications (count=', this.notificationsJoinCount, ')');
     } catch (err) {
       this.debug('JoinNotifications failed', err);
     }
   }
 
   async leaveNotifications(): Promise<void> {
-    if (!this.hubConnection) return;
+    // Reference counting: only invoke hub leave when transitioning 1 -> 0
+    if (this.notificationsJoinCount > 0) {
+      this.notificationsJoinCount -= 1;
+    }
+    if (this.notificationsJoinCount > 0) {
+      this.debug('LeaveNotifications (ref--) count=', this.notificationsJoinCount);
+      return;
+    }
+    if (!this.hubConnection && !this.notificationsJoined) return;
     try {
-      await this.hubConnection.invoke("LeaveNotifications");
-      this.debug('LeaveNotifications -> group=sms:notifications');
+      if (this.hubConnection) {
+        await this.hubConnection.invoke("LeaveNotifications");
+      }
+      this.notificationsJoined = false;
+      this.debug('LeaveNotifications -> group=sms:notifications (count=0)');
     } catch (err) {
       this.debug('LeaveNotifications failed', err);
+    } finally {
+      // If no groups remain, disconnect to save resources
+      if (!this.joinedPhones.size && !this.notificationsJoined) {
+        await this.disconnectIfIdle();
+      }
     }
   }
 
@@ -312,5 +347,9 @@ export class SmsChatSignalRService {
 
   getConnectionState(): HubConnectionState | null {
     return this.hubConnection?.state ?? null;
+  }
+  
+  isSubscribedToNotifications(): boolean {
+    return this.notificationsJoined;
   }
 }

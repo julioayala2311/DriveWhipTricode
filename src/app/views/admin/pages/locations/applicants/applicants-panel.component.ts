@@ -1089,7 +1089,14 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   ngOnInit(): void {
     this.realtimeSub = this.smsRealtime
       .messages()
-      .subscribe((msg) => this.handleRealtimeMessage(msg));
+      .subscribe((msg) => {
+        try {
+          this.handleRealtimeMessage(msg);
+        } catch (err) {
+          try { console.error('[ApplicantPanel] handleRealtimeMessage error', err); } catch {}
+          // Swallow to avoid terminating the subscription on runtime errors
+        }
+      });
     // use capture phase to avoid being canceled by stopPropagation on inner handlers
     document.addEventListener("click", this._outsideClickListener, true);
   }
@@ -1562,6 +1569,22 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
     if (!accept) return;
 
+    // If we matched by applicantId (or otherwise) but we haven't yet established a phone subscription,
+    // infer the phone from the realtime event and join its group to keep receiving subsequent events
+    // (some backend events may omit applicantId and rely solely on the phone group).
+    try {
+      if (!this.currentRealtimePhoneNumber) {
+        const inferred = this.normalizePhone(evt.from) || this.normalizePhone(evt.to);
+        if (inferred) {
+          // Best-effort join; service is idempotent for already-joined phones
+          this.smsRealtime.joinPhone(inferred).then(() => {
+            this.currentRealtimePhoneNumber = inferred;
+            try { console.debug('[ApplicantPanel] Auto-joined phone from realtime', inferred); } catch {}
+          }).catch(() => {});
+        }
+      }
+    } catch {}
+
     const body = (evt.body || "").toString();
     if (!body.trim()) return;
 
@@ -1571,14 +1594,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       ? `sid-${evt.messageSid}`
       : null;
 
-    if (candidateId) {
-      const duplicate = (this.messages || []).some(
-        (m) => (m.id || "").toString() === candidateId
-      );
-      if (duplicate) {
-        return;
-      }
-    }
+    // Do not short-circuit when chatId repeats (backend may reuse ids per thread);
+    // allow downstream logic to reconcile just like MessengerComponent does.
 
     const direction: "inbound" | "outbound" =
       (evt.direction || "").toLowerCase() === "outbound" ? "outbound" : "inbound";

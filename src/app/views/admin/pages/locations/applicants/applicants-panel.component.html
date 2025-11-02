@@ -262,7 +262,6 @@
                       type="button"
                       class="btn btn-link btn-xxs text-secondary mt-1"
                       (click)="viewEmploymentSummary()"
-                      [disabled]="!employmentProfileSnapshot"
                       aria-label="View employment summary"
                     >
                       Argyle Information
@@ -299,8 +298,7 @@
                     >
                       <i class="feather" [ngClass]="statusBadgeIcon(st)"></i>
                       <span
-                        >{{ st.stage || "Stage" }} -
-                        {{ st.statusName || "incomplete" | titlecase }}</span
+                        >{{ statusBadgeText(st) }}</span
                       >
                     </span>
                   </div>
@@ -314,12 +312,7 @@
                       class="feather"
                       [ngClass]="statusBadgeIcon(resolvedStatus)"
                     ></i>
-                    <span
-                      >{{ resolvedStatus?.stage || "Stage" }} -
-                      {{
-                        resolvedStatus?.statusName || "incomplete" | titlecase
-                      }}</span
-                    >
+                      <span>{{ statusBadgeText(resolvedStatus) }}</span>
                   </span>
                 </ng-template>
                 <div class="text-secondary small mt-2">Stage completion</div>
@@ -442,10 +435,11 @@
                       placeholder="Add a note..."
                       [(ngModel)]="newNoteText"
                       name="newNote"
+                      autocomplete="off"
                     />
                     <button
                       type="submit"
-                      class="btn btn-primary btn-sm"
+                      class="btn btn-outline-primary btn-sm"
                       [disabled]="!newNoteText.trim() || notesSaving"
                     >
                       Add
@@ -693,19 +687,19 @@
               <div class="menu-divider"></div>
               <!-- Approve as Driver (only when backend signals go_to_driver) -->
               <div class="menu-section" *ngIf="showApproveDriver">
-                <button type="button" class="menu-item">
+                <button type="button" class="menu-item" (click)="approveAsDriver(); $event.stopPropagation()">
                   <span class="icon"><i class="feather icon-user-check"></i></span>
                   <span>Approve as Driver</span>
                 </button>
               </div>
               <div class="menu-divider" *ngIf="showApproveDriver"></div>
               
-              <div class="menu-section">
+              <!-- <div class="menu-section">
                 <button type="button" class="menu-item">
                   <span class="icon"><i class="feather icon-upload"></i></span>
                   <span>Upload File</span>
                 </button>
-              </div>
+              </div> -->
               <div class="menu-divider"></div>
               <div class="menu-section">
                 <button
@@ -956,127 +950,130 @@
                     <i class="feather icon-folder text-primary"></i>
                     <span class="fw-semibold">{{ group.dataKey }}</span>
                   </div>
-                  <span
+                  <!-- <span
                     class="badge rounded-pill"
                     *ngIf="group.items && group.items.length"
-                    [ngClass]="docStatusClass(group.items[0])"
-                    >{{ group.items[0].status ?? "Pending" }}</span
-                  >
+                    [ngClass]="groupStatusClass(group)"
+                    >{{ docStatusLabel(getGroupStatus(group)) }}</span
+                  > -->
                 </div>
                 <div class="card-body">
-                  <div
-                    class="position-relative"
-                    *ngIf="group.items && group.items.length; else emptyGroup"
-                  >
-                    <div
-                      class="ratio ratio-16x9 bg-secondary border rounded d-flex align-items-center justify-content-center"
-                    >
-                      <img
-                        *ngIf="group.items[0].url"
-                        [src]="group.items[0].url"
-                        [alt]="group.items[0].document_name"
-                        class="img-fluid rounded"
-                        (error)="refreshDocUrl(group.items[0])"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      class="btn btn-secondary btn-sm position-absolute bottom-0 end-0 m-2"
-                      title="View"
-                      (click)="openImageViewer(group, group.items[0], $event)"
-                      *ngIf="
-                        group.items[0] &&
-                        (group.items[0].document_name | lowercase).match(
-                          '\\.png|\\.jpg|\\.jpeg|\\.gif|\\.webp|\\.bmp|\\.svg|\\.pdf'
-                        )
-                      "
-                    >
-                      <i class="feather icon-maximize"></i>
-                    </button>
-                  </div>
+                  <ng-container *ngIf="group.items && group.items.length; else emptyGroup">
+                    <ng-container *ngFor="let doc of group.items; let i = index">
+                      <div class="file-preview" [class.mt-3]="i > 0">
+                        <div
+                          class="file-preview__thumb"
+                          [class.file-preview__thumb--image]="isImageDocument(doc)"
+                        >
+                          <img
+                            *ngIf="doc.url && isImageDocument(doc)"
+                            [src]="doc.url"
+                            [alt]="doc.document_name"
+                            (error)="refreshDocUrl(doc)"
+                          />
+                          <div *ngIf="!isImageDocument(doc)" class="file-preview__fallback">
+                            <i class="feather" [ngClass]="documentIcon(doc)"></i>
+                            <span class="file-preview__ext" *ngIf="documentExtension(doc)">
+                              {{ documentExtension(doc) | uppercase }}
+                            </span>
+                          </div>
+                        </div>
+                        <div class="file-preview__info">
+                          <div class="file-preview__name">
+                            {{ doc.document_name }}
+                          </div>
+                          <div class="file-preview__meta text-muted small">
+                            <span>{{ documentTypeLabel(doc) }}</span>
+                            <span *ngIf="documentExtension(doc)">•</span>
+                            <span *ngIf="documentExtension(doc)">
+                              {{ documentExtension(doc) | uppercase }}
+                            </span>
+                          </div>
+                          <div class="file-preview__status" *ngIf="doc.status">
+                            <span class="badge rounded-pill" [ngClass]="docStatusClass(doc)">
+                              {{ docStatusLabel(doc.status) }}
+                            </span>
+                          </div>
+                          <div class="file-preview__actions d-flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              class="btn btn-soft-primary btn-sm"
+                              (click)="viewDocument(group, doc, $event)"
+                            >
+                              <i class="feather icon-external-link me-1"></i>
+                              View
+                            </button>
+                            <!-- <button
+                              type="button"
+                              class="btn btn-soft-secondary btn-sm"
+                              (click)="downloadDocument(doc)"
+                            >
+                              <i class="feather icon-download me-1"></i>
+                              Download
+                            </button> -->
+                            <ng-container *ngIf="isDocRecollecting(doc); else normalDocActions">
+                              <button
+                                type="button"
+                                class="btn btn-ghost btn-sm"
+                                (click)="approveDocument(doc)"
+                                [disabled]="docsLoading"
+                                *ngIf="uploadFiles"
+                                aria-label="Cancel Re-collection"
+                              >
+                                <i class="feather icon-x me-1"></i>Cancel Re-collection
+                              </button>
+                            </ng-container>
+                            <ng-template #normalDocActions>
+                              <button
+                                type="button"
+                                class="btn btn-soft-success btn-sm"
+                                (click)="approveDocument(doc)"
+                                [disabled]="docsLoading"
+                                *ngIf="uploadFiles && !isDocApproved(doc)"
+                              >
+                                <i class="feather icon-check me-1"></i>Approve
+                              </button>
+                              <button
+                                type="button"
+                                class="btn btn-soft-warning btn-sm"
+                                (click)="openDisapproveSidebar(doc)"
+                                [disabled]="docsLoading"
+                                *ngIf="uploadFiles"
+                              >
+                                <i class="feather icon-x me-1"></i>Re-collect
+                              </button>
+                            </ng-template>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- Inline previews for the first document only to avoid heavy embedding -->
+                      <ng-container *ngIf="i === 0">
+                        <div class="pdf-embed mt-3" *ngIf="isPdfDocument(doc) && doc.url">
+                          <div class="pdf-embed__frame-wrapper">
+                            <iframe title="PDF preview" [src]="pdfViewerSrc(doc)" loading="lazy"></iframe>
+                          </div>
+                          <div class="text-secondary small mt-1">
+                            If the preview doesn’t load, use View to open in a new tab.
+                          </div>
+                        </div>
+                        <div class="pdf-embed mt-3" *ngIf="isWordDocument(doc) && doc.url">
+                          <div class="pdf-embed__frame-wrapper">
+                            <iframe title="Document preview" [src]="officeViewerSrc(doc)" loading="lazy"></iframe>
+                          </div>
+                          <div class="text-secondary small mt-1">
+                            Preview uses Microsoft Office viewer. If it doesn’t load, use View.
+                          </div>
+                        </div>
+                      </ng-container>
+                    </ng-container>
+                  </ng-container>
                   <ng-template #emptyGroup>
                     <div class="text-secondary small py-4 text-center w-100">
                       No files in this section.
                     </div>
                   </ng-template>
 
-                  <div
-                    class="mt-3 d-flex flex-wrap align-items-center gap-2"
-                    *ngIf="group.items && group.items.length"
-                  >
-                    <ng-container
-                      *ngIf="
-                        (group.items[0].status || '') === 'Re-collecting File';
-                        else normalDocButtons
-                      "
-                    >
-                      <div class="btn-group btn-group-sm" role="group">
-                        <button
-                          type="button"
-                          class="btn btn-outline-secondary"
-                          (click)="approveDocument(group.items[0])"
-                          [disabled]="docsLoading"
-                          aria-label="Cancel Re-collection"
-                        >
-                          <i class="feather icon-x me-1"></i>Cancel
-                          Re-collection
-                        </button>
-                      </div>
-                    </ng-container>
-                    <ng-template #normalDocButtons>
-                      <div class="btn-group btn-group-sm" role="group">
-                        <button
-                          type="button"
-                          class="btn btn-outline-primary"
-                          (click)="approveDocument(group.items[0])"
-                          [disabled]="docsLoading"
-                        >
-                          <i class="feather icon-check me-1"></i>Approve
-                        </button>
-                        <button
-                          type="button"
-                          class="btn btn-outline-secondary"
-                          (click)="openDisapproveSidebar(group.items[0])"
-                          [disabled]="docsLoading"
-                        >
-                          <i class="feather icon-x me-1"></i>Disapprove
-                        </button>
-                      </div>
-                    </ng-template>
-                  </div>
-
-                  <ul
-                    class="list-group list-group-flush mt-3"
-                    *ngIf="group.items && group.items.length > 1"
-                  >
-                    <li
-                      class="list-group-item d-flex align-items-center justify-content-between py-2"
-                      *ngFor="let doc of group.items | slice : 1"
-                    >
-                      <div class="d-flex align-items-center gap-2">
-                        <i class="feather icon-file-text text-primary"></i>
-                        <a
-                          href="#"
-                          (click)="openDocument(doc, $event)"
-                          class="fw-medium"
-                          >{{ doc.document_name }}</a
-                        >
-                        <span class="text-muted small">•</span>
-                        <span
-                          class="badge rounded-pill"
-                          [ngClass]="docStatusClass(doc)"
-                          >{{ doc.status ?? "Pending" }}</span
-                        >
-                      </div>
-                      <button
-                        type="button"
-                        class="btn btn-link btn-sm text-secondary"
-                        (click)="downloadDocument(doc)"
-                      >
-                        Download
-                      </button>
-                    </li>
-                  </ul>
+                  <!-- Removed group-level action buttons and compact list; each document now has its own card above -->
                 </div>
               </div>
             </ng-container>
@@ -1756,7 +1753,7 @@
                 >Send via SMS in addition to email (Recommended)</label
               >
             </div>
-            <div class="form-check mt-2">
+            <!-- <div class="form-check mt-2">
               <input
                 id="notifyOwner"
                 class="form-check-input"
@@ -1766,7 +1763,7 @@
               <label class="form-check-label small" for="notifyOwner"
                 >Notify job owner when resubmission is complete</label
               >
-            </div>
+            </div> -->
           </div>
           <div class="col-12 col-lg-5">
             <!-- Desktop preview (Mac) -->
@@ -2031,7 +2028,7 @@
                 ></textarea>
               </ng-template>
             </div>
-            <div class="form-check mt-2">
+            <!-- <div class="form-check mt-2">
               <input
                 id="delay-send"
                 class="form-check-input"
@@ -2042,7 +2039,7 @@
               <label class="form-check-label small" for="delay-send"
                 >Delay sending message</label
               >
-            </div>
+            </div> -->
           </div>
           <div class="col-12 col-lg-5">
             <!-- Vista Desktop (Mac) -->
@@ -2191,7 +2188,7 @@
                 <span>Segments: {{ smsSegments }}</span>
               </div>
             </div>
-            <div class="form-check mt-2">
+            <!-- <div class="form-check mt-2">
               <input
                 id="delay-sms"
                 class="form-check-input"
@@ -2206,7 +2203,7 @@
             <div class="text-secondary small mt-1">
               This message may be broken into multiple segments. Messages may be
               queued to prevent carriers from blocking.
-            </div>
+            </div> -->
           </div>
           <div class="col-12 col-lg-5">
             <div class="d-flex align-items-center justify-content-center">
@@ -2215,7 +2212,7 @@
                 <div class="device-screen">
                   <div
                     class="text-center small py-2"
-                    style="background: #eef2ff; border-radius: 20px 20px 0 0"
+                    style="border-radius: 20px 20px 0 0"
                   >
                     {{ "+" + smsFrom }}
                   </div>

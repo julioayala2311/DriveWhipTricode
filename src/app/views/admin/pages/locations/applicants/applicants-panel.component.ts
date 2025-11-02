@@ -75,6 +75,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   @Input() currentStageId: number | null = null;
   @Input() status: ApplicantStatus | null = null;
   @Input() statuses: Array<ApplicantStatus & { order?: number }> | null = null;
+  // Controls visibility of file moderation actions (Approve / Re-collect)
+  @Input() uploadFiles: boolean = false;
   @Output() draftMessageChange = new EventEmitter<string>();
   @Output() closePanel = new EventEmitter<void>();
   @Output() goToPrevious = new EventEmitter<void>();
@@ -262,27 +264,108 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   viewEmploymentSummary(): void {
-    if (!this.employmentProfileSnapshot) {
+    // Resolve applicant id
+    const id = this.resolveApplicantId(this.applicant) || this.applicantId;
+    if (!id) {
       Swal.fire({
         icon: "info",
         title: "Argyle Information",
-        text: "Argyle information are not available for this applicant.",
+        text: "We couldn't identify the applicant.",
         confirmButtonText: "Close",
       });
       return;
     }
 
-    const html = this.buildEmploymentDetailsMarkup(
-      JSON.parse(this.employmentProfileSnapshot)
-    );
-    Swal.fire({
+    // Show loading state
+    void Swal.fire({
       title: "Argyle Information",
-      html,
+      html: '<div class="small text-secondary d-flex align-items-center gap-2"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading Argyle profile…</div>',
       width: 800,
-      customClass: { popup: "employment-profile-popup" },
-      showCloseButton: true,
-      focusConfirm: false,
-      confirmButtonText: "Close",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      showCloseButton: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_applicants_argyle_json_user as any,
+      parameters: [String(id)],
+    } as any;
+
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        try {
+          // Ensure loading spinner is removed before rendering final content
+          try { Swal.hideLoading(); } catch {}
+          if (!res?.ok) {
+            Swal.update({
+              icon: 'info',
+              html: '<div class="text-secondary">No Argyle information available for this applicant.</div>',
+              showConfirmButton: true,
+              confirmButtonText: 'Close',
+            });
+            return;
+          }
+          // Extract first row
+          let raw: any = res.data;
+          if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+          const row = Array.isArray(raw) ? (raw[0] ?? null) : raw;
+          const jsonInfo = row?.JSONInfo ?? row?.json_info ?? row?.JsonInfo ?? row?.jsonInfo ?? null;
+          if (!jsonInfo) {
+            try { Swal.hideLoading(); } catch {}
+            Swal.update({
+              icon: 'info',
+              html: '<div class="text-secondary">No Argyle information available for this applicant.</div>',
+              showConfirmButton: true,
+              confirmButtonText: 'Close',
+            });
+            return;
+          }
+          let profile: any = null;
+          if (typeof jsonInfo === 'string') {
+            try { profile = JSON.parse(jsonInfo); } catch { profile = null; }
+          } else if (typeof jsonInfo === 'object') {
+            profile = jsonInfo;
+          }
+          if (!profile) {
+            try { Swal.hideLoading(); } catch {}
+            Swal.update({
+              icon: 'info',
+              html: '<div class="text-secondary">Argyle data format is invalid or empty.</div>',
+              showConfirmButton: true,
+              confirmButtonText: 'Close',
+            });
+            return;
+          }
+          const html = this.buildEmploymentDetailsMarkup(profile);
+          try { Swal.hideLoading(); } catch {}
+          Swal.update({
+            icon: undefined as any,
+            html,
+            showCloseButton: true,
+            showConfirmButton: true,
+            confirmButtonText: 'Close',
+            customClass: { popup: 'employment-profile-popup' },
+          });
+        } catch (e) {
+          try { Swal.hideLoading(); } catch {}
+          Swal.update({
+            icon: 'error',
+            html: '<div class="text-danger">Failed to render Argyle information.</div>',
+            showConfirmButton: true,
+            confirmButtonText: 'Close',
+          });
+        }
+      },
+      error: (err) => {
+        try { Swal.hideLoading(); } catch {}
+        Swal.update({
+          icon: 'error',
+          html: '<div class="text-danger">Failed to load Argyle information.</div>',
+          showConfirmButton: true,
+          confirmButtonText: 'Close',
+        });
+      },
     });
   }
 
@@ -878,9 +961,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         // Reset docs cache when applicant changes
         this.docsLoadedForApplicantId = null;
       }
-      // If Files tab is active, load documents for current applicant id
+      // If Files tab is active, load documents for current applicant id (ensure fresh on open)
       if (this.activeTab === "files" && id) {
-        this.loadApplicantDocuments(id);
+        this.loadApplicantDocuments(id, true);
       }
       // If Messages tab is active, load chat history
       if (this.activeTab === "messages" && id) {
@@ -900,7 +983,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       const idFromApplicant = this.resolveApplicantId(this.applicant);
       const id = (this.applicantId || idFromApplicant || null) as string | null;
       if (id) {
-        this.loadApplicantDocuments(id);
+        // Force refresh when returning to Files tab
+        this.loadApplicantDocuments(id, true);
       }
     }
     // Load chat when switching into Messages tab (force refresh on return)
@@ -2754,14 +2838,17 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   /** Load documents for applicant and build groups by data_key */
-  private loadApplicantDocuments(applicantId: string): void {
+  private loadApplicantDocuments(applicantId: string, force: boolean = false): void {
     if (!applicantId) return;
-    if (
-      this.docsLoadedForApplicantId === applicantId &&
-      this.documentGroups &&
-      this.documentGroups.length
-    )
-      return;
+    if (!force) {
+      if (
+        this.docsLoadedForApplicantId === applicantId &&
+        this.documentGroups &&
+        this.documentGroups.length
+      ) {
+        return;
+      }
+    }
     this.docsLoading = true;
     this.docsError = null;
     this.documentGroups = [];
@@ -2810,8 +2897,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
             },
           });
         }
-        this.documentGroups = this.groupDocuments(docs);
-        this.docsLoadedForApplicantId = applicantId;
+  this.documentGroups = this.groupDocuments(docs);
+  this.docsLoadedForApplicantId = applicantId;
       },
       error: (err) => {
         console.error("[ApplicantPanel] loadApplicantDocuments error", err);
@@ -3059,17 +3146,141 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     return /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.bmp|\.svg)$/.test(name);
   }
 
+  /** True if the document is a PDF */
+  isPdfDocument(doc: ApplicantDocument | null | undefined): boolean {
+    return this.documentExtension(doc) === "pdf";
+  }
+
+  /** True if the document is a Word-like document (doc, docx, rtf, odt) */
+  isWordDocument(doc: ApplicantDocument | null | undefined): boolean {
+    const ext = this.documentExtension(doc);
+    return ["doc", "docx", "rtf", "odt"].includes(ext);
+  }
+
+  documentExtension(doc: ApplicantDocument | null | undefined): string {
+    if (!doc?.document_name) return "";
+    const parts = doc.document_name.split(".");
+    if (parts.length < 2) return "";
+    return parts.pop()!.toLowerCase();
+  }
+
+  private documentKindFromExtension(ext: string): string {
+    if (!ext) return "other";
+    if (/(png|jpg|jpeg|gif|webp|bmp|svg)$/i.test(`.${ext}`)) return "image";
+    if (ext === "pdf") return "pdf";
+    if (["doc", "docx", "rtf", "odt"].includes(ext)) return "word";
+    if (["xls", "xlsx", "csv", "ods"].includes(ext)) return "sheet";
+    if (["ppt", "pptx", "odp"].includes(ext)) return "slides";
+    if (["txt", "md", "json", "xml"].includes(ext)) return "text";
+    if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "archive";
+    if (["mp3", "wav", "aac", "ogg", "flac"].includes(ext)) return "audio";
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "video";
+    return "other";
+  }
+
+  documentTypeLabel(doc: ApplicantDocument | null | undefined): string {
+    const ext = this.documentExtension(doc);
+    const kind = this.documentKindFromExtension(ext);
+    switch (kind) {
+      case "image":
+        return "Image";
+      case "pdf":
+        return "PDF document";
+      case "word":
+        return "Word document";
+      case "sheet":
+        return "Spreadsheet";
+      case "slides":
+        return "Presentation";
+      case "text":
+        return "Text file";
+      case "archive":
+        return "Archive";
+      case "audio":
+        return "Audio";
+      case "video":
+        return "Video";
+      default:
+        return "File";
+    }
+  }
+
+  /** Return a SafeResourceUrl for embedding a PDF in an <iframe> */
+  pdfViewerSrc(doc: ApplicantDocument | null | undefined) {
+    const url = doc?.url || (doc
+      ? this.core.getFileUrl(String(doc.folder || ""), String(doc.document_name || ""))
+      : "");
+    const viewUrl = url ? `${url}#toolbar=0&navpanes=0&zoom=page-width` : "about:blank";
+    return this.sanitizer.bypassSecurityTrustResourceUrl(viewUrl);
+  }
+
+  /** Return a SafeResourceUrl for Office Online viewer embedding Word-like docs */
+  officeViewerSrc(doc: ApplicantDocument | null | undefined) {
+    const url = doc?.url || (doc
+      ? this.core.getFileUrl(String(doc.folder || ""), String(doc.document_name || ""))
+      : "");
+    if (!url) return this.sanitizer.bypassSecurityTrustResourceUrl("about:blank");
+    const encoded = encodeURIComponent(url);
+    const viewUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encoded}&wdPrint=0&wdDownloadButton=1`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(viewUrl);
+  }
+
+  documentIcon(doc: ApplicantDocument | null | undefined): string {
+    const ext = this.documentExtension(doc);
+    const kind = this.documentKindFromExtension(ext);
+    switch (kind) {
+      case "image":
+        return "icon-image";
+      case "pdf":
+        return "icon-file-text";
+      case "word":
+        return "icon-file";
+      case "sheet":
+        return "icon-grid";
+      case "slides":
+        return "icon-sliders";
+      case "text":
+        return "icon-file-text";
+      case "archive":
+        return "icon-package";
+      case "audio":
+        return "icon-music";
+      case "video":
+        return "icon-film";
+      default:
+        return "icon-file";
+    }
+  }
+
+  docStatusLabel(status: string | null | undefined): string {
+    if (!status) return "Pending";
+    const normalized = status.toString().replace(/[_-]+/g, " ").trim();
+    return normalized.replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  viewDocument(
+    group: DocumentGroup,
+    doc: ApplicantDocument,
+    ev?: Event
+  ): void {
+    if (!doc) return;
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+    if (this.isImageDocument(doc)) {
+      this.openImageViewer(group, doc);
+      return;
+    }
+    this.openDocument(doc);
+  }
+
   /** Open the in-app image viewer for the selected group/doc (falls back to openDocument for non-images) */
   openImageViewer(
     group: DocumentGroup,
-    doc?: ApplicantDocument,
-    ev?: Event
+    doc?: ApplicantDocument
   ): void {
     try {
-      if (ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-      }
       const images = (group?.items || []).filter((d) =>
         this.isImageDocument(d)
       );
@@ -3934,7 +4145,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         if (id) {
           // force reload
           this.docsLoadedForApplicantId = null;
-          this.loadApplicantDocuments(String(id));
+          this.loadApplicantDocuments(String(id), true);
           // Notify parent (grid) that applicant data changed so it can refresh status column
           try {
             this.applicantSaved.emit({ id: String(id), payload: {} });
@@ -3949,17 +4160,62 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     });
   }
 
+  private isStatusRecollecting(status: string | null | undefined): boolean {
+    const s = (status || '').toString().trim().toUpperCase();
+    return s === 'RECOLLECTING' || s === 'RE-COLLECTING' || s === 'RE-COLLECTING FILE' || s === 'RE COLLECTING FILE' || s.includes('RE-COLLECT');
+  }
+
+  private isStatusApproved(status: string | null | undefined): boolean {
+    return (status || '').toString().trim().toUpperCase() === 'APPROVED';
+  }
+
+  private isStatusDisapproved(status: string | null | undefined): boolean {
+    return (status || '').toString().trim().toUpperCase() === 'DISAPPROVED';
+  }
+
+  private isStatusPending(status: string | null | undefined): boolean {
+    return (status || '').toString().trim().toUpperCase() === 'PENDING';
+  }
+
+  private docStatusClassByStatus(status: string | null | undefined): string {
+    if (this.isStatusApproved(status)) return 'text-success';
+    if (this.isStatusDisapproved(status)) return 'text-danger';
+    if (this.isStatusRecollecting(status)) return 'text-warning';
+    return 'text-secondary';
+  }
+
   docStatusClass(doc: ApplicantDocument): string {
-    const s = (doc.status || "").toString().toUpperCase();
-    if (s === "APPROVED") return "text-success";
-    if (s === "DISAPPROVED") return "text-danger";
-    if (
-      s === "RECOLLECTING" ||
-      s === "RE-COLLECTING" ||
-      s === "RE-COLLECTING FILE"
-    )
-      return "text-warning";
-    return "text-secondary";
+    return this.docStatusClassByStatus(doc?.status);
+  }
+
+  /** Compute a group-level status: if any item is Re-collecting, show that; else if any Disapproved; else if any Pending; else if any Approved; else fallback first item's status. */
+  getGroupStatus(group: { items?: ApplicantDocument[] } | null | undefined): string | null {
+    const items = group?.items || [];
+    if (!items.length) return null;
+    if (items.some(d => this.isStatusRecollecting(d.status))) return 'Re-collecting File';
+    if (items.some(d => this.isStatusDisapproved(d.status))) return 'Disapproved';
+    if (items.some(d => this.isStatusPending(d.status))) return 'Pending';
+    if (items.some(d => this.isStatusApproved(d.status))) return 'Approved';
+    // Fallback to the first non-empty status
+    const firstStatus = (items.find(d => !!d.status)?.status) || items[0].status || null;
+    return firstStatus || null;
+  }
+
+  groupStatusClass(group: { items?: ApplicantDocument[] } | null | undefined): string {
+    return this.docStatusClassByStatus(this.getGroupStatus(group));
+  }
+
+  isGroupRecollecting(group: { items?: ApplicantDocument[] } | null | undefined): boolean {
+    const items = group?.items || [];
+    return items.some(d => this.isStatusRecollecting(d.status));
+  }
+
+  // Public helpers for template conditionals per-document
+  isDocRecollecting(doc: ApplicantDocument | null | undefined): boolean {
+    return this.isStatusRecollecting(doc?.status);
+  }
+  isDocApproved(doc: ApplicantDocument | null | undefined): boolean {
+    return this.isStatusApproved(doc?.status);
   }
 
   private extractSingleRecord(data: any): any | null {
@@ -4178,18 +4434,59 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     return Number.isFinite(n) ? n : null;
   }
 
+  private isReviewFiles(stage: string | null | undefined): boolean {
+    const s = (stage || '').toString().trim().toLowerCase();
+    return s === 'review files';
+  }
+
+  private isAllFilesApproved(stage: string | null | undefined): boolean {
+    const s = (stage || '').toString().trim().toLowerCase();
+    return s === 'all files approved';
+  }
+
+  private isRecollecting(stage: string | null | undefined): boolean {
+    const s = (stage || '').toString().trim().toLowerCase();
+    // Match phrases like "Re-collecting", case-insensitive
+    return /\bre-collecting\b/i.test(s);
+  }
+
   statusBadgeClass(status: ApplicantStatus | null | undefined): string {
-    if (!status) {
-      return "bg-secondary-subtle text-secondary";
-    }
-    return status.isComplete
-      ? "bg-success-subtle text-success"
-      : "bg-primary-subtle text-primary";
+    if (!status) return 'bg-secondary-subtle text-secondary';
+    const stage = (status.stage || '').toString();
+    if (this.isAllFilesApproved(stage)) return 'bg-success-subtle text-success';
+    if (this.isReviewFiles(stage)) return 'bg-info text-white';
+    if (this.isRecollecting(stage)) return 'bg-info-subtle text-info';
+    return status.isComplete ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary';
   }
 
   statusBadgeIcon(status: ApplicantStatus | null | undefined): string {
-    if (!status) return "icon-shield";
-    return status.isComplete ? "icon-check-circle" : "icon-shield";
+    if (!status) return 'icon-shield';
+    const stage = (status.stage || '').toString();
+    if (this.isAllFilesApproved(stage)) return 'icon-check-circle';
+    if (this.isReviewFiles(stage)) return 'icon-folder';
+    if (this.isRecollecting(stage)) return 'icon-clock';
+    return status.isComplete ? 'icon-check-circle' : 'icon-shield';
+  }
+
+  private toTitleCaseSimple(s: string): string {
+    const t = (s || '').toString().trim();
+    if (!t) return '';
+    return t
+      .split(/\s+/)
+      .map(w => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ''))
+      .join(' ');
+  }
+
+  statusBadgeText(status: ApplicantStatus | null | undefined): string {
+    if (!status) return 'Status';
+    const stage = (status.stage || 'Stage').toString().trim();
+    // For special stages, show only the stage text (grid behavior parity)
+    if (this.isAllFilesApproved(stage) || this.isReviewFiles(stage) || this.isRecollecting(stage)) {
+      return stage;
+    }
+    const raw = (status.statusName ?? '').toString().trim();
+    const name = raw ? this.toTitleCaseSimple(raw) : 'Incomplete';
+    return `${stage || 'Stage'} - ${name}`;
   }
 
   statusMetaClass(status: MessageStatus | undefined): string {
@@ -4703,6 +5000,78 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       return;
     }
     this.rejectApplicant();
+  }
+
+  /** Confirm and approve the applicant as Driver (calls REST DriverOnboarding endpoint) */
+  approveAsDriver(): void {
+    this.closeMenus();
+    // Resolve applicant id robustly
+    const id = ((): string | null => {
+      const direct = this.applicantId ?? this.applicant?.id ?? null;
+      if (direct) return String(direct);
+      const a: any = this.applicant || {};
+      const candidates = [
+        a.id_applicant,
+        a.ID_APPLICANT,
+        a.IdApplicant,
+        a.idApplicant,
+        a.applicantId,
+        a.applicant_id,
+        a.id,
+        a.ID,
+        a.Id,
+        a.uuid,
+        a.guid,
+      ];
+      const found = candidates.find((v: any) => v !== null && v !== undefined && v !== '');
+      return found !== undefined ? String(found) : null;
+    })();
+    if (!id) {
+      Utilities.showToast('Applicant id not found', 'warning');
+      return;
+    }
+
+    void Swal.fire({
+      title: 'Approve as Driver?',
+      text: 'Are you sure you want to approve this applicant as a Driver?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, approve',
+      cancelButtonText: 'Cancel',
+      focusCancel: true,
+      reverseButtons: true,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          const res = await firstValueFrom(this.core.driverOnboarding(String(id)));
+          // If backend uses a wrapped response with ok=false, surface as error
+          if (res && (res as any).ok === false) {
+            const msg = ((res as any).error || 'Failed to approve').toString();
+            throw new Error(msg);
+          }
+          return res;
+        } catch (err: any) {
+          Swal.showValidationMessage((err?.message || 'Request failed').toString());
+          throw err;
+        }
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Utilities.showToast('Applicant approved as Driver', 'success');
+        // Ask parent views to refresh stages and grid
+        try {
+          const toStageId = this.currentStageIdNum ?? 0;
+          this.stageMoved.emit({ idApplicant: String(id), toStageId });
+        } catch {}
+        // Optionally refresh this panel's applicant info
+        try {
+          if (id) {
+            this.loadApplicantDetails(String(id));
+          }
+        } catch {}
+      }
+    });
   }
 
   private defaultStatusLabel(

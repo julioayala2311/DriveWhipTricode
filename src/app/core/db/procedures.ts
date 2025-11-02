@@ -55,7 +55,11 @@ export enum DriveWhipAdminCommand {
     crm_applicants_chat_list = "crm_applicants_chat_list",
     // New procedure that accepts a location id to filter conversations
     crm_applicants_chat_list_location = "crm_applicants_chat_list_location"
-    ,crm_applicants_chat_count_location = "crm_applicants_chat_count_location"
+    ,crm_applicants_chat_count_location = "crm_applicants_chat_count_location",
+    // Approve applicant as driver
+    crm_applicant_to_driver = "crm_applicant_to_driver",
+    // Argyle JSON by applicant
+    crm_applicants_argyle_json_user = "crm_applicants_argyle_json_user"
 }
 
 export enum DriveWhipAplicantsCommand {

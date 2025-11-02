@@ -9,6 +9,7 @@ import { MENU } from './menu';
 import { MenuItem } from './menu.model';
 import { FeatherIconDirective } from '../../../core/feather-icon/feather-icon.directive';
 import { Subscription } from 'rxjs';
+import { SmsChatSignalRService } from '../../../core/services/signalr/sms-chat-signalr.service';
 import { CryptoService } from '../../../core/services/crypto/crypto.service';
 import { AUTH_USER_STORAGE_KEY } from '../../../core/services/drivewhip-core/drivewhip-core.service';
 
@@ -37,14 +38,20 @@ export class NavbarComponent implements OnInit, OnDestroy {
   currentlyOpenedNavItem: HTMLElement | undefined;
 
   private routerSub: Subscription | undefined;
+  private notifSub: Subscription | undefined;
   private specialPaths: Set<string> = new Set<string>();
   private routePropsByFull: Map<string, { sort_order: number; action?: string | null; code?: string | null }> = new Map();
+
+  // Navbar message indicator state
+  hasNewMessages = false;
+  private readonly INDICATOR_STORAGE_KEY = 'dw.nav.hasNewMessages';
 
   constructor(
     private router: Router,
     private themeModeService: ThemeModeService,
     private crypto: CryptoService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private smsSignalR: SmsChatSignalRService
   ) {}
 
   private normalizePath(p: string | null | undefined): string {
@@ -57,6 +64,35 @@ export class NavbarComponent implements OnInit, OnDestroy {
     // remove trailing slash except root
     if (s.length > 1 && s.endsWith('/')) s = s.slice(0, -1);
     return s;
+  }
+
+  // ==========================
+  // Global applicant search (navbar)
+  // ==========================
+  onNavbarSearch(ev: Event): void {
+    try { ev.preventDefault(); } catch { /* ignore */ }
+    const form = ev.target as HTMLFormElement | null;
+    let q = '';
+    if (form) {
+      const input = (form.elements.namedItem('q') as HTMLInputElement | null);
+      q = (input?.value || '').toString().trim();
+    }
+    // Navigate to Messenger with ?q=... to search and auto-select a matching chat
+    if (q.length > 0) {
+      this.router.navigate(['/messenger'], { queryParams: { q } });
+    } else {
+      // If empty, just go to Messenger root
+      this.router.navigate(['/messenger']);
+    }
+  }
+
+  // Clear navbar search input and remove ?q from URL
+  onNavbarClear(inputEl: HTMLInputElement, ev?: Event): void {
+    try { ev?.preventDefault(); ev?.stopPropagation(); } catch { /* ignore */ }
+    try { inputEl.value = ''; } catch { /* ignore */ }
+    // Remove the query param from URL by navigating to Messenger root without params
+    // Use replaceUrl to avoid polluting history with a redundant entry
+    this.router.navigate(['/messenger'], { replaceUrl: true });
   }
 
   ngOnInit(): void {
@@ -187,6 +223,23 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
     this.ensureMessengerMenuEntry();
 
+    // Restore indicator state from sessionStorage
+    try {
+      const stored = sessionStorage.getItem(this.INDICATOR_STORAGE_KEY);
+      this.hasNewMessages = stored === '1';
+    } catch { /* ignore */ }
+
+    // Join global notifications and subscribe
+    this.smsSignalR.joinNotifications()
+      .then(() => {
+        try { console.log('[Navbar] Joined SignalR notifications group (sms:notifications)'); } catch { /* ignore */ }
+        this.notifSub = this.smsSignalR.notifications().subscribe(() => {
+          this.hasNewMessages = true;
+          try { sessionStorage.setItem(this.INDICATOR_STORAGE_KEY, '1'); } catch { /* ignore */ }
+        });
+      })
+      .catch((err) => { try { console.error('[Navbar] Failed to join notifications group', err); } catch { /* ignore */ } });
+
   // Load profile info from storage
   this.loadProfileFromStorage();
 
@@ -197,6 +250,11 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.routerSub = this.router.events.subscribe(event => {
       if (event instanceof NavigationEnd) {
         this.closeMobileMenuIfOpen();
+        // Clear navbar indicator when navigating to Messenger
+        const url = (event.urlAfterRedirects || event.url || '').toString();
+        if (url.startsWith('/messenger')) {
+          this.clearNewMessagesIndicator();
+        }
       }
     });
   }
@@ -259,6 +317,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.routerSub?.unsubscribe();
+    this.notifSub?.unsubscribe();
+    // Leave notifications group
+    this.smsSignalR.leaveNotifications().catch(() => { /* ignore */ });
   }
 
   showActiveTheme(theme: string) {
@@ -279,6 +340,20 @@ export class NavbarComponent implements OnInit, OnDestroy {
       box.classList.remove('dark');
       box.classList.add('light');
     }
+  }
+
+  // ==========================
+  // Messenger indicator
+  // ==========================
+  onMessengerClick(_e: Event): void {
+    // Clear indicator immediately upon clicking Messenger
+    this.clearNewMessagesIndicator();
+    // Do not prevent default; routerLink will navigate
+  }
+
+  private clearNewMessagesIndicator(): void {
+    this.hasNewMessages = false;
+    try { sessionStorage.removeItem(this.INDICATOR_STORAGE_KEY); } catch { /* ignore */ }
   }
 
   /**

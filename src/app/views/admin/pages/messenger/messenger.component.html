@@ -1,4 +1,5 @@
 <div class="messenger-container">
+  <!-- Locations column -->
   <section class="messenger-column locations">
     <header class="column-header">
       <h2>Locations</h2>
@@ -7,11 +8,20 @@
         Refresh
       </button>
     </header>
+    <div class="column-tools mb-2">
+      <input
+        type="text"
+        class="form-control form-control-sm"
+        placeholder="Search locations"
+        [(ngModel)]="locationSearch"
+        autocomplete="off"
+      />
+    </div>
     <div class="column-body" *ngIf="!locationsLoading && !locationsError; else locationsState">
       <ul class="list-unstyled mb-0">
         <li
           class="location-item"
-          *ngFor="let loc of locations; trackBy: trackByLocation"
+          *ngFor="let loc of filteredLocations; trackBy: trackByLocation"
           [class.active]="loc.id === selectedLocationId"
         >
           <button type="button" (click)="selectLocation(loc)">
@@ -25,9 +35,7 @@
           </button>
         </li>
       </ul>
-      <p class="text-muted small" *ngIf="!locations.length">
-        No locations available.
-      </p>
+      <p class="text-muted small" *ngIf="!filteredLocations.length">No locations available.</p>
     </div>
     <ng-template #locationsState>
       <div class="state-wrapper" *ngIf="locationsLoading">
@@ -40,23 +48,36 @@
     </ng-template>
   </section>
 
+  <!-- Threads column -->
   <section class="messenger-column threads">
     <header class="column-header">
       <h2>Applicant Chats</h2>
-      <span class="column-subtitle" *ngIf="selectedLocationId">
-        Showing latest conversations
-      </span>
+      <div class="d-flex align-items-center gap-2 column-tools">
+        <select class="form-select form-select-sm" [(ngModel)]="threadSortOrder" aria-label="Sort order" title="Sort order">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
+      </div>
     </header>
+    <div class="column-tools mb-2">
+      <input
+        type="text"
+        class="form-control form-control-sm"
+        placeholder="Search applicants or messages"
+        [(ngModel)]="threadSearch"
+        autocomplete="off"
+        aria-label="Search applicants or messages"
+      />
+    </div>
     <div class="column-body" *ngIf="!chatsLoading && !chatsError; else chatsState">
       <ul class="list-unstyled mb-0">
-        <li
-          class="thread-item"
-          *ngFor="let thread of chatThreads; trackBy: trackByThread"
-          [class.active]="thread.id_applicant === selectedApplicantId"
-        >
+        <li class="thread-item" *ngFor="let thread of filteredThreads; trackBy: trackByThread" [class.active]="thread.id_applicant === selectedApplicantId">
           <button type="button" (click)="selectThread(thread)">
             <div class="thread-header">
-              <h3>{{ thread.name_applicant || 'Unknown Applicant' }}</h3>
+              <div class="d-flex align-items-center gap-2">
+                <h3>{{ thread.name_applicant || 'Unknown Applicant' }}</h3>
+                <span class="badge bg-danger-subtle text-danger" *ngIf="unreadByApplicant[thread.id_applicant]">New</span>
+              </div>
               <span class="time">{{ thread.hours_since_last_message }}</span>
             </div>
             <p class="thread-preview" [title]="thread.last_message">
@@ -65,9 +86,7 @@
           </button>
         </li>
       </ul>
-      <p class="text-muted small" *ngIf="!chatThreads.length">
-        No chat activity recorded.
-      </p>
+      <p class="text-muted small" *ngIf="!filteredThreads.length">No chat activity recorded.</p>
     </div>
     <ng-template #chatsState>
       <div class="state-wrapper" *ngIf="chatsLoading">
@@ -80,34 +99,24 @@
     </ng-template>
   </section>
 
+  <!-- Detail column -->
   <section class="messenger-column detail">
     <ng-container *ngIf="hasSelectedApplicant; else emptyState">
       <div class="detail-surface">
         <header class="detail-header">
           <div class="detail-leading">
-            <button
-              type="button"
-              class="detail-close btn btn-link btn-sm px-2 text-secondary"
-              (click)="onClosePanel()"
-              aria-label="Close panel"
-            >
+            <button type="button" class="detail-close btn btn-link btn-sm px-2 text-secondary" (click)="onClosePanel()" aria-label="Close panel">
               <i class="feather icon-x"></i>
             </button>
             <div class="detail-avatar">{{ applicantInitials }}</div>
             <div class="detail-summary">
               <h2 class="detail-name">{{ applicantDisplayName }}</h2>
               <div class="detail-subtitle">
-                <ng-container *ngIf="applicantStage">
-                  <span>{{ applicantStage }}</span>
-                </ng-container>
+                <ng-container *ngIf="applicantStage"><span>{{ applicantStage }}</span></ng-container>
                 <span *ngIf="applicantStage && applicantLocation" class="divider">•</span>
-                <ng-container *ngIf="applicantLocation">
-                  <span>{{ applicantLocation }}</span>
-                </ng-container>
+                <ng-container *ngIf="applicantLocation"><span>{{ applicantLocation }}</span></ng-container>
               </div>
-              <div class="detail-trail" *ngIf="selectedThread?.hours_since_last_message">
-                Last activity {{ selectedThread?.hours_since_last_message }}
-              </div>
+              <div class="detail-trail" *ngIf="selectedThread?.hours_since_last_message">Last activity {{ selectedThread?.hours_since_last_message }}</div>
             </div>
           </div>
           <div class="panel-tabs detail-tabs">
@@ -226,7 +235,11 @@
                   <h5 class="empty-title mb-2">No chat history yet</h5>
                   <p class="empty-subtitle mb-0">Start the conversation by sending a message.</p>
                 </div>
-                <div class="chat-message" *ngFor="let m of panelMessages" [ngClass]="[m.direction, m.__isNew ? 'is-new' : '']">
+                <ng-container *ngFor="let m of panelMessages; let i = index">
+                  <div class="chat-day text-secondary small" *ngIf="shouldRenderDay(messageDayLabel(m), i)">
+                    {{ messageDayLabel(m) }}
+                  </div>
+                  <div class="chat-message" [ngClass]="[m.direction, m.__isNew ? 'is-new' : '']">
                   <div class="chat-content">
                     <div class="chat-bubble" [ngClass]="m.direction" [innerHTML]="m.body"></div>
                     <div class="chat-meta small">
@@ -243,7 +256,8 @@
                       </span>
                     </div>
                   </div>
-                </div>
+                  </div>
+                </ng-container>
               </div>
               <form class="composer" (submit)="onSendMessage($event)">
                 <input
@@ -477,99 +491,62 @@
                         <i class="feather icon-folder"></i>
                         <span>{{ group.dataKey }}</span>
                       </div>
-                      <span
+                      <!-- <span
                         class="file-card__badge"
                         *ngIf="group.items.length"
-                        [ngClass]="docStatusClass(group.items[0])"
+                        [ngClass]="groupStatusClass(group)"
                       >
-                        {{ docStatusLabel(group.items[0].status) }}
-                      </span>
+                        {{ docStatusLabel(getGroupStatus(group)) }}
+                      </span> -->
                     </div>
                     <div class="file-card__body" *ngIf="group.items.length">
-                      <div class="file-preview" *ngIf="group.items[0] as primaryDoc">
-                        <div
-                          class="file-preview__thumb"
-                          [class.file-preview__thumb--image]="isImageDocument(primaryDoc)"
-                        >
-                          <img
-                            *ngIf="primaryDoc.url && isImageDocument(primaryDoc)"
-                            [src]="primaryDoc.url"
-                            [alt]="primaryDoc.document_name"
-                            (error)="refreshDocUrl(primaryDoc)"
-                          />
-                          <div *ngIf="!isImageDocument(primaryDoc)" class="file-preview__fallback">
-                            <i class="feather" [ngClass]="documentIcon(primaryDoc)"></i>
-                            <span
-                              class="file-preview__ext"
-                              *ngIf="documentExtension(primaryDoc)"
-                            >
-                              {{ documentExtension(primaryDoc) | uppercase }}
-                            </span>
-                          </div>
-                        </div>
-                        <div class="file-preview__info">
-                          <div class="file-preview__name">{{ primaryDoc.document_name }}</div>
-                          <div class="file-preview__meta text-muted small">
-                            <span>{{ documentTypeLabel(primaryDoc) }}</span>
-                            <span *ngIf="documentExtension(primaryDoc)">•</span>
-                            <span *ngIf="documentExtension(primaryDoc)">
-                              {{ documentExtension(primaryDoc) | uppercase }}
-                            </span>
-                          </div>
-                          <div class="file-preview__actions">
-                            <button
-                              type="button"
-                              class="btn btn-sm btn-outline-primary"
-                              (click)="viewDocument(group, primaryDoc, $event)"
-                            >
-                              View
-                            </button>
-                            <!-- <button
-                              type="button"
-                              class="btn btn-sm btn-outline-secondary"
-                              (click)="downloadDocument(primaryDoc)"
-                            >
-                              Download
-                            </button> -->
-                          </div>
-                        </div>
-                      </div>
-                      <ul class="doc-list" *ngIf="group.items.length > 1">
-                        <li class="doc-list__item" *ngFor="let doc of group.items | slice : 1">
-                          <span class="doc-list__icon">
-                            <i class="feather" [ngClass]="documentIcon(doc)"></i>
-                          </span>
-                          <div class="doc-list__body">
-                            <button
-                              type="button"
-                              class="btn btn-link btn-sm p-0 text-start doc-list__link"
-                              (click)="viewDocument(group, doc, $event)"
-                            >
-                              {{ doc.document_name }}
-                            </button>
-                            <div class="doc-list__meta text-muted small">
-                              <span>{{ documentTypeLabel(doc) }}</span>
-                              <span *ngIf="documentExtension(doc)">•</span>
-                              <span *ngIf="documentExtension(doc)">
-                                {{ documentExtension(doc) | uppercase }}
-                              </span>
+                      <ng-container *ngFor="let doc of group.items; let i = index">
+                        <div class="file-preview" [class.mt-3]="i > 0">
+                          <div class="file-preview__thumb" [class.file-preview__thumb--image]="isImageDocument(doc)">
+                            <img *ngIf="doc.url && isImageDocument(doc)" [src]="doc.url" [alt]="doc.document_name" (error)="refreshDocUrl(doc)" />
+                            <div *ngIf="!isImageDocument(doc)" class="file-preview__fallback">
+                              <i class="feather" [ngClass]="documentIcon(doc)"></i>
+                              <span class="file-preview__ext" *ngIf="documentExtension(doc)">{{ documentExtension(doc) | uppercase }}</span>
                             </div>
                           </div>
-                          <div class="doc-list__actions">
-                            <span class="doc-list__status" [ngClass]="docStatusClass(doc)">
-                              {{ docStatusLabel(doc.status) }}
-                            </span>
-                            <button
-                              type="button"
-                              class="btn btn-link btn-sm text-secondary"
-                              (click)="downloadDocument(doc)"
-                            >
-                              <i class="feather icon-download"></i>
-                              Download
-                            </button>
+                          <div class="file-preview__info">
+                            <div class="file-preview__name">{{ doc.document_name }}</div>
+                            <div class="file-preview__meta text-muted small">
+                              <span>{{ documentTypeLabel(doc) }}</span>
+                              <span *ngIf="documentExtension(doc)">•</span>
+                              <span *ngIf="documentExtension(doc)">{{ documentExtension(doc) | uppercase }}</span>
+                            </div>
+                            <div class="file-preview__status" *ngIf="doc.status">
+                              <span class="badge rounded-pill" [ngClass]="docStatusClass(doc)">{{ docStatusLabel(doc.status) }}</span>
+                            </div>
+                            <div class="file-preview__actions d-flex flex-wrap gap-2">
+                              <button type="button" class="btn btn-soft-primary btn-sm" (click)="viewDocument(group, doc, $event)">
+                                <i class="feather icon-external-link me-1"></i>
+                                View
+                              </button>
+                              <!-- <button type="button" class="btn btn-soft-secondary btn-sm" (click)="downloadDocument(doc)">
+                                <i class="feather icon-download me-1"></i>
+                                Download
+                              </button> -->
+                            </div>
                           </div>
-                        </li>
-                      </ul>
+                        </div>
+                        <!-- Inline previews for the first document only to avoid heavy embedding -->
+                        <ng-container *ngIf="i === 0">
+                          <div class="pdf-embed mt-3" *ngIf="isPdfDocument(doc) && doc.url">
+                            <div class="pdf-embed__frame-wrapper">
+                              <iframe title="PDF preview" [src]="pdfViewerSrc(doc)" loading="lazy"></iframe>
+                            </div>
+                            <div class="text-secondary small mt-1">If the preview doesn’t load, use View to open in a new tab.</div>
+                          </div>
+                          <div class="pdf-embed mt-3" *ngIf="isWordDocument(doc) && doc.url">
+                            <div class="pdf-embed__frame-wrapper">
+                              <iframe title="Document preview" [src]="officeViewerSrc(doc)" loading="lazy"></iframe>
+                            </div>
+                            <div class="text-secondary small mt-1">Preview uses Microsoft Office viewer. If it doesn’t load, use View.</div>
+                          </div>
+                        </ng-container>
+                      </ng-container>
                     </div>
                   </div>
                 </div>

@@ -34,6 +34,8 @@ export class SmsChatSignalRService {
   private connectionPromise: Promise<void> | null = null;
   private readonly messagesSubject =
     new Subject<ApplicantChatRealtimeMessage>();
+  private readonly notificationsSubject =
+    new Subject<ApplicantChatRealtimeMessage>();
   private readonly joinedPhones = new Set<string>();
   // Lightweight debug toggle: enable by setting sessionStorage.smsChatDebug = '1'
   private debugEnabled(): boolean {
@@ -54,6 +56,10 @@ export class SmsChatSignalRService {
 
   messages(): Observable<ApplicantChatRealtimeMessage> {
     return this.messagesSubject.asObservable();
+  }
+
+  notifications(): Observable<ApplicantChatRealtimeMessage> {
+    return this.notificationsSubject.asObservable();
   }
 
   async disconnectIfIdle(): Promise<void> {
@@ -98,6 +104,9 @@ export class SmsChatSignalRService {
     );
     connection.on("ReceiveOutboundMessage", (payload: unknown) =>
       this.handleOutbound(payload)
+    );
+    connection.on("ReceiveInboundNotification", (payload: unknown) =>
+      this.handleInboundNotification(payload)
     );
     connection.onreconnecting((err) => {
       this.debug('Reconnecting...', err);
@@ -156,6 +165,13 @@ export class SmsChatSignalRService {
     this.messagesSubject.next(normalized);
   }
 
+  private handleInboundNotification(payload: unknown): void {
+    const normalized = this.normalizePayload(payload, "inbound");
+    if (!normalized) return;
+    this.debug('ReceiveInboundNotification <-', normalized);
+    this.notificationsSubject.next(normalized);
+  }
+
   private normalizePayload(payload: any, fallbackDirection: "inbound" | "outbound"): ApplicantChatRealtimeMessage | null {
     if (!payload) {
       return null;
@@ -165,8 +181,20 @@ export class SmsChatSignalRService {
       .toLowerCase();
     const direction = directionRaw === "outbound" ? "outbound" : "inbound";
 
+    // Be lenient about applicant id field name/casing from backend
+    const applicantIdRaw =
+      payload.applicantId ??
+      payload.ApplicantId ??
+      payload.applicant_id ??
+      payload.ApplicantID ??
+      payload.APPLICANT_ID ??
+      payload.id_applicant ??
+      payload.ID_APPLICANT ??
+      payload.IdApplicant ??
+      undefined;
+
     return {
-      applicantId: (payload.applicantId ?? payload.ApplicantId ?? "").toString(),
+      applicantId: (applicantIdRaw ?? "").toString(),
       body: (payload.body ?? payload.Body ?? "").toString(),
       direction,
       from: this.normalizePhone(payload.from ?? payload.From) ?? (payload.from ?? payload.From ?? "").toString(),
@@ -239,6 +267,26 @@ export class SmsChatSignalRService {
       if (!this.joinedPhones.size) {
         await this.disconnectIfIdle();
       }
+    }
+  }
+
+  async joinNotifications(): Promise<void> {
+    await this.ensureConnection();
+    try {
+      await this.hubConnection!.invoke("JoinNotifications");
+      this.debug('JoinNotifications -> group=sms:notifications');
+    } catch (err) {
+      this.debug('JoinNotifications failed', err);
+    }
+  }
+
+  async leaveNotifications(): Promise<void> {
+    if (!this.hubConnection) return;
+    try {
+      await this.hubConnection.invoke("LeaveNotifications");
+      this.debug('LeaveNotifications -> group=sms:notifications');
+    } catch (err) {
+      this.debug('LeaveNotifications failed', err);
     }
   }
 

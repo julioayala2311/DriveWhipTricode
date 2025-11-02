@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { AppConfigService } from '../app-config/app-config.service';
@@ -171,6 +171,21 @@ export class DriveWhipCoreService {
       id_applicant: payload.id_applicant ?? ''
     };
     return this.http.post(url, body, { headers: this.buildHeaders() }).pipe(
+      map(res => res),
+      catchError(err => this.handleError(err))
+    );
+  }
+
+  /**
+   * Approve applicant as Driver via DriverOnboarding endpoint
+   * POST {baseUrl}DriverOnboarding?id_applicant={uuid}
+   * Body: empty
+   */
+  driverOnboarding(id_applicant: string): Observable<any> {
+    const url = this.baseUrl + 'DriverOnboarding';
+    const params = new HttpParams().set('id_applicant', id_applicant ?? '');
+    // Empty body per API contract
+    return this.http.post(url, {}, { headers: this.buildHeaders(), params }).pipe(
       map(res => res),
       catchError(err => this.handleError(err))
     );

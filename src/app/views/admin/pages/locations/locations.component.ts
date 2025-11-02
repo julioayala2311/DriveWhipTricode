@@ -66,6 +66,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
   endIndex = 0;
   private gapPx = 16; // 1rem default gap; update if SCSS changes
   private resizeHandler = () => this.updatePerView();
+  private pendingSearchQuery: string | null = null; // from navbar (?q=)
 
   // Locations dropdown (crm_locations_dropdown)
   locations: LocationOption[] = [];
@@ -217,9 +218,19 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.route.queryParamMap.subscribe(q => {
       this.idLocation = q.get('id_location');
+      // Capture navbar search (?q=...) and trigger after stages are loaded
+      const qtext = (q.get('q') || '').trim();
+      this.pendingSearchQuery = qtext.length > 0 ? qtext : null;
   // If restored, use as preference if there is no query param
       if (restoredLocationId && (!this.idLocation || this.idLocation.trim() === '')) {
         this.idLocation = restoredLocationId;
+      }
+      // If stages are already loaded and grid exists, apply the search immediately
+      if (this.pendingSearchQuery) {
+        this.ensureGridWithSearch();
+      } else {
+        // Clear any previous quick filter if user cleared ?q
+        try { this.applicantsGrid?.setQuickFilter(''); } catch { /* ignore */ }
       }
     });
 
@@ -415,6 +426,10 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
           this.showGrid = true;
         }
         this.stagesLoading = false;
+        // If a navbar search is pending, ensure grid is visible and filtered
+        if (this.pendingSearchQuery) {
+          this.ensureGridWithSearch();
+        }
       },
       error: err => {
         console.error('[HomeComponent] loadStagesForWorkflow error', err);
@@ -423,6 +438,9 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       complete: () => {
         this.stagesLoading = false;
+        if (this.pendingSearchQuery) {
+          this.ensureGridWithSearch();
+        }
       }
     });
   }
@@ -559,6 +577,23 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
     const offset = (cardWidth + this.gapPx) * this.visibleStart * -1;
     this.trackTransform = `translateX(${offset}px)`;
     this.endIndex = Math.min(this.visibleStart + this.perView, this.stages.length);
+  }
+
+  /** Ensure the applicants grid is shown (select first stage if needed) and apply the pending search query */
+  private ensureGridWithSearch(): void {
+    const q = this.pendingSearchQuery;
+    if (!q) return;
+    // If there is no selected card, select the first stage
+    if (!this.selectedCardId && this.stages && this.stages.length > 0) {
+      this.selectedCardId = this.stages[0].id_stage;
+      this.selectedStageDetails = this.stages[0];
+    }
+    // Make grid visible
+    this.showGrid = true;
+    // Defer applying the filter to ensure child component is instantiated
+    setTimeout(() => {
+      try { this.applicantsGrid?.setQuickFilter(q); } catch { /* ignore */ }
+    }, 0);
   }
 
   // Map: id_stage_type -> Feather icon

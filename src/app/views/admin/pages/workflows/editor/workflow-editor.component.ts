@@ -505,6 +505,10 @@ export class WorkflowEditorComponent implements OnInit {
     const toShift = stagesSnapshot.filter(s => (s.sort_order||0) > pivotOrder).sort((a,b)=>(b.sort_order||0)-(a.sort_order||0));
     const currentUser = this.authSession.user?.user || 'system';
     const shiftCalls = toShift.map(stage => {
+      // Ensure mutually exclusive fields: if a Data Collection form_code exists, null out custom type fields
+      const formCode = (stage.form_code ?? stage.formCode ?? stage.form?.code) ?? null;
+      const codeCustomType = formCode ? null : (stage.code_custom_type ?? null);
+      const urlCustomType = formCode ? null : (stage.url_custom_type ?? null);
       const params: any[] = [
         'U',
         stage.id_stage,
@@ -515,9 +519,9 @@ export class WorkflowEditorComponent implements OnInit {
         stage.is_active ?? 1,
         null,
         currentUser,
-        (stage.form_code ?? stage.formCode ?? stage.form?.code) ?? null,
-        stage.form_name ?? null,
-        stage.url_custom_type ?? null,
+        formCode,
+        codeCustomType,
+        urlCustomType,
         stage.rule_type ?? null
       ];
       const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
@@ -680,6 +684,9 @@ export class WorkflowEditorComponent implements OnInit {
     const toShift = stagesSnapshot.filter(s => (s.sort_order||0) > pivotOrder).sort((a,b)=>(b.sort_order||0)-(a.sort_order||0));
     const currentUser = this.authSession.user?.user || 'system';
     const shiftCalls = toShift.map(stage => {
+      const formCode = (stage.form_code ?? stage.formCode ?? stage.form?.code) ?? null;
+      const codeCustomType = formCode ? null : (stage.code_custom_type ?? null);
+      const urlCustomType = formCode ? null : (stage.url_custom_type ?? null);
       const params: any[] = [
         'U',
         stage.id_stage,
@@ -690,9 +697,9 @@ export class WorkflowEditorComponent implements OnInit {
         stage.is_active ?? 1,
         null,
         currentUser, 
-        (stage.form_code ?? stage.formCode ?? stage.form?.code) ?? null,
-        stage.code_custom_type ?? null,
-        stage.url_custom_type ?? null,
+        formCode,
+        codeCustomType,
+        urlCustomType,
         stage.rule_type ?? null
       ];
       const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };

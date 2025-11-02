@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -81,6 +83,11 @@ export class MessengerComponent implements OnInit, OnDestroy {
   chatsLoading = false;
   chatsError: string | null = null;
 
+  // UI filters and sorting
+  locationSearch: string = '';
+  threadSearch: string = '';
+  threadSortOrder: 'newest' | 'oldest' = 'newest';
+
   selectedLocationId: number | null = null;
   selectedApplicantId: string | null = null;
   selectedApplicantName: string | null = null;
@@ -108,6 +115,12 @@ export class MessengerComponent implements OnInit, OnDestroy {
   panelMessages: any[] = [];
   panelMessagesLoading = false;
   panelMessagesError: string | null = null;
+
+  // Unread tracking (Option A - frontend only)
+  private readonly UNREAD_STORAGE_KEY = 'dw.messenger.unread.map';
+  private readonly LASTSEEN_STORAGE_KEY = 'dw.messenger.lastSeen.map';
+  unreadByApplicant: Record<string, boolean> = {};
+  private lastSeenByApplicant: Record<string, number> = {};
 
   // History state
   panelHistory: MessengerHistoryEvent[] = [];
@@ -141,16 +154,112 @@ export class MessengerComponent implements OnInit, OnDestroy {
   private destroyRealtime$ = new Subject<void>();
   private currentRealtimePhone: string | null = null;
   chatSending = false;
+  // Handle incoming navbar search (?q=...)
+  private pendingThreadQuery: string | null = null;
 
   constructor(
     private core: DriveWhipCoreService,
     private appConfig: AppConfigService,
     private smsRealtime: SmsChatSignalRService,
+    private sanitizer: DomSanitizer,
+    private route: ActivatedRoute,
   ) {}
 
   ngOnInit(): void {
+    this.loadUnreadFromStorage();
+    this.loadLastSeenFromStorage();
     this.loadLocations();
     this.loadChats();
+    // React to navbar search (?q=...) and auto-select a matching thread
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      try {
+        const qRaw = params?.['q'];
+        const q = (qRaw == null ? '' : String(qRaw)).trim();
+        if (q) {
+          this.pendingThreadQuery = q.toLowerCase();
+          this.trySelectMatchingThread();
+        } else {
+          this.pendingThreadQuery = null;
+        }
+      } catch { /* ignore */ }
+    });
+    // Listen to global inbound notifications to flag threads as unread
+    // (Navbar is responsible for joining the notifications group)
+    this.smsRealtime
+      .notifications()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((evt) => {
+        try {
+          const eid = (evt?.applicantId || '').toString();
+          // Debug hint (opt-in): set sessionStorage.smsChatDebug='1' to see console logs
+          try {
+            if ((globalThis as any)?.sessionStorage?.getItem('smsChatDebug') === '1') {
+              console.debug('[Messenger] Inbound notification for applicantId=', eid, evt);
+            }
+          } catch {}
+          if (!eid) return;
+          const isViewingThisApplicant = !!(
+            this.selectedApplicantId &&
+            this.selectedApplicantId.toString() === eid &&
+            this.activeTab === 'messages'
+          );
+          if (!isViewingThisApplicant) {
+            this.setUnread(eid, true);
+            // If this applicant exists in the current chat list, bubble it up and update preview
+            try {
+              const idx = this.chatThreads.findIndex((t) => t.id_applicant === eid);
+              if (idx >= 0) {
+                const updated: MessengerChatThread = {
+                  ...this.chatThreads[idx],
+                  last_message: (evt?.body || '').toString()
+                };
+                const next = [...this.chatThreads];
+                next.splice(idx, 1);
+                this.chatThreads = [updated, ...next];
+              }
+            } catch { /* ignore */ }
+          }
+        } catch { /* ignore */ }
+      });
+  }
+
+  /** If a navbar search query is present, select the first matching thread */
+  private trySelectMatchingThread(): void {
+    const q = (this.pendingThreadQuery || '').trim().toLowerCase();
+    if (!q) return;
+    const threads = this.chatThreads || [];
+    if (!threads.length) return;
+
+    // Sort helper by recency (same logic as filteredThreads)
+    const toMinutes = (s: string | null | undefined): number => {
+      const raw = (s || '').toString().trim().toLowerCase();
+      if (!raw) return Number.POSITIVE_INFINITY;
+      const m = raw.match(/^(\d+(?:\.\d+)?)\s*([hmd])$/i) || raw.match(/^(\d+(?:\.\d+)?)/);
+      if (!m) return Number.POSITIVE_INFINITY;
+      const val = parseFloat(m[1]);
+      const unit = (m[2] || 'h').toLowerCase();
+      if (!Number.isFinite(val)) return Number.POSITIVE_INFINITY;
+      if (unit === 'm') return val; // minutes
+      if (unit === 'd') return val * 24 * 60; // days to minutes
+      return val * 60; // default hours to minutes
+    };
+
+    const byName = threads
+      .filter((t) => (t?.name_applicant || '').toLowerCase().includes(q))
+      .sort((a, b) => toMinutes(a?.hours_since_last_message) - toMinutes(b?.hours_since_last_message));
+
+    const byLast = threads
+      .filter((t) => (t?.last_message || '').toLowerCase().includes(q))
+      .sort((a, b) => toMinutes(a?.hours_since_last_message) - toMinutes(b?.hours_since_last_message));
+
+    const candidate = byName[0] || byLast[0];
+    if (!candidate) return;
+
+    if (this.selectedApplicantId !== candidate.id_applicant) {
+      this.selectThread(candidate);
+    }
+    // Clear pending query so list remains unfiltered; user sees full list
+    this.pendingThreadQuery = null;
   }
 
   ngOnDestroy(): void {
@@ -174,6 +283,42 @@ export class MessengerComponent implements OnInit, OnDestroy {
   trackByLocation = (_: number, item: MessengerLocation) => item.id;
   trackByThread = (_: number, item: MessengerChatThread) => item.id_applicant;
 
+  // Filtered views for lists
+  get filteredLocations(): MessengerLocation[] {
+    const q = (this.locationSearch || '').trim().toLowerCase();
+    if (!q) return this.locations;
+    return (this.locations || []).filter((l) => (l?.name || '').toLowerCase().includes(q));
+  }
+
+  get filteredThreads(): MessengerChatThread[] {
+    const q = (this.threadSearch || '').trim().toLowerCase();
+    const base = (this.chatThreads || []).filter((t) => {
+      if (!q) return true;
+      const name = (t?.name_applicant || '').toLowerCase();
+      const last = (t?.last_message || '').toLowerCase();
+      return name.includes(q) || last.includes(q);
+    });
+    // Sort by recency based on hours_since_last_message (supports h/m/d)
+    const toMinutes = (s: string | null | undefined): number => {
+      const raw = (s || '').toString().trim().toLowerCase();
+      if (!raw) return Number.POSITIVE_INFINITY;
+      const m = raw.match(/^(\d+(?:\.\d+)?)\s*([hmd])$/i) || raw.match(/^(\d+(?:\.\d+)?)/);
+      if (!m) return Number.POSITIVE_INFINITY;
+      const val = parseFloat(m[1]);
+      const unit = (m[2] || 'h').toLowerCase();
+      if (!Number.isFinite(val)) return Number.POSITIVE_INFINITY;
+      if (unit === 'm') return val; // minutes
+      if (unit === 'd') return val * 24 * 60; // days to minutes
+      return val * 60; // default hours to minutes
+    };
+    base.sort((a, b) => {
+      const am = toMinutes(a?.hours_since_last_message);
+      const bm = toMinutes(b?.hours_since_last_message);
+      return this.threadSortOrder === 'newest' ? am - bm : bm - am;
+    });
+    return base;
+  }
+
   selectLocation(location: MessengerLocation): void {
     if (!location) return;
     this.selectedLocationId = location.id;
@@ -189,6 +334,8 @@ export class MessengerComponent implements OnInit, OnDestroy {
   this.draftMessage = '';
   // Always land on General first
   this.activeTab = 'general';
+    // Clear unread flag for this applicant as user is opening it
+    this.clearUnread(thread.id_applicant);
     // Load cloned panel data
     this.loadApplicantContext(this.selectedApplicantId);
   }
@@ -222,6 +369,16 @@ export class MessengerComponent implements OnInit, OnDestroy {
       this.scrollMessagesToBottomSoon(0, true);
       // Ensure realtime sub is active when viewing messages
       this.updatePhoneSubscription().catch(() => {});
+      // Mark current thread as read when switching to Messages tab
+      if (this.selectedApplicantId) {
+        this.markThreadRead(this.selectedApplicantId);
+      }
+    }
+    if (tab === 'files') {
+      // Refresh files every time user returns to Files tab
+      if (this.selectedApplicantId) {
+        this.loadPanelDocuments(this.selectedApplicantId);
+      }
     }
   }
 
@@ -342,8 +499,8 @@ export class MessengerComponent implements OnInit, OnDestroy {
   formatMessageTimestamp(value: string | null | undefined): string {
     const date = this.tryParseDate(value);
     if (!date) return value ? String(value) : '';
-    const datePart = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    const timePart = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    const datePart = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const timePart = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     return `${datePart} · ${timePart}`;
   }
 
@@ -592,6 +749,35 @@ export class MessengerComponent implements OnInit, OnDestroy {
     return normalized.replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
+  /** Minimal mapping without a doc object */
+  private docStatusClassByStatus(status: string | null | undefined): string {
+    const s = (status || '').toString().toUpperCase();
+    if (s === 'APPROVED') return 'status-badge status-badge--approved';
+    if (s === 'DISAPPROVED') return 'status-badge status-badge--rejected';
+    if (s.includes('RE-COLLECT')) return 'status-badge status-badge--pending';
+    if (s === 'PENDING' || !s) return 'status-badge status-badge--default';
+    return 'status-badge status-badge--default';
+  }
+
+  /** Aggregate group status considering all items */
+  getGroupStatus(group: DocumentGroup | null | undefined): string {
+    const items = group?.items || [];
+    if (!items.length) return 'PENDING';
+    const statuses = items.map((d) => (d?.status || '').toString().toUpperCase());
+    // Priority: Re-collecting > Disapproved > Pending/Unknown > Approved
+    if (statuses.some((s) => s.includes('RE-COLLECT'))) return 'RE-COLLECTING FILE';
+    if (statuses.some((s) => s === 'DISAPPROVED')) return 'DISAPPROVED';
+    if (statuses.some((s) => s === '' || s === 'PENDING' || s === 'NULL' || s === 'UNKNOWN')) return 'PENDING';
+    // if all approved
+    if (statuses.every((s) => s === 'APPROVED')) return 'APPROVED';
+    return 'PENDING';
+  }
+
+  groupStatusClass(group: DocumentGroup | null | undefined): string {
+    const status = this.getGroupStatus(group || undefined);
+    return this.docStatusClassByStatus(status);
+  }
+
   isImageDocument(doc: ApplicantDocument | null | undefined): boolean {
     if (!doc?.document_name) return false;
     return /\.(png|jpg|jpeg|gif|webp|bmp|svg)$/i.test(doc.document_name);
@@ -643,6 +829,37 @@ export class MessengerComponent implements OnInit, OnDestroy {
       default:
         return 'File';
     }
+  }
+
+  /** True if the document is a PDF */
+  isPdfDocument(doc: ApplicantDocument | null | undefined): boolean {
+    return this.documentExtension(doc) === 'pdf';
+  }
+
+  /** True if the document is a Word-like document (doc, docx, rtf, odt) */
+  isWordDocument(doc: ApplicantDocument | null | undefined): boolean {
+    const ext = this.documentExtension(doc);
+    return ['doc', 'docx', 'rtf', 'odt'].includes(ext);
+  }
+
+  /** Return a SafeResourceUrl for embedding a PDF in an <iframe> */
+  pdfViewerSrc(doc: ApplicantDocument | null | undefined): SafeResourceUrl {
+    const url = doc?.url || (doc
+      ? this.core.getFileUrl(String(doc.folder || ''), String(doc.document_name || ''))
+      : '');
+    const viewUrl = url ? `${url}#toolbar=0&navpanes=0&zoom=page-width` : 'about:blank';
+    return this.sanitizer.bypassSecurityTrustResourceUrl(viewUrl);
+  }
+
+  /** Return a SafeResourceUrl for Office Online viewer embedding Word-like docs */
+  officeViewerSrc(doc: ApplicantDocument | null | undefined): SafeResourceUrl {
+    const url = doc?.url || (doc
+      ? this.core.getFileUrl(String(doc.folder || ''), String(doc.document_name || ''))
+      : '');
+    if (!url) return this.sanitizer.bypassSecurityTrustResourceUrl('about:blank');
+    const encoded = encodeURIComponent(url);
+    const viewUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encoded}&wdPrint=0&wdDownloadButton=1`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(viewUrl);
   }
 
   documentIcon(doc: ApplicantDocument | null | undefined): string {
@@ -889,7 +1106,7 @@ export class MessengerComponent implements OnInit, OnDestroy {
   private formatDayLabel(value: string | null | undefined): string {
     const date = this.tryParseDate(value);
     if (!date) return value ? String(value).split('T')[0] : 'Unknown date';
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   private loadLocations(suppressAutoSelect: boolean = false): void {
@@ -973,6 +1190,8 @@ export class MessengerComponent implements OnInit, OnDestroy {
           this.chatThreads = [];
           this.chatsError = 'Failed to parse chat list';
         }
+        // After successful chats load, try to auto-select based on pending navbar query
+        this.onChatsLoaded();
       },
       error: (err) => {
         this.chatsLoading = false;
@@ -981,7 +1200,16 @@ export class MessengerComponent implements OnInit, OnDestroy {
       }
     });
   }
-
+  
+  /**
+   * After chats are loaded (success path), if a navbar query is pending,
+   * attempt to auto-select the best matching thread.
+   */
+  private onChatsLoaded(): void {
+    if (this.pendingThreadQuery) {
+      this.trySelectMatchingThread();
+    }
+  }
   /** Load applicant details, messages, history and files for the cloned panel */
   private loadApplicantContext(applicantId: string | null): void {
     // cancel previous
@@ -1194,6 +1422,7 @@ export class MessengerComponent implements OnInit, OnDestroy {
               channel: String(r.Channel ?? r.channel ?? 'SMS'),
               status,
               statusLabel: this.defaultStatusLabel(status),
+              __ts: (ts && !Number.isNaN(ts.getTime())) ? ts.getTime() : undefined,
             } as any;
           })
           .reverse();
@@ -1208,6 +1437,9 @@ export class MessengerComponent implements OnInit, OnDestroy {
       complete: () => {
         this.panelMessagesLoading = false;
         this.scrollMessagesToBottomSoon(0, true);
+        if (this.selectedApplicantId) {
+          this.markThreadRead(this.selectedApplicantId);
+        }
       }
     });
     this._panelSubs.push(sub);
@@ -1798,6 +2030,7 @@ export class MessengerComponent implements OnInit, OnDestroy {
       status,
       statusLabel: this.defaultStatusLabel(status),
       __isNew: true,
+      __ts: Number.isNaN(sentDate.getTime()) ? Date.now() : sentDate.getTime(),
     };
     this.panelMessages = [...(this.panelMessages ?? []), message];
     // If a persisted outbound arrives, drop any matching temp 'sending' bubble
@@ -1819,6 +2052,13 @@ export class MessengerComponent implements OnInit, OnDestroy {
     } catch {}
     // Auto-scroll only if user is near bottom
     this.scrollMessagesToBottomSoon(0, false);
+
+    // Mark as unread for this applicant if not currently viewing this thread's messages
+    const eid = (evt.applicantId || '').toString();
+    const isViewingThisThread = !!(this.selectedApplicantId && eid && this.selectedApplicantId.toString() === eid.toString() && this.activeTab === 'messages');
+    if (!isViewingThisThread && eid) {
+      this.setUnread(eid, true);
+    }
   }
 
   private matchesCurrentPhone(evt: ApplicantChatRealtimeMessage): boolean {
@@ -1874,6 +2114,33 @@ export class MessengerComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Day grouping helpers (to mirror Applicants Panel)
+  messageDayLabel(m: any): string | null {
+    try {
+      const ts: number | undefined = (m && typeof m.__ts === 'number') ? m.__ts : undefined;
+      return this.dayLabelFromTs(ts);
+    } catch { return null; }
+  }
+
+  shouldRenderDay(dayLabel: string | null | undefined, index: number): boolean {
+    if (!dayLabel) return false;
+    if (index === 0) return true;
+    try {
+      const prev = this.panelMessages?.[index - 1];
+      const prevLabel = this.messageDayLabel(prev);
+      return prevLabel !== dayLabel;
+    } catch { return index === 0; }
+  }
+
+  private dayLabelFromTs(ts?: number): string | null {
+    if (!ts || !Number.isFinite(ts)) return null;
+    try {
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return null;
+      return d.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+    } catch { return null; }
+  }
+
   // --- Status UI helpers to match Applicant Panel ---
   statusMetaClass(status: string | undefined): string {
     const s = (status || '').toString();
@@ -1888,6 +2155,78 @@ export class MessengerComponent implements OnInit, OnDestroy {
       default:
         return 'text-secondary';
     }
+  }
+
+  // ==========================
+  // Unread helpers (Option A)
+  // ==========================
+  private loadUnreadFromStorage(): void {
+    try {
+      const raw = localStorage.getItem(this.UNREAD_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') this.unreadByApplicant = parsed;
+      }
+    } catch { /* ignore */ }
+  }
+
+  private saveUnreadToStorage(): void {
+    try { localStorage.setItem(this.UNREAD_STORAGE_KEY, JSON.stringify(this.unreadByApplicant || {})); } catch { /* ignore */ }
+  }
+
+  private loadLastSeenFromStorage(): void {
+    try {
+      const raw = localStorage.getItem(this.LASTSEEN_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') this.lastSeenByApplicant = parsed;
+      }
+    } catch { /* ignore */ }
+  }
+
+  private saveLastSeenToStorage(): void {
+    try { localStorage.setItem(this.LASTSEEN_STORAGE_KEY, JSON.stringify(this.lastSeenByApplicant || {})); } catch { /* ignore */ }
+  }
+
+  private setUnread(applicantId: string, value: boolean): void {
+    if (!applicantId) return;
+    const map = { ...(this.unreadByApplicant || {}) };
+    if (value) map[applicantId] = true; else delete map[applicantId];
+    this.unreadByApplicant = map;
+    this.saveUnreadToStorage();
+  }
+
+  private clearUnread(applicantId: string): void {
+    if (!applicantId) return;
+    if (this.unreadByApplicant && this.unreadByApplicant[applicantId]) {
+      const map = { ...(this.unreadByApplicant || {}) };
+      delete map[applicantId];
+      this.unreadByApplicant = map;
+      this.saveUnreadToStorage();
+    }
+  }
+
+  private markThreadRead(applicantId: string): void {
+    if (!applicantId) return;
+    const latestTs = this.resolveLatestInboundTs(this.panelMessages);
+    const map = { ...(this.lastSeenByApplicant || {}) };
+    map[applicantId] = latestTs ?? Date.now();
+    this.lastSeenByApplicant = map;
+    this.saveLastSeenToStorage();
+    this.clearUnread(applicantId);
+  }
+
+  private resolveLatestInboundTs(messages: any[]): number | null {
+    try {
+      if (!Array.isArray(messages) || !messages.length) return null;
+      let max = -1;
+      for (const m of messages) {
+        if (!m || m.direction !== 'inbound') continue;
+        const ts = typeof m.__ts === 'number' ? m.__ts : null;
+        if (ts && ts > max) max = ts;
+      }
+      return max > 0 ? max : null;
+    } catch { return null; }
   }
 
   statusMetaIcon(status: string | undefined): string {

@@ -380,6 +380,9 @@
     0 1px 6px rgba(15, 23, 42, 0.06);
   border: 1px solid rgba(15, 23, 42, 0.08);
    text-wrap: wrap!important;
+  /* Ensure very long words/URLs do not overflow the bubble */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .chat-title {
   font-size: 0.6rem;
@@ -391,6 +394,9 @@
 .chat-bubble a {
   color: var(--bs-primary, #0d6efd);
   font-weight: 600;
+  /* Allow breaking long links safely */
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .chat-meta {
   margin-top: 0.15rem;
@@ -555,6 +561,78 @@ body.dark .chat-input .composer:focus-within {
 .btn-xs {
   font-size: 0.75rem;
 }
+/* Minimalist soft/ghost buttons for a cleaner, more professional look */
+.btn-soft-primary,
+.btn-soft-secondary,
+.btn-soft-success,
+.btn-soft-warning,
+.btn-soft-danger,
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  border-radius: .6rem;
+  border: 1px solid var(--bs-border-color, rgba(0,0,0,.08));
+  background: var(--bs-secondary-bg, rgba(0,0,0,.04));
+  color: var(--bs-body-color);
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+
+.btn-ghost {
+  background: transparent;
+}
+.btn-ghost:hover {
+  background: var(--bs-secondary-bg, rgba(0,0,0,.06));
+}
+
+.btn-soft-primary {
+  background: rgba(var(--bs-primary-rgb, 13,110,253), .12);
+  color: var(--bs-primary, #0d6efd);
+  border-color: rgba(var(--bs-primary-rgb, 13,110,253), .25);
+}
+.btn-soft-primary:hover { background: rgba(var(--bs-primary-rgb, 13,110,253), .18); }
+
+.btn-soft-secondary {
+  background: rgba(var(--bs-secondary-rgb, 108,117,125), .12);
+  color: var(--bs-secondary-color, var(--bs-secondary));
+  border-color: rgba(var(--bs-secondary-rgb,108,117,125), .25);
+}
+.btn-soft-secondary:hover { background: rgba(var(--bs-secondary-rgb,108,117,125), .18); }
+
+.btn-soft-success {
+  background: rgba(var(--bs-success-rgb, 25,135,84), .12);
+  color: var(--bs-success, #198754);
+  border-color: rgba(var(--bs-success-rgb,25,135,84), .25);
+}
+.btn-soft-success:hover { background: rgba(var(--bs-success-rgb,25,135,84), .18); }
+
+.btn-soft-warning {
+  background: rgba(var(--bs-warning-rgb, 255,193,7), .14);
+  color: var(--bs-warning, #ffc107);
+  border-color: rgba(var(--bs-warning-rgb,255,193,7), .28);
+}
+.btn-soft-warning:hover { background: rgba(var(--bs-warning-rgb,255,193,7), .2); }
+
+.btn-soft-danger {
+  background: rgba(var(--bs-danger-rgb, 220,53,69), .12);
+  color: var(--bs-danger, #dc3545);
+  border-color: rgba(var(--bs-danger-rgb,220,53,69), .25);
+}
+.btn-soft-danger:hover { background: rgba(var(--bs-danger-rgb,220,53,69), .18); }
+
+/* Compact size alignment */
+.btn-sm.btn-soft-primary,
+.btn-sm.btn-soft-secondary,
+.btn-sm.btn-soft-success,
+.btn-sm.btn-soft-warning,
+.btn-sm.btn-soft-danger,
+.btn-sm.btn-ghost {
+  padding: .25rem .5rem;
+  line-height: 1.15;
+}
+
+/* Icon sizing inside actions */
+.file-preview__actions .btn i.feather { font-size: 1rem; line-height: 1; }
 .status-chip {
   border-radius: 999px;
   padding: 0.45rem 0.75rem;
@@ -1207,6 +1285,23 @@ body.dark .timeline-marker {
   align-items: center;
   gap: 0.35rem;
 }
+
+/* Inline PDF preview block */
+.pdf-embed__frame-wrapper {
+  border: 1px solid var(--bs-card-border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bs-body-bg);
+}
+.pdf-embed__frame-wrapper iframe {
+  width: 100%;
+  height: 420px;
+  border: 0;
+  display: block;
+}
+@media (max-width: 576px) {
+  .pdf-embed__frame-wrapper iframe { height: 320px; }
+}
 .doc-list__info {
   display: flex;
   align-items: flex-start;
@@ -1488,6 +1583,11 @@ body.dark .image-viewer .viewer-toolbar {
 }
 .event-content {
   margin-top: 1rem;
+}
+.event-content, .event-content * {
+  /* Guard against long unbroken content inside event detail views */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .event-content .content-pre {
   white-space: pre-wrap;

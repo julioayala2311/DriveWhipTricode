@@ -428,16 +428,6 @@ export class WorkflowEditorComponent implements OnInit {
   readonly customTypeOptions = signal<Array<{ code: string; description: string }>>([]);
   readonly customTypesLoading = signal(false);
   readonly customTypesError = signal<string | null>(null);
-  readonly customTypeRequiresUrl = computed(() => {
-    if (!this.isAddingCustom()) return false;
-    const code = this.newStageCustomTypeCode();
-    if (!code) return false;
-    const option = this.customTypeOptions().find(opt => opt.code === code);
-    const label = option?.description || '';
-    const normalizedLabel = label.trim().toLowerCase();
-    const normalizedCode = code.trim().toLowerCase();
-    return normalizedCode === 'web page' || normalizedCode === 'web_page' || normalizedCode === 'webpage' || normalizedCode === 'web-page';
-  });
   // Placement: 'top' or stringified id_stage of the stage AFTER which to insert
   newStagePlacement = signal('top');
   newRuleValue = signal('');
@@ -474,16 +464,7 @@ export class WorkflowEditorComponent implements OnInit {
       Utilities.showToast('Select a custom type','warning');
       return;
     }
-    const trimmedCustomUrl = this.newStageCustomUrl().trim();
-    const requiresCustomUrl = this.customTypeRequiresUrl();
-    if (this.isAddingCustom() && requiresCustomUrl && !trimmedCustomUrl) {
-      Utilities.showToast('Enter a URL for the selected custom type','warning');
-      return;
-    }
-    if (this.isAddingCustom() && requiresCustomUrl && trimmedCustomUrl && !/^https?:\/\//i.test(trimmedCustomUrl)) {
-      Utilities.showToast('URL must start with http:// or https://','warning');
-      return;
-    }
+
     if (this.workflowId == null) { Utilities.showToast('Workflow context missing','error'); return; }
     if (this.newStageSaving()) return;
 
@@ -531,7 +512,7 @@ export class WorkflowEditorComponent implements OnInit {
     // New stage order will be pivotOrder + 1
     const newSortOrder = pivotOrder + 1;
   const customTypeCode = this.isAddingCustom() ? ((this.newStageCustomTypeCode() ?? '').trim() || null) : null;
-  const customUrlValue = this.isAddingCustom() ? (trimmedCustomUrl || null) : null;
+
     const createParams: any[] = [
       'C',
       null,
@@ -544,7 +525,7 @@ export class WorkflowEditorComponent implements OnInit {
       null,
       this.isAddingDataCollection() ? (this.newStageFormCode() ?? null) : null,
       customTypeCode,
-      this.isAddingCustom() ? customUrlValue : null,
+      this.isAddingCustom() ? '' : null,
       null
     ];
     const createApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: createParams };
@@ -654,9 +635,6 @@ export class WorkflowEditorComponent implements OnInit {
   onCustomTypeChange(raw: any): void {
     const value = (raw ?? '').toString().trim();
     this.newStageCustomTypeCode.set(value || null);
-    if (!this.customTypeRequiresUrl()) {
-      this.newStageCustomUrl.set('');
-    }
   }
 
   confirmAddRule(): void {

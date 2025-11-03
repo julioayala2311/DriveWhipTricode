@@ -101,8 +101,18 @@ export class WorkflowsGridComponent implements OnChanges {
         return `<span class="grid-link" role="link" aria-label="Open workflow">${value}</span>`;
       }
     },
-    { headerName: 'State', field: 'state_name', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
+  //  { headerName: 'State', field: 'state_name', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
     
+    {
+      headerName: 'Address',
+      field: 'state_name',
+      minWidth: 180,
+      flex: 1.1,
+      headerComponent: GridHeaderComponent,
+      headerComponentParams: { icon: 'icon-map' },
+      cellRenderer: (p: any) => this.stateCell(p?.data)
+    },
+
     {
       headerName: 'Created On',
       field: 'created_at',
@@ -215,6 +225,26 @@ export class WorkflowsGridComponent implements OnChanges {
       : 'badge text-bg-danger bg-danger-subtle text-danger fw-medium px-2 py-1';
     const label = active ? 'Active' : 'Inactive';
     return `<span class="${cls}" style="font-size:11px; letter-spacing:.5px;">${label}</span>`;
+  }
+
+  private stateCell(rec: any): string {
+      if (!rec) return '';
+      const state = this.esc((rec as any).state_name ?? '');
+      const addr = this.esc((rec as any).full_address ?? '');
+      const addrLine = addr ? `<div class="text-secondary small">${addr}</div>` : '';
+      return `
+        <div class="d-flex flex-column lh-sm py-1">
+          <div class="fw-semibold text-body">${state}</div>
+          ${addrLine}
+        </div>
+      `;
+  }
+
+  private esc(v: any): string {
+    return String(v ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 
   onCellClicked(e: CellClickedEvent) {

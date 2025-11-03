@@ -88,7 +88,15 @@ export class HomeGridComponent implements OnChanges {
     },
     { headerName: 'Workflow', field: 'workflow_name', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'git-branch' } },
 
-    { headerName: 'State', field: 'state_name', minWidth: 180, flex: 1.1, headerComponent: GridHeaderComponent, headerComponentParams: { icon: 'icon-map' } },
+    {
+      headerName: 'Address',
+      field: 'state_name',
+      minWidth: 180,
+      flex: 1.1,
+      headerComponent: GridHeaderComponent,
+      headerComponentParams: { icon: 'icon-map' },
+      cellRenderer: (p: any) => this.stateCell(p?.data)
+    },
 
     {
       headerName: 'Applicants',
@@ -238,6 +246,26 @@ export class HomeGridComponent implements OnChanges {
     if (id != null) {
       this.router.navigate(['/locations'], { queryParams: { id_location: id } });
     }
+  }
+
+  private esc(v: any): string {
+    return String(v ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  private stateCell(rec: LocationsRecord): string {
+    if (!rec) return '';
+    const state = this.esc((rec as any).state_name ?? '');
+    const addr = this.esc((rec as any).full_address ?? '');
+    const addrLine = addr ? `<div class="text-secondary small">${addr}</div>` : '';
+    return `
+      <div class="d-flex flex-column lh-sm py-1">
+        <div class="fw-semibold text-body">${state}</div>
+        ${addrLine}
+      </div>
+    `;
   }
 
   private actionButtons(rec: LocationsRecord) {

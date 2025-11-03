@@ -1068,7 +1068,7 @@ export class WorkflowEditorComponent implements OnInit {
           ignore_applicant_action: !!r.ignore_applicant_action,
           is_active: (r.is_active === 1 || r.is_active === '1' || r.is_active === true) ? 1 : 0
         }));
-        let match = rows.find(r => r.id_stage === stageId && (idSection ? r.id_stage_section === idSection : true));
+        let match = rows.find(r => r.id_stage === stageId /*&& (idSection ? r.id_stage_section === idSection : true)*/);
         if (!match) match = rows.find(r => r.id_stage === stageId);
         if (match) {
           this.idleMoveRecordId.set(match.id_stage_section_idlemove);
@@ -1095,7 +1095,7 @@ export class WorkflowEditorComponent implements OnInit {
     const stageId = this.selectedStageId();
     if (!stageId) { Utilities.showToast('Select a stage first', 'warning'); return; }
     const idSection = this.dataSectionId();
-    if (!idSection) { Utilities.showToast('Data collection section required first', 'warning'); return; }
+    // if (!idSection) { Utilities.showToast('Data collection section required first', 'warning'); return; }
     const isCreate = this.idleMoveRecordId() == null;
     const action = isCreate ? 'C' : 'U';
     const currentUser = this.authSession.user?.user || 'system';
@@ -1240,7 +1240,7 @@ export class WorkflowEditorComponent implements OnInit {
         if (!res.ok) { this.followUpsError.set('Failed to load follow-up messages'); return; }
         let rows: any[] = [];
         if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
-        const filtered = rows.filter(r => Number(r.id_stage) === stageId && (!idSection || Number(r.id_stage_section) === idSection));
+        const filtered = rows.filter(r => Number(r.id_stage) === stageId /*&& (!idSection || Number(r.id_stage_section) === idSection)*/);
         const mapped = filtered.map(r => {
           const rawActive = r.is_active;
           const isActive = (
@@ -1284,7 +1284,7 @@ export class WorkflowEditorComponent implements OnInit {
     const stageId = this.selectedStageId();
     if (!stageId) { Utilities.showToast('Select a stage first', 'warning'); return; }
     const idSection = this.dataSectionId();
-    if (!idSection) { Utilities.showToast('Data collection section required first', 'warning'); return; }
+    // if (!idSection) { Utilities.showToast('Data collection section required first', 'warning'); return; }
     const currentUser = this.authSession.user?.user || 'system';
     const isCreate = rec.id == null;
     const action = forcedAction ? forcedAction : (isCreate ? 'C' : 'U');
@@ -1404,7 +1404,7 @@ export class WorkflowEditorComponent implements OnInit {
         this.selectedTemplateId.set(tpl);
         const del = this.selectedDeliveryMethod();
         this.selectedDeliveryMethod.set(del);
-      } else if (this.selectedStageId() && this.dataSectionId() && !this.initialMessageRecordId()) {
+      } else if (this.selectedStageId() /*&& this.dataSectionId()*/ && !this.initialMessageRecordId()) {
         // Intentar nuevamente cargar si antes no existía (posible carrera)
         this.reloadInitialMessage(this.selectedStageId()!, this.dataSectionId()!);
       }
@@ -1474,7 +1474,7 @@ export class WorkflowEditorComponent implements OnInit {
           }
         }
         // Después de cargar catálogos intentar poblar si había registro previo
-        if (this.selectedStageId() && this.dataSectionId() && !this.initialMessageRecordId()) {
+        if (this.selectedStageId() /*&& this.dataSectionId()*/ && !this.initialMessageRecordId()) {
           this.reloadInitialMessage(this.selectedStageId()!, this.dataSectionId()!);
         }
         // Reforzar selección para que el select muestre valor cuando options llegan después
@@ -1587,10 +1587,10 @@ export class WorkflowEditorComponent implements OnInit {
     if (!this.selectedTemplateId()) { Utilities.showToast('Select a message template', 'warning'); return; }
     if (!this.selectedDeliveryMethod()) { Utilities.showToast('Select a delivery method', 'warning'); return; }
     const idSection = this.dataSectionId();
-    if (!idSection) {
-      Utilities.showToast('Data collection section must exist before saving initial message', 'error');
-      return;
-    }
+    // if (!idSection) {
+    //   Utilities.showToast('Data collection section must exist before saving initial message', 'error');
+    //   return;
+    // }
     const isCreate = this.initialMessageRecordId() == null;
     const action = isCreate ? 'C' : 'U';
     const currentUser = this.authSession.user?.user || 'system';
@@ -1629,8 +1629,8 @@ export class WorkflowEditorComponent implements OnInit {
     });
   }
 
-  reloadInitialMessage(stageId: number, idSection: number, forceResetOnNoMatch: boolean = false): void {
-    if (!stageId || !idSection) return;
+  reloadInitialMessage(stageId: number, idSection: number | null, forceResetOnNoMatch: boolean = false): void {
+    if (!stageId /*|| !idSection*/) return;
     const apply = (match: any | null) => {
       if (match) {
         const idTemplate = match.id_template != null ? Number(match.id_template) : null;
@@ -1686,7 +1686,7 @@ export class WorkflowEditorComponent implements OnInit {
             (typeof r.is_active === 'string' && r.is_active.toLowerCase() === 'true')
           ) ? 1 : 0
         }));
-        let match = rows.find(r => r.id_stage === stageId && r.id_stage_section === idSection);
+        let match = rows.find(r => r.id_stage === stageId /*&& r.id_stage_section === idSection*/);
         if (!match) match = rows.find(r => r.id_stage === stageId);
         apply(match || null);
       },

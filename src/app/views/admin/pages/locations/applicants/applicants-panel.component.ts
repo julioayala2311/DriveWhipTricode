@@ -32,6 +32,7 @@ import {
   SmsChatSignalRService,
 } from "../../../../../core/services/signalr/sms-chat-signalr.service";
 import { AppConfigService } from "../../../../../core/services/app-config/app-config.service";
+import { Router } from "@angular/router";
 
 @Component({
   selector: "app-applicant-panel",
@@ -61,6 +62,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private sanitizer = inject(DomSanitizer);
   private smsRealtime = inject(SmsChatSignalRService);
   private appConfig = inject(AppConfigService);
+  private router = inject(Router);
   @Input() applicant: any;
   @Input() applicantId: string | null = null;
   @Input() activeTab: "messages" | "history" | "files" = "messages";
@@ -1510,6 +1512,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.templateApplyingId = null;
     this.templateApplyLoading = false;
     this.templateApplyError = null;
+  }
+
+  navigateToTemplates(): void {
+    this.closeTemplatesModal();
+    this.router.navigate(["/configuration/templates"]);
   }
 
   onTemplateSearchChange(value: string): void {

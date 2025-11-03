@@ -41,6 +41,10 @@ export const routes: Routes = [
         loadChildren: () => import('./views/admin/pages/messenger/messenger.routes')
       },
       {
+        path: 'configuration/templates',
+        loadChildren: () => import('./views/admin/pages/templates/templates.routes')
+      },
+      {
         path: 'applicants',
         loadChildren: () => import('./views/admin/pages/applicants/applicants.routes')
       },

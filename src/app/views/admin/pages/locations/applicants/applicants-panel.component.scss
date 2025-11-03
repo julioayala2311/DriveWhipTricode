@@ -1755,7 +1755,19 @@ body.dark .modal-card {
 .templates-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.templates-footer .manage-templates-link {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--bs-primary, #0d6efd);
+  text-decoration: none;
+}
+
+.templates-footer .manage-templates-link:hover {
+  text-decoration: underline;
 }
 
 body.dark .templates-card {
@@ -1789,6 +1801,10 @@ body.dark .templates-state {
 }
 body.dark .templates-footer small {
   color: rgba(255, 255, 255, 0.6);
+}
+
+body.dark .templates-footer .manage-templates-link {
+  color: #9cc4ff;
 }
 
 /* sidebar document preview uses Bootstrap utilities; no extra styles to keep within budget */

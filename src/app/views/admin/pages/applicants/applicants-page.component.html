@@ -1,0 +1,107 @@
+<section class="applicants-page">
+  <header class="page-header">
+    <div>
+      <h5>Applicants</h5>
+      <p class="page-subtitle">
+        Review every applicant in the system. 
+      </p>
+    </div>
+    <button
+      type="button"
+      class="btn btn-outline-secondary btn-sm"
+      (click)="loadApplicants()"
+      [disabled]="loading"
+    >
+      <span
+        *ngIf="loading"
+        class="spinner-border spinner-border-sm me-1"
+        role="status"
+      ></span>
+      Refresh
+    </button>
+  </header>
+
+  <div class="grid-card">
+    <div class="alert alert-warning py-2 px-3 mb-0" *ngIf="error">
+      {{ error }}
+    </div>
+    <div class="grid-toolbar">
+      <div>
+        <strong>{{ rowCount }}</strong> applicants
+        <span class="text-secondary" *ngIf="selectedCount">
+          &bull; {{ selectedCount }} selected
+        </span>
+      </div>
+      <!-- <div class="toolbar-actions">
+        <button
+          class="btn btn-outline-secondary btn-sm"
+          type="button"
+          (click)="clearSelection()"
+          [disabled]="selectedCount === 0"
+        >
+          Clear selection
+        </button>
+        <div class="btn-group btn-group-sm" role="group">
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            (click)="exportCsv(false)"
+            [disabled]="!rowCount"
+          >
+            Export all
+          </button>
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            (click)="exportCsv(true)"
+            [disabled]="selectedCount === 0"
+          >
+            Export selected
+          </button>
+        </div>
+      </div> -->
+    </div>
+
+    <div class="grid-wrapper">
+      <ag-grid-angular
+        class="ag-theme-quartz dw-grid-theme applicants-grid"
+        [rowData]="rowData"
+        [columnDefs]="columnDefs"
+        [defaultColDef]="defaultColDef"
+        [gridOptions]="gridOptions"
+        [pagination]="true"
+        [paginationPageSize]="pageSize"
+        [paginationPageSizeSelector]="pageSizeOptions"
+        rowSelection="multiple"
+        (gridReady)="onGridReady($event)"
+        (firstDataRendered)="onFirstDataRendered($event)"
+        (selectionChanged)="onSelectionChanged($event)"
+        (paginationChanged)="onPaginationChanged($event)"
+      ></ag-grid-angular>
+    </div>
+
+    <div class="grid-footer">
+      <div class="text-secondary small">
+        Page {{ displayPageIndex }} of {{ displayTotalPages }}
+      </div>
+      <div class="d-flex gap-2">
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          (click)="goToPreviousPage()"
+          [disabled]="currentPage === 0"
+        >
+          <i class="feather icon-chevron-left"></i>
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          (click)="goToNextPage()"
+          [disabled]="displayTotalPages <= 1 || currentPage >= totalPages - 1"
+        >
+          <i class="feather icon-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

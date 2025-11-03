@@ -1204,11 +1204,16 @@
             <button
               type="button"
               class="attach-btn"
-              aria-label="Add attachment"
+              aria-label="Insert template"
+              aria-haspopup="dialog"
+              (click)="openTemplatesModal()"
             >
+              <!-- <span class="attach-label">Templates</span> -->
+              
               <i class="feather icon-plus"></i>
             </button>
             <input
+              #composerInput
               type="text"
               class="composer-control"
               placeholder="Enter your messages"
@@ -2251,7 +2256,103 @@
         </div>
       </div>
     </aside>
-    
+
+    <!-- Templates Modal -->
+    <div
+      class="modal-backdrop"
+      *ngIf="templatesModalOpen"
+      (click)="closeTemplatesModal()"
+    ></div>
+    <div
+      class="modal-centered templates-modal"
+      *ngIf="templatesModalOpen"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-card templates-card shadow-lg">
+        <div
+          class="modal-header templates-header d-flex align-items-center justify-content-between"
+        >
+          <h5 class="m-0">Templates</h5>
+          <button
+            type="button"
+            class="btn btn-link btn-sm text-secondary px-2"
+            (click)="closeTemplatesModal()"
+            aria-label="Close templates"
+          >
+            <i class="feather icon-x"></i>
+          </button>
+        </div>
+        <div class="modal-body templates-body">
+          <div class="templates-search">
+            <i class="feather icon-search"></i>
+            <input
+              #templateSearchInput
+              type="text"
+              class="templates-search-input"
+              placeholder="Search templates"
+              [(ngModel)]="templateSearchTerm"
+              (ngModelChange)="onTemplateSearchChange($event)"
+              autocomplete="off"
+            />
+          </div>
+          <div
+            class="templates-content"
+            *ngIf="!templatesLoading && !templatesError && filteredTemplates.length"
+          >
+            <button
+              type="button"
+              class="template-row"
+              *ngFor="let tpl of filteredTemplates; trackBy: trackTemplate"
+              (click)="selectTemplate(tpl)"
+            >
+              <div class="template-row-header">
+                <span class="template-name">{{ tpl.description }}</span>
+                <span class="template-type" *ngIf="tpl.type">{{ tpl.type }}</span>
+              </div>
+              <div class="template-subject" *ngIf="tpl.subject">
+                {{ tpl.subject }}
+              </div>
+              <div class="template-preview text-secondary">
+                {{ tpl.preview }}
+              </div>
+            </button>
+          </div>
+          <div class="templates-state" *ngIf="templatesLoading">
+            <span
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            Loading templates...
+          </div>
+          <div
+            class="templates-state text-secondary"
+            *ngIf="!templatesLoading && !templatesError && !filteredTemplates.length"
+          >
+            No templates found.
+          </div>
+          <div
+            class="templates-state text-warning"
+            *ngIf="templatesError && !templatesLoading"
+          >
+            <span>{{ templatesError }}</span>
+            <button
+              type="button"
+              class="btn btn-link btn-sm ms-1"
+              (click)="retryLoadTemplates()"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer templates-footer">
+          <small class="text-secondary"
+            >Select a template to populate the chat composer.</small
+          >
+        </div>
+      </div>
+    </div>
+
     <!-- Move To Modal -->
     <div class="modal-backdrop" *ngIf="moveToOpen" (click)="closeMoveToModal()"></div>
     <div class="modal-centered" *ngIf="moveToOpen" (click)="$event.stopPropagation()">

@@ -18,6 +18,7 @@ interface LocationOption {
   applicants?: number | null;
   applicantsLabel?: string;
   isActive?: boolean;
+  full_address?: string;
 }
 
 interface LocationGroup {
@@ -288,6 +289,11 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
           const locationParts = [city, state, country].filter(Boolean) as string[];
           const locationLine = locationParts.length > 0 ? locationParts.join(', ') : undefined;
 
+          // Map full address (support multiple possible field names/cases)
+          const fullAddress = this.parseString(
+            r?.full_address ?? r?.FULL_ADDRESS ?? r?.fullAddress ?? r?.FULL_ADDRESS1 ?? r?.full_address1 ?? r?.address ?? r?.ADDRESS
+          );
+
           const groupSource = this.parseString(
             r?.market ?? r?.MARKET ??
             r?.region ?? r?.REGION ??
@@ -313,6 +319,7 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
             name,
             groupLabel,
             locationLine,
+            full_address: fullAddress,
             applicants: applicantsRaw ?? undefined,
             applicantsLabel: applicantsLabel ?? undefined,
             isActive

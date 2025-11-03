@@ -70,7 +70,7 @@
                 <span class="dw-status-dot" [class.is-active]="option.isActive !== false"></span>
                 <div class="dw-location-option__body">
                   <span class="option-title">{{ option.name }}</span>
-                  <span class="option-subtitle" *ngIf="option.locationLine">{{ option.locationLine }}</span>
+                  <span class="option-subtitle" *ngIf="option.full_address">{{ option.full_address }}</span>
                 </div>
                 <span class="option-meta" *ngIf="option.applicantsLabel">{{ option.applicantsLabel }}</span>
               </button>

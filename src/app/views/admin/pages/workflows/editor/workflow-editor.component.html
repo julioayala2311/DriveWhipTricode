@@ -628,26 +628,21 @@
                       "
                     />
                   </div>
-                  <div class="col-12 d-flex align-items-center gap-3 flex-wrap">
-                    <div
-                      class="form-check form-switch m-0"
-                      title="Toggle active/disable"
-                    >
+                  <!-- Disable column: header label + switch (no inline text) -->
+                  <div class="col-auto">
+                    <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">{{ initialMessageDisabled() ? 'Disable' : 'Active' }}</label>
+                    <div class="form-check form-switch m-0 d-flex align-items-center gap-2" title="Toggle disable for initial message">
                       <input
                         class="form-check-input"
                         type="checkbox"
                         id="im_disable"
+                        aria-label="Disable initial message"
                         [checked]="!initialMessageDisabled()"
-                        (change)="
-                          toggleInitialMessageDisabled(
-                            !$any($event.target).checked
-                          )
-                        "
+                        (change)="toggleInitialMessageDisabled(!$any($event.target).checked)"
                       />
-                      <label class="form-check-label small" for="im_disable">{{
-                        initialMessageDisabled() ? "Disable" : "Active"
-                      }}</label>
                     </div>
+                  </div>
+                  <div class="col-12 d-flex align-items-center gap-3 flex-wrap">
                     <button
                       type="button"
                       class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1"
@@ -820,32 +815,21 @@
                           "
                         />
                       </div>
-                      <div
-                        class="col-12 d-flex align-items-center gap-3 flex-wrap pt-1"
-                      >
-                        <div
-                          class="form-check form-switch m-0"
-                          title="Toggle active/disable"
-                        >
+                      <!-- Disable column: header label + switch (no inline text) -->
+                      <div class="col-auto">
+                        <label class="form-label small text-uppercase fw-semibold text-secondary mb-1">{{ fu.isActive ? 'Active' : 'Disable' }}</label>
+                        <div class="form-check form-switch m-0 d-flex align-items-center gap-2" title="Toggle disable for follow-up">
                           <input
                             class="form-check-input"
                             type="checkbox"
                             [id]="'fu_active_' + i"
+                            aria-label="Disable follow-up message"
                             [checked]="fu.isActive"
-                            (change)="
-                              updateFollowUpField(
-                                i,
-                                'isActive',
-                                $any($event.target).checked
-                              )
-                            "
+                            (change)="updateFollowUpField(i, 'isActive', $any($event.target).checked)"
                           />
-                          <label
-                            class="form-check-label small"
-                            [for]="'fu_active_' + i"
-                            >{{ fu.isActive ? "Active" : "Disable" }}</label
-                          >
                         </div>
+                      </div>
+                      <div class="col-12 d-flex align-items-center gap-3 flex-wrap pt-1">
                         <button
                           type="button"
                           class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1"
@@ -1093,11 +1077,6 @@
                                   )
                                 "
                               />
-                              <label
-                                class="form-check-label small"
-                                [for]="'rule_active_c_' + i"
-                                >{{ r.isActive ? "Active" : "Disable" }}</label
-                              >
                             </div>
                           </div>
                         </div>
@@ -1272,11 +1251,6 @@
                                   )
                                 "
                               />
-                              <label
-                                class="form-check-label small"
-                                [for]="'rule_active_a_' + i"
-                                >{{ r.isActive ? "Active" : "Disable" }}</label
-                              >
                             </div>
                           </div>
                         </div>

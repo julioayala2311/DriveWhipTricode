@@ -31,7 +31,7 @@
 }
 
 .grid-card {
-  background: var(--bs-body-bg);
+  background: transparent;
   border: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.1));
   border-radius: 14px;
   padding: 1rem 1.25rem 1.25rem;
@@ -109,6 +109,52 @@
   padding: 0.25rem 0.5rem;
 }
 
+/* Dropdown menu for Actions column */
+:host ::ng-deep .templates-grid .template-actions-inline {
+  position: relative;
+}
+
+/* Allow the actions cell to let the dropdown overflow beyond cell bounds */
+:host ::ng-deep .templates-grid .ag-cell.overflow-visible {
+  overflow: visible !important;
+}
+
+:host ::ng-deep .templates-grid .template-actions-inline .dropdown-menu,
+:host ::ng-deep .template-actions-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  min-width: 160px;
+  padding: 0.25rem 0;
+  margin-top: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  display: none;
+  z-index: 2000; /* higher than grid content */
+}
+
+:host ::ng-deep .templates-grid .template-actions-inline .dropdown-menu.show,
+:host ::ng-deep .template-actions-menu.show {
+  display: block;
+}
+
+:host ::ng-deep .templates-grid .template-actions-inline .dropdown-item,
+:host ::ng-deep .template-actions-menu .dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+:host ::ng-deep .templates-grid .template-actions-inline .dropdown-item:hover,
+:host ::ng-deep .template-actions-menu .dropdown-item:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -132,6 +178,47 @@
   border: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.1));
   width: min(420px, 95vw);
   box-shadow: 0 18px 44px -28px rgba(15, 23, 42, 0.5);
+}
+
+/* Editor modal variants */
+.editor-modal {
+  width: min(720px, 96vw);
+}
+.editor-modal.wide {
+  width: min(920px, 96vw);
+}
+.editor-modal .editor-tile {
+  border: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.1));
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  background: transparent;
+}
+.editor-modal .editor-tile:hover { background: rgba(0,0,0,0.03); }
+.editor-modal .code-area { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+.message-editors { display: grid; grid-template-columns: 1fr; gap: 0.5rem; }
+@media (min-width: 720px) { .message-editors { grid-template-columns: 1fr 1fr; } }
+
+/* Preview modal */
+.preview-modal { width: min(960px, 96vw); }
+.preview-modal .tabs .btn-link { color: var(--bs-secondary-color); text-decoration: none; font-weight: 600; }
+.preview-modal .tabs .btn-link.active { color: var(--bs-primary); border-bottom: 2px solid var(--bs-primary); }
+.email-preview { max-height: 70vh; overflow: auto; }
+.html-preview-frame {
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.1));
+  border-radius: 8px;
+  background: transparent!important;
+}
+.sms-preview { display: flex; justify-content: center; padding: 1rem; }
+.sms-preview .sms-bubble {
+  max-width: 520px;
+  padding: 0.75rem 1rem;
+  background: rgba(13,110,253,0.1);
+  border: 1px solid rgba(13,110,253,0.25);
+  border-radius: 8px;
 }
 
 .modal-header,
@@ -179,4 +266,13 @@ body.dark .modal-card {
 
 .manage-link:hover {
   text-decoration: underline;
+}
+
+div:where(.swal2-container) input:where(.swal2-input), div:where(.swal2-container) input:where(.swal2-file), div:where(.swal2-container) textarea:where(.swal2-textarea) {
+  color: var(--bs-body-color)!important;
+}
+
+/* Keep SweetAlert under the fixed navbar to avoid visual overlap */
+:host ::ng-deep div.swal2-container {
+  z-index: 50 !important; /* Navbar should have a higher z-index than this */
 }

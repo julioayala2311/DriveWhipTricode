@@ -132,8 +132,8 @@ export class GridHeaderComponent implements IHeaderAngularComp {
 
     <app-applicant-panel
       *ngIf="panelOpen"
-      [applicant]="null"
-      [applicantId]="activeApplicant?.id || null"
+      [applicant]="activeApplicant"
+      [applicantId]="activeApplicant?.id ?? null"
       [status]="activeApplicant?.status || null"
       [statuses]="activeApplicant?.statuses || null"
       [activeTab]="activeTab"
@@ -281,6 +281,45 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
       flex: 1.4,
       headerComponent: GridHeaderComponent,
       headerComponentParams: { icon: "icon-clipboard" },
+      // Provide a plain-text value for filtering and quick filter
+      valueGetter: (p: any) => {
+        const list = Array.isArray(p?.data?.statuses)
+          ? p.data.statuses
+          : p?.data?.status
+          ? [p.data.status]
+          : [];
+        if (!list.length) return "";
+        const parts = list.map((item: any) => {
+          const complete = !!item?.isComplete;
+          const stage = (item?.stage || "").toString().trim();
+          const rawStatus = (item?.statusName ?? "").toString().trim();
+          const statusName = rawStatus !== "" ? rawStatus : complete ? "complete" : "incomplete";
+          // For special stages we keep only the stage text (same as renderer)
+          const isReviewFiles = stage.toLowerCase() === "review files";
+          const isAllFilesApproved = stage.toLowerCase() === "all files approved";
+          const isRecollecting = !isReviewFiles && !isAllFilesApproved && /\bre-collecting\b/i.test(stage);
+          if (isReviewFiles || isAllFilesApproved || isRecollecting) {
+            return stage;
+          }
+          return `${stage || "Stage"} - ${statusName}`;
+        });
+        return parts.join(" | ");
+      },
+      getQuickFilterText: (p: any) => {
+        // Reuse the same text used by the filter
+        try {
+          return (p?.value ?? "").toString();
+        } catch {
+          return "";
+        }
+      },
+      filter: true,
+      filterParams: {
+        textMatcher: undefined,
+        caseSensitive: false,
+        debounceMs: 150,
+        trimInput: true,
+      },
       autoHeight: true,
       wrapText: true,
       cellClass: "ag-cell-wrap-text",
@@ -652,6 +691,35 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     }
   }
 
+  // Provide a minimal applicant shape so the panel can prefill actions before
+  // the full record is fetched from the backend.
+  private createApplicantStub(applicantId: string): ApplicantRow {
+    const id = String(applicantId ?? "");
+    return {
+      id,
+      name: "",
+      email: "",
+      phone: "",
+      status: null,
+      statuses: [],
+      custom: "",
+      applied: "",
+      IdleSince: "",
+      stageName: this.selectedStage?.name ?? "",
+      stageId: this.selectedStage?.id_stage ?? undefined,
+      questionnaireLink: null,
+      details: [],
+      locationName: this.locationName,
+      stageIcon: this.stageIconClass,
+      uploadFiles: false,
+      raw: {
+        id_applicant: id,
+        id,
+        id_stage: this.selectedStage?.id_stage ?? undefined,
+      },
+    } as ApplicantRow;
+  }
+
   onCellClicked(event: CellClickedEvent): void {
     const clickTarget = (event.event?.target as HTMLElement | null) ?? null;
     if (event.colDef.field === "status" && event.data && clickTarget) {
@@ -676,19 +744,21 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
     initialTab: PanelTab = "messages",
     postOpenAction?: (panel: ApplicantPanelComponent) => void
   ): void {
-    const applicant =
+    let applicant =
       this.rowData.find((row) => row.id === applicantId) ??
       this.recentApplicants.find((row) => row.id === applicantId) ??
       null;
+
     if (applicant) {
       this.enrichApplicantMeta(applicant);
+    } else {
+      applicant = this.createApplicantStub(applicantId);
     }
+
     this.activeApplicant = applicant;
     this.panelOpen = true;
     this.activeTab = initialTab;
-    if (applicant) {
-      this.trackApplicant(applicant);
-    }
+    this.trackApplicant(applicant);
 
     if (postOpenAction) {
       const expectedId = applicant?.id ?? applicantId;
@@ -907,7 +977,10 @@ export class ApplicantsGridComponent implements OnInit, OnChanges {
   }
 
   private trackApplicant(applicant: ApplicantRow): void {
-    if (!this.recentApplicants.includes(applicant)) {
+    const exists = this.recentApplicants.some((row) =>
+      this.isSameApplicant(row, applicant)
+    );
+    if (!exists) {
       this.recentApplicants.push(applicant);
     }
   }

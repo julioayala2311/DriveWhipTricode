@@ -61,7 +61,18 @@ export enum DriveWhipAdminCommand {
     // Approve applicant as driver
     crm_applicant_to_driver = "crm_applicant_to_driver",
     // Argyle JSON by applicant
-    crm_applicants_argyle_json_user = "crm_applicants_argyle_json_user"
+    crm_applicants_argyle_json_user = "crm_applicants_argyle_json_user",
+    notifcations_templates_list ="notifcations_templates_list",
+    // Template types list for Templates page combo
+    notifcations_templates_type_list = "notifcations_templates_type_list",
+    // Templates CRUD (C/U/D via p_action)
+    crm_notifications_templates_crud = "crm_notifications_templates_crud",
+    // Templates combos by type code for selects
+    crm_notifications_templates_combos = "crm_notifications_templates_combos",
+    // Chat templates list for applicant panel modal
+    crm_notifications_templates_chat_list = "crm_notifications_templates_chat_list",
+    // Clone a notification template
+    notifcations_template_clone = "notifcations_template_clone",
 }
 
 export enum DriveWhipAplicantsCommand {

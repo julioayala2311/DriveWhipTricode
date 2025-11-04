@@ -265,7 +265,8 @@ export class WorkflowEditorComponent implements OnInit {
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel'
+      cancelButtonText: 'Cancel',
+      allowOutsideClick: false,
     }).then(result => {
       if (!result.isConfirmed) return;
       const currentUser = this.authSession.user?.user || 'system';
@@ -352,6 +353,19 @@ export class WorkflowEditorComponent implements OnInit {
     const st = this.stages().find(s => s.id_stage === stId);
     return st?.type === 'Data Collection';
   });
+
+  // End-of-stage URL (for Data Collection completion page)
+  readonly stageEndUrl = signal<string>('');
+  readonly stageEndUrlOriginal = signal<string>('');
+  readonly stageEndUrlSaving = signal<boolean>(false);
+  readonly stageEndUrlDirty = computed(() => (this.stageEndUrl().trim() !== (this.stageEndUrlOriginal() ?? '')));
+  onEndUrlInput(v: string): void { this.stageEndUrl.set(v ?? ''); }
+  isValidStageEndUrl(v?: string): boolean {
+    const url = (v ?? this.stageEndUrl()).trim();
+    // Allow empty (clears URL). When provided, must start with http or https.
+    if (!url) return true;
+    return /^https?:\/\//i.test(url);
+  }
 
   // Show some parts of the UI also for Custom stages
   readonly customVisible = computed(() => {
@@ -486,10 +500,10 @@ export class WorkflowEditorComponent implements OnInit {
     const toShift = stagesSnapshot.filter(s => (s.sort_order||0) > pivotOrder).sort((a,b)=>(b.sort_order||0)-(a.sort_order||0));
     const currentUser = this.authSession.user?.user || 'system';
     const shiftCalls = toShift.map(stage => {
-      // Ensure mutually exclusive fields: if a Data Collection form_code exists, null out custom type fields
+      // Preserve URL even for Data Collection stages; only code_custom_type remains exclusive to Custom
       const formCode = (stage.form_code ?? stage.formCode ?? stage.form?.code) ?? null;
       const codeCustomType = formCode ? null : (stage.code_custom_type ?? null);
-      const urlCustomType = formCode ? null : (stage.url_custom_type ?? null);
+      const urlCustomType = (stage.url_custom_type ?? null);
       const params: any[] = [
         'U',
         stage.id_stage,
@@ -664,7 +678,7 @@ export class WorkflowEditorComponent implements OnInit {
     const shiftCalls = toShift.map(stage => {
       const formCode = (stage.form_code ?? stage.formCode ?? stage.form?.code) ?? null;
       const codeCustomType = formCode ? null : (stage.code_custom_type ?? null);
-      const urlCustomType = formCode ? null : (stage.url_custom_type ?? null);
+      const urlCustomType = (stage.url_custom_type ?? null);
       const params: any[] = [
         'U',
         stage.id_stage,
@@ -1228,10 +1242,11 @@ export class WorkflowEditorComponent implements OnInit {
     // sino que los catálogos (templates / delivery) todavía no se han cargado cuando el <select>
     // se pinta por primera vez. Se estaban cargando sólo al hacer focus. Aquí forzamos su carga
     // temprana para que, cuando lleguen los rows, ya existan (o estén en curso) las opciones.
-    if (this.notificationTemplates().length === 0 || this.deliveryMethods().length === 0) {
-      // Marcamos rebind diferido y disparamos la carga de catálogos.
+    if (this.followUpTemplates().length === 0 || this.deliveryMethods().length === 0) {
+      // Marcamos rebind diferido y disparamos la carga de catálogos (templates + delivery)
       this.followUpsDeferredRebind = true;
-      this.ensureInitialMessageCatalogs();
+      this.ensureFollowUpTemplates();
+      if (this.deliveryMethods().length === 0) this.ensureInitialMessageCatalogs();
     }
     const params: any[] = ['R', null, null, null, null, null, null, null, null, null];
     const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_followup_crud as any, parameters: params };
@@ -1338,6 +1353,8 @@ export class WorkflowEditorComponent implements OnInit {
   readonly initialMessageDisabled = signal<boolean>(false);
   readonly initialMessageExpanded = signal<boolean>(false); // controls showing the form
   readonly notificationTemplates = signal<any[]>([]); // { id, description, type, subject, body, ... }
+  // Templates list for Follow-Up messages (loaded from combos 'FOLLOW_UP')
+  readonly followUpTemplates = signal<any[]>([]);
   readonly deliveryMethods = signal<any[]>([]); // { description, value }
   readonly selectedTemplateId = signal<number | null>(null);
   readonly selectedDeliveryMethod = signal<string>('');
@@ -1412,7 +1429,7 @@ export class WorkflowEditorComponent implements OnInit {
       if (this.followUps().length) {
         const fuList = this.followUps();
         // Verificamos si algún followUp tiene templateId/delivery que SI existe en catálogos pero no se ve seleccionado
-        const templateIds = new Set(this.notificationTemplates().map(t=> t.id));
+  const templateIds = new Set(this.followUpTemplates().map(t=> t.id));
         const deliveryVals = new Set(this.deliveryMethods().map(d=> d.value));
         let needsRefresh = false;
         for (const f of fuList) {
@@ -1427,10 +1444,10 @@ export class WorkflowEditorComponent implements OnInit {
     }
     this.initialMessageLoading.set(true);
     this.initialMessageError.set(null);
-    const apiTemplates: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.notification_templates_crud, parameters: ['R', null, null, null, null, null, null, null] };
+  const apiTemplates: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_notifications_templates_combos, parameters: ['INITIAL_MESSAGE'] };
     const apiDelivery: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_deliveryMetod_options, parameters: [] };
     // Si los followUps ya se cargaron pero catálogos no, marcamos rebind diferido
-    if (this.followUps().length && (this.notificationTemplates().length === 0 || this.deliveryMethods().length === 0)) {
+    if (this.followUps().length && (this.followUpTemplates().length === 0 || this.deliveryMethods().length === 0)) {
       this.followUpsDeferredRebind = true;
     }
     forkJoin([
@@ -1450,7 +1467,7 @@ export class WorkflowEditorComponent implements OnInit {
         // Normalización de catálogos para asegurar propiedades id / value / description consistentes
         const rawTpl = parseRows(tplRes).map((r:any)=> {
           const id = r.id ?? r.id_template ?? r.template_id ?? r.idNotificationTemplate;
-          const description = r.description ?? r.template_description ?? r.subject ?? r.name ?? (`Template #${id}`);
+          const description = r.description ?? r.template_description ?? r.subject ?? r.template_name ?? r.name ?? (`Template #${id}`);
           return { ...r, id, description };
         });
         const rawDel = parseRows(delRes).map((r:any)=> {
@@ -1504,9 +1521,32 @@ export class WorkflowEditorComponent implements OnInit {
     });
   }
 
+  /** Ensure Follow-Up templates are loaded via combos('FOLLOW_UP') */
+  ensureFollowUpTemplates(): void {
+    if (this.followUpTemplates().length > 0) return;
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_notifications_templates_combos, parameters: ['FOLLOW_UP'] };
+    this.core.executeCommand<DriveWhipCommandResponse>(api).subscribe({
+      next: res => {
+        if (!res.ok) return;
+        let rows: any[] = [];
+        if (Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
+        const mapped = rows.map((r:any)=> {
+          const id = r.id ?? r.id_template ?? r.template_id ?? r.idNotificationTemplate;
+          const description = r.description ?? r.template_description ?? r.subject ?? r.template_name ?? r.name ?? (`Template #${id}`);
+          return { ...r, id, description };
+        });
+        this.followUpTemplates.set(mapped);
+        // Attempt to refresh any loaded follow-up rows
+        this.tryRebindFollowUps();
+        setTimeout(()=> this.forceFollowUpsDomSync(), 0);
+      },
+      error: () => { /* silent */ }
+    });
+  }
+
   // Re-normaliza templateId y delivery de followUps frente a los catálogos para asegurar que los selects muestren la opción correcta
   private tryRebindFollowUps(): void {
-    const templates = this.notificationTemplates();
+    const templates = this.followUpTemplates();
     const deliveries = this.deliveryMethods();
     if (!templates.length || !deliveries.length) return; // catálogos incompletos aún
     const list = this.followUps();
@@ -1838,7 +1878,10 @@ export class WorkflowEditorComponent implements OnInit {
             form_name: r.form_name,
             is_active: r.is_active ?? 1,
             code_custom_type: r.code_custom_type ?? r.custom_type_code ?? null,
-            url_custom_type: r.url_custom_type ?? r.custom_type_url ?? null,
+            // Normalize URL field across APIs: prefer new end_stage_url, fall back to legacy names
+            url_custom_type: r.end_stage_url ?? r.url_custom_type ?? r.custom_type_url ?? null,
+            // Keep original field for reference if needed elsewhere
+            end_stage_url: r.end_stage_url ?? null,
             rule_type: r.rule_type ?? null
           }))
           .filter((s) => s.name)
@@ -1846,6 +1889,16 @@ export class WorkflowEditorComponent implements OnInit {
         this.stages.set(normalized);
         // Refresh original order snapshot after loading from backend
         this.initialOrder = normalized.map(s => s.id_stage);
+        // Refresh current stage URL binding if a stage is selected
+        const sel = this.selectedStageId();
+        if (sel) {
+          const cur = normalized.find(s => s.id_stage === sel);
+          if (cur) {
+            // Bind from normalized url_custom_type to keep UI in sync
+            if (!this.stageEndUrlDirty()) this.stageEndUrl.set((cur.url_custom_type ?? '').toString());
+            this.stageEndUrlOriginal.set((cur.url_custom_type ?? '').toString());
+          }
+        }
       },
       error: () => {},
       complete: () => this.loading.set(false),
@@ -1857,6 +1910,9 @@ export class WorkflowEditorComponent implements OnInit {
     // Limpiar inmediatamente el estado del Initial Message para evitar valores residuales de otro stage
     this.resetInitialMessageState();
     const st = this.stages().find(s => s.id_stage === id);
+    // Bind end-of-stage URL to current selection
+    this.stageEndUrl.set((st?.url_custom_type ?? '').toString());
+    this.stageEndUrlOriginal.set((st?.url_custom_type ?? '').toString());
     const type = st?.type;
     if (type === 'Data Collection') {
       this.loadDataCollectionSection(id, true); // force reset si no existe registro
@@ -2200,6 +2256,46 @@ export class WorkflowEditorComponent implements OnInit {
         console.error('[WorkflowEditor] persistOrder error', err);
         Utilities.showToast('Failed to save order', 'error');
       }
+    });
+  }
+
+  /** Save/Update the end-of-stage URL for the currently selected stage using crm_stages_crud (U) */
+  saveStageEndUrl(): void {
+    const stageId = this.selectedStageId();
+    if (!stageId) { Utilities.showToast('Select a stage first', 'warning'); return; }
+    if (!this.isValidStageEndUrl()) { Utilities.showToast('Enter a valid URL starting with http:// or https://', 'warning'); return; }
+    if (!this.stageEndUrlDirty()) { Utilities.showToast('No changes to save', 'info'); return; }
+    const st = this.stages().find(s => s.id_stage === stageId);
+    if (!st) { Utilities.showToast('Stage not found', 'error'); return; }
+    const currentUser = this.authSession.user?.user || 'system';
+    const params: any[] = [
+      'U',                 // p_action
+      st.id_stage,         // p_id_stage
+      this.workflowId,     // p_id_workflow
+      st.id_stage_type,    // p_id_stage_type
+      st.name,             // p_name
+      st.sort_order,       // p_sort_order
+      st.is_active ?? 1,   // p_is_active
+      null,                // p_created_by ignored on update
+      currentUser,         // p_updated_by
+      (st.form_code ?? (st as any).formCode ?? (st as any).form?.code) ?? null, // p_form_code
+      st.code_custom_type ?? null, // p_code_custom_type
+      (this.stageEndUrl().trim() || null), // p_url_custom_type
+      st.rule_type ?? null  // p_rule_type
+    ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
+    this.stageEndUrlSaving.set(true);
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.stageEndUrlSaving.set(false))).subscribe({
+      next: res => {
+        if (!res.ok) { Utilities.showToast('Failed to save URL', 'error'); return; }
+        const newVal = this.stageEndUrl().trim();
+        // Update local list so further operations keep the new value
+        const list = this.stages().map(s => s.id_stage === st.id_stage ? { ...s, url_custom_type: newVal || null } : s);
+        this.stages.set(list);
+        this.stageEndUrlOriginal.set(newVal);
+        Utilities.showToast(newVal ? 'URL saved' : 'URL cleared', 'success');
+      },
+      error: () => Utilities.showToast('Failed to save URL', 'error')
     });
   }
 }

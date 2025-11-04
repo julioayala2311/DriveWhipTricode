@@ -152,6 +152,40 @@ export class ApplicantsPageComponent implements OnInit {
       autoHeight: true,
       wrapText: true,
       cellClass: "ag-cell-wrap-text",
+      // Provide a plain-text value for filtering/quick filter, independent of the badge renderer
+      valueGetter: (params: any) => {
+        const data = params?.data || {};
+        const list: ApplicantStatusEntry[] = Array.isArray(data.statuses)
+          ? (data.statuses as ApplicantStatusEntry[])
+          : [];
+        if (list.length) {
+          const parts = list.map((item: ApplicantStatusEntry) => {
+            const stage = (item?.stage || "").toString().trim();
+            const normalizedStatus = (item?.statusName || "")
+              .toString()
+              .trim();
+            const isReviewFiles = stage.toLowerCase() === "review files";
+            const isAllFilesApproved = stage.toLowerCase() === "all files approved";
+            const isRecollecting = !isReviewFiles && !isAllFilesApproved && /\bre-collecting\b/i.test(stage);
+            if (isReviewFiles || isAllFilesApproved || isRecollecting) {
+              return stage;
+            }
+            const statusName =
+              normalizedStatus || (item?.isComplete ? "complete" : "incomplete");
+            return `${stage || "Stage"} - ${statusName}`;
+          });
+          return parts.join(" | ");
+        }
+        const fallback = String(params?.value ?? "").trim();
+        return fallback;
+      },
+      getQuickFilterText: (params: any) => {
+        try {
+          return (params?.value ?? "").toString();
+        } catch {
+          return "";
+        }
+      },
       cellRenderer: (params: ICellRendererParams) => {
         const list = Array.isArray((params.data as any)?.statuses)
           ? ((params.data as any).statuses as ApplicantStatusEntry[])
@@ -170,6 +204,11 @@ export class ApplicantsPageComponent implements OnInit {
         ]);
       },
       filter: "agTextColumnFilter",
+      filterParams: {
+        caseSensitive: false,
+        debounceMs: 150,
+        trimInput: true,
+      },
     },
   ];
 

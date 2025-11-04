@@ -217,7 +217,8 @@ export class HomeGridComponent implements OnChanges {
         Utilities.confirm({
           title: 'Disable location',
           text: `The location "${(rec as any)?.location_name ?? 'this location'}" will be disabled. Continue?`,
-          confirmButtonText: 'Disable'
+          confirmButtonText: 'Disable',
+          allowOutsideClick: false,
         }).then(c => {
           if (!c) return;
           this.deleteRow.emit(rec);

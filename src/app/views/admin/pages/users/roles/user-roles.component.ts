@@ -195,7 +195,8 @@ export class UserRolesComponent implements OnInit, OnDestroy {
       text:  isAssign
         ? `The role "${payload.role}" will be assigned to route "${payload.label}". Continue?`
         : `The role "${payload.role}" will be unassigned from route "${payload.label}". Continue?`,
-      confirmButtonText: isAssign ? 'Assign' : 'Unassign'
+      confirmButtonText: isAssign ? 'Assign' : 'Unassign',
+      allowOutsideClick: false,
     });
 
     if (!ok) {
@@ -417,7 +418,8 @@ export class UserRolesComponent implements OnInit, OnDestroy {
       title: 'Disable role',
       text: `The role "${record.role}" will be disabled. Continue?`,
       confirmButtonText: 'Disable',
-      icon: 'warning'
+      icon: 'warning',
+      allowOutsideClick: false,
     }).then(ok => {
       if (!ok) return;
       this.mutate('D', record.role).subscribe({

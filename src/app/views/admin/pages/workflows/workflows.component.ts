@@ -170,7 +170,8 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
     Utilities.confirm({
       title: 'Disable workflow',
       text: `The workflow "${rec.workflow_name}" will be disabled. Continue?`,
-      confirmButtonText: 'Disable'
+      confirmButtonText: 'Disable',
+      allowOutsideClick: false,
     }).then(c => {
       if (!c) return;
       this.mutate('D', { id_workflow: rec.id_workflow });

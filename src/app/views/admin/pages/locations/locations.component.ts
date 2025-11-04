@@ -147,7 +147,8 @@ export class LocationsComponent implements OnInit, AfterViewInit, OnDestroy {
       padding: '1.5rem',
       confirmButtonText: 'Close',
       showCloseButton: true,
-      focusConfirm: false
+      focusConfirm: false,
+      allowOutsideClick: false,
     });
   }
 

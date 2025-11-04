@@ -212,6 +212,19 @@
               <div class="sub-status small" *ngIf="s.form_name">
                 {{ s.form_name }} Form
               </div>
+              <!-- <div class="sub-status small text-truncate" *ngIf="s.url_custom_type">
+                <i class="feather icon-external-link me-1" aria-hidden="true"></i>
+                <a
+                  [href]="s.url_custom_type"
+                  target="_blank"
+                  rel="noopener"
+                  class="text-decoration-none"
+                  [title]="s.url_custom_type"
+                  (click)="$event.stopPropagation()"
+                >
+                  {{ s.url_custom_type }}
+                </a>
+              </div> -->
               <div class="meta small d-flex align-items-center gap-1 mt-1">
                 <i class="feather icon-user"></i
                 ><span>{{ s.applicants_count }}</span>
@@ -367,17 +380,43 @@
                       >Show one question at a time</label
                     >
                   </div>
-                  <div class="form-check form-switch m-0">
-                      <div class="form-check-label small">
-                        Provide the full URL (including http or https) that will be shown to applicants at the end of the stage
-                      </div>
+                  <div class="col-12 col-sm-6 col-lg-6 m-0">
+                    <div class="form-check-label small mb-1">
+                      Provide the full URL (including http or https) that will be shown to applicants at the end of the stage
+                    </div>
+                    <div class="input-group input-group-sm">
                       <input
-                      type="url"
-                      class="form-control form-control-sm"
-                      placeholder="https://example.com/path"
-                      [value]="newStageCustomUrl()"
-                      (input)="newStageCustomUrl.set($any($event.target).value)"
-                    />
+                        type="url"
+                        class="form-control"
+                        placeholder="https://example.com/path"
+                        [value]="stageEndUrl()"
+                        (input)="onEndUrlInput($any($event.target).value)"
+                      />
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-sm btn-primary d-inline-flex align-items-center gap-1"
+                        (click)="saveStageEndUrl()"
+                        [disabled]="stageEndUrlSaving() || !stageEndUrlDirty() || !isValidStageEndUrl(stageEndUrl())"
+                        [attr.title]="!stageEndUrlDirty() ? 'No changes to save' : (isValidStageEndUrl(stageEndUrl()) ? null : 'Enter a valid http(s) URL')"
+                      >
+                        <ng-container *ngIf="!stageEndUrlSaving(); else savingEndUrl">
+                          <i
+                            class="feather"
+                            [ngClass]="
+                              stageEndUrlOriginal() ? 'icon-save' : 'icon-check'
+                            "
+                            style="font-size: 0.8rem"
+                          ></i>
+                          {{ stageEndUrlOriginal() ? 'Update' : 'Save' }}
+                        </ng-container>
+                      </button>
+                    </div>
+                    <ng-template #savingEndUrl>
+                      <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    </ng-template>
+                    <div class="form-text text-danger small" *ngIf="!isValidStageEndUrl(stageEndUrl())">
+                      Enter a URL starting with http:// or https://
+                    </div>
                   </div>
                 </div>
               </div>
@@ -748,7 +787,7 @@
                           [class.is-invalid]="!fu.templateId && fu.dirty"
                           [disabled]="fu.saving || followUpsLoading()"
                           [value]="fu.templateId ?? ''"
-                          (focus)="ensureInitialMessageCatalogs()"
+                          (focus)="ensureFollowUpTemplates()"
                           (change)="
                             updateFollowUpField(
                               i,
@@ -759,7 +798,7 @@
                         >
                           <option value="">Select template…</option>
                           <option
-                            *ngFor="let t of notificationTemplates()"
+                            *ngFor="let t of followUpTemplates()"
                             [value]="t.id"
                           >
                             {{ t.description }}

@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject } from "@angular/core";
+import { Component, OnInit, OnDestroy, ViewChild, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { AgGridAngular } from "ag-grid-angular";
 import {
@@ -21,6 +21,9 @@ import {
 import { Utilities } from "../../../../Utilities/Utilities";
 import { firstValueFrom } from "rxjs";
 import { FormsModule } from "@angular/forms";
+import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+import { AuthSessionService } from "../../../../core/services/auth/auth-session.service";
+import Swal from "sweetalert2";
 
 interface TemplateRow {
   id: string | number | null;
@@ -30,6 +33,11 @@ interface TemplateRow {
   messageType: string | null;
   lastEdited: string | null;
   lastEditedBy: string | null;
+  active: boolean | null;
+  // Optional detailed fields for local editing/preview (not provided by list SP)
+  emailSubject?: string | null;
+  emailBody?: string | null;
+  smsBody?: string | null;
 }
 
 @Component({
@@ -39,10 +47,12 @@ interface TemplateRow {
   templateUrl: "./templates-page.component.html",
   styleUrls: ["./templates-page.component.scss"],
 })
-export class TemplatesPageComponent implements OnInit {
+export class TemplatesPageComponent implements OnInit, OnDestroy {
   @ViewChild(AgGridAngular) grid?: AgGridAngular;
   private gridApi?: GridApi;
   private core = inject(DriveWhipCoreService);
+  private authSession = inject(AuthSessionService);
+  private sanitizer = inject(DomSanitizer);
 
   loading = false;
   error: string | null = null;
@@ -53,6 +63,7 @@ export class TemplatesPageComponent implements OnInit {
   pageSize = 25;
   pageSizeOptions: number[] = [10, 25, 50, 100];
   showCreateModal = false;
+  // Legacy simple modal state (kept for fallback, but we now use the editor modal)
   newTemplate = {
     code: "",
     name: "",
@@ -60,6 +71,53 @@ export class TemplatesPageComponent implements OnInit {
     messageType: "Email",
     lastEditedBy: "",
   };
+
+  // --- New Editor Modals State ---
+  showEditorModal = false; // Add/Edit main modal
+  editorMode: 'add' | 'edit' = 'add';
+  showSmsEditor = false;
+  showEmailEditor = false;
+  showPreviewModal = false;
+  previewTab: 'email' | 'sms' = 'email';
+
+  // Basic picklists for the form
+  templateTypes = [ { value: 'Follow Up', label: 'Follow Up' } ];
+  private typesLoading = false;
+  private typesError: string | null = null;
+
+  templateForm = {
+    id: null as string | number | null,
+    name: '',
+    type: 'Follow Up',
+    emailSubject: '',
+    emailBody: '',
+    smsBody: '',
+  };
+
+  // Build a sandboxed HTML document for preview within an iframe
+  get emailPreviewDoc(): SafeHtml {
+    const body = (this.templateForm.emailBody || '').toString().trim();
+    const html = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      /* Neutral base styles inside the sandbox */
+      html, body { height: 100%; }
+      body { margin: 12px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; font-size: 14px; line-height: 1.5; color: #111; background: #fff; }
+      img { max-width: 100%; height: auto; }
+      table { border-collapse: collapse; }
+      a { color: #0d6efd; }
+      pre, code { white-space: pre-wrap; }
+      /* Prevent oversized elements from breaking layout */
+      *, *::before, *::after { box-sizing: border-box; }
+    </style>
+  </head>
+  <body>${body || '<div style="color:#6c757d">Not configured yet...</div>'}</body>
+</html>`;
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
 
   private readonly fallbackRows: TemplateRow[] = [
     {
@@ -70,6 +128,7 @@ export class TemplatesPageComponent implements OnInit {
       messageType: "EMAIL",
       lastEdited: "2025-02-10 09:32",
       lastEditedBy: "admin@drivewhip.com",
+      active: true,
     },
     {
       id: "TPL-002",
@@ -79,6 +138,7 @@ export class TemplatesPageComponent implements OnInit {
       messageType: "SMS",
       lastEdited: "2025-02-08 18:15",
       lastEditedBy: "automation@drivewhip.com",
+      active: true,
     },
     {
       id: "TPL-003",
@@ -88,6 +148,7 @@ export class TemplatesPageComponent implements OnInit {
       messageType: "EMAIL",
       lastEdited: "2025-01-26 11:45",
       lastEditedBy: "support@drivewhip.com",
+      active: true,
     },
   ];
 
@@ -124,6 +185,21 @@ export class TemplatesPageComponent implements OnInit {
       headerComponentParams: { icon: "icon-rss" },
     },
     {
+      headerName: "Active",
+      field: "active",
+      minWidth: 120,
+      flex: 0.6,
+      headerComponent: GridHeaderComponent,
+      headerComponentParams: { icon: "icon-check-circle" },
+      cellRenderer: (p: any) => {
+        const v = p.value;
+        const isActive = v === true || v === 1 || String(v).toLowerCase() === 'true';
+        const label = isActive ? 'Active' : 'Inactive';
+        const cls = isActive ? 'badge bg-success-subtle text-success' : 'badge bg-danger-subtle text-danger';
+        return `<span class="${cls}">${label}</span>`;
+      },
+    },
+    {
       headerName: "Last Edited",
       field: "lastEdited",
       minWidth: 160,
@@ -142,19 +218,25 @@ export class TemplatesPageComponent implements OnInit {
     {
       headerName: "Actions",
       field: "__actions",
-      width: 210,
+      width: 160,
       sortable: false,
       filter: false,
       resizable: false,
       suppressSizeToFit: true,
+      cellClass: 'overflow-visible', // allow dropdown to overflow the cell
       headerComponent: GridHeaderComponent,
       headerComponentParams: { icon: "icon-sliders" },
       cellRenderer: () => {
         return `
-          <div class="d-flex gap-1 template-actions-inline">
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-action="edit">Edit</button>
-            <button type="button" class="btn btn-sm btn-outline-primary" data-action="clone">Clone</button>
-            <button type="button" class="btn btn-sm btn-outline-danger" data-action="delete">Disable</button>
+          <div class="template-actions-inline dropdown position-relative">
+            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-toggle="actions-menu">
+              Actions
+            </button>
+            <div class="dropdown-menu">
+              <button type="button" class="dropdown-item" data-action="edit">Edit</button>
+              <button type="button" class="dropdown-item" data-action="clone">Clone</button>
+              <button type="button" class="dropdown-item text-danger" data-action="delete">Disable</button>
+            </div>
           </div>
         `;
       },
@@ -183,9 +265,29 @@ export class TemplatesPageComponent implements OnInit {
   };
 
   rowData: TemplateRow[] = [];
+  private activeActionsMenu: {
+    menu: HTMLElement;
+    placeholder: HTMLElement;
+    toggleBtn: HTMLElement;
+    row: TemplateRow;
+    menuClickHandler: (event: MouseEvent) => void;
+    outsideClickHandler: (event: MouseEvent) => void;
+    keydownHandler: (event: KeyboardEvent) => void;
+    scrollHandler: () => void;
+    resizeHandler: () => void;
+  } | null = null;
+  private editingRow: TemplateRow | null = null;
 
   ngOnInit(): void {
-    void this.loadTemplates();
+    // Load template types first (from SP), then load templates grid
+    void this.loadTemplateTypes()
+      .finally(() => {
+        void this.loadTemplates();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.closeActiveActionsMenu();
   }
 
   onGridReady(event: GridReadyEvent): void {
@@ -223,9 +325,10 @@ export class TemplatesPageComponent implements OnInit {
     this.error = null;
     this.gridApi?.showLoadingOverlay();
 
+    // Use stored procedure notifcations_templates_list to retrieve templates
     const api: IDriveWhipCoreAPI = {
-      commandName: DriveWhipAdminCommand.notification_templates_crud,
-      parameters: ["R", null, null, null, null, null, null, null],
+      commandName: DriveWhipAdminCommand.notifcations_templates_list,
+      parameters: [],
     } as any;
 
     try {
@@ -243,53 +346,33 @@ export class TemplatesPageComponent implements OnInit {
       }
 
       const data = Array.isArray(res.data)
-        ? Array.isArray(res.data[0])
-          ? res.data[0]
-          : res.data
+        ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
         : [];
 
       this.error = null;
       this.rowData = data.map((row: any) => {
-        const id =
-          row.id_template ??
-          row.id ??
-          row.template_id ??
-          row.ID_TEMPLATE ??
-          row.ID ??
-          null;
-        const code =
-          (row.code ?? row.template_code ?? row.name ?? `tpl-${id ?? ""}`)
-            ?.toString()
-            .trim() || "";
-        const name =
-          (row.name ?? row.description ?? row.subject ?? `Template ${id ?? ""}`)
-            ?.toString()
-            .trim() || "";
-        const format = (row.type ?? row.template_type ?? row.category ?? null)
-          ?.toString()
-          .trim() || null;
-        const messageType = (row.channel ?? row.delivery ?? row.method ?? null)
-          ?.toString()
-          .trim() || null;
-        const lastEdited =
-          row.updated_at ?? row.last_modified ?? row.modified_at ?? null;
-        const lastEditedBy =
-          row.updated_by ??
-          row.updatedBy ??
-          row.modified_by ??
-          row.modifiedBy ??
-          row.last_modified_by ??
-          null;
-
+        // SP fields: id, TemplateName, Formatm, MessageType, LastEdited, LastEditedBy, Active
+        const id = row.id ?? row.id_template ?? row.ID ?? null;
+        const name = (row.TemplateName ?? row.description ?? row.name ?? `Template ${id ?? ''}`)?.toString().trim() || '';
+        const format = (row.Formatm ?? row.Format ?? row.message_type ?? row.MessageType ?? null)?.toString().trim() || null;
+        const messageType = (row.MessageType ?? row.event ?? null)?.toString().trim() || null;
+        const lastEdited = row.LastEdited ?? row.update_at ?? row.created_at ?? null;
+        const lastEditedBy = row.LastEditedBy ?? row.update_by ?? row.created_by ?? null;
+        const activeRaw = row.Active ?? row.active ?? row.is_active ?? row.IS_ACTIVE ?? null;
+        const active =
+          activeRaw === null || activeRaw === undefined
+            ? null
+            : (activeRaw === true || activeRaw === 1 || String(activeRaw).toLowerCase() === 'true');
         return {
           id,
           name,
-          code,
+          code: '', // SP doesn't return code; not displayed in grid
           format,
           messageType,
           lastEdited: lastEdited ? String(lastEdited) : null,
           lastEditedBy: lastEditedBy ? String(lastEditedBy) : null,
-        };
+          active,
+        } as TemplateRow;
       });
     } catch (err) {
       console.error("[TemplatesPage] loadTemplates error", err);
@@ -303,6 +386,51 @@ export class TemplatesPageComponent implements OnInit {
         this.gridApi?.sizeColumnsToFit();
         this.updatePaginationState();
       }, 50);
+    }
+  }
+
+  private async loadTemplateTypes(): Promise<void> {
+    this.typesLoading = true;
+    this.typesError = null;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.notifcations_templates_type_list,
+      parameters: [],
+    } as any;
+    try {
+      const res = await firstValueFrom(
+        this.core.executeCommand<DriveWhipCommandResponse>(api)
+      );
+      if (!res || res.ok === false) {
+        const message = (res as any)?.error?.toString() || 'Failed to load template types';
+        this.typesError = message;
+        Utilities.showToast(message, 'warning');
+        return;
+      }
+      const data = Array.isArray(res.data)
+        ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
+        : [];
+      const mapped = data
+        .map((row: any) => {
+          const code = (row.code ?? row.Code ?? row.value ?? row.Value ?? row.type_code ?? row.type ?? row.TYPE ?? '').toString().trim();
+          const label = (row.label ?? row.Label ?? row.description ?? row.Description ?? row.Value ?? row.value ?? code).toString().trim();
+          if (!code) return null;
+          return { value: code, label } as { value: string; label: string };
+        })
+        .filter(Boolean) as { value: string; label: string }[];
+      if (mapped.length) {
+        this.templateTypes = mapped;
+      }
+    } catch (err) {
+      console.error('[TemplatesPage] loadTemplateTypes error', err);
+      this.typesError = 'Failed to load template types';
+      Utilities.showToast(this.typesError, 'error');
+    } finally {
+      this.typesLoading = false;
+      // Ensure current form value is still valid
+      const first = this.templateTypes[0]?.value || 'Follow Up';
+      if (!this.templateForm.type) {
+        this.templateForm.type = first;
+      }
     }
   }
 
@@ -357,26 +485,49 @@ export class TemplatesPageComponent implements OnInit {
     if (!target) return;
     if (event.colDef.field !== "__actions") return;
 
-    const actionBtn = target.closest(
-      "button[data-action]"
-    ) as HTMLButtonElement | null;
+    // Toggle dropdown menu
+    const toggleBtn = target.closest('[data-toggle="actions-menu"]') as HTMLButtonElement | null;
+    if (toggleBtn) {
+      event.event?.preventDefault();
+      event.event?.stopPropagation();
+      const container = toggleBtn.closest('.template-actions-inline');
+      const menu = container?.querySelector('.dropdown-menu') as HTMLElement | null;
+      if (menu) {
+        this.toggleActionsMenu(menu, toggleBtn, event.data as TemplateRow);
+      }
+      return;
+    }
+
+    // Handle action click
+    const actionBtn = target.closest('button[data-action]') as HTMLButtonElement | null;
     if (actionBtn) {
       event.event?.preventDefault();
       event.event?.stopPropagation();
       const action = actionBtn.dataset.action ?? "";
+      // Close the dropdown after action selection
+      const menu = actionBtn.closest('.dropdown-menu') as HTMLElement | null;
+      menu?.classList.remove('show');
       this.onActionClick(action, event.data as TemplateRow);
+      return;
     }
+
+    // Click somewhere else inside actions cell: close any open menus
+    const gridEl = (this.grid as any)?.eGridDiv as HTMLElement | undefined;
+    (gridEl || document).querySelectorAll('.dropdown-menu.show').forEach(el => el.classList.remove('show'));
   }
 
   openCreateTemplate(): void {
-    this.newTemplate = {
-      code: "",
-      name: "",
-      format: "",
-      messageType: "Email",
-      lastEditedBy: "",
+    this.editorMode = 'add';
+    this.editingRow = null;
+    this.templateForm = {
+      id: null,
+      name: '',
+      type: this.templateTypes[0]?.value || 'Follow Up',
+      emailSubject: '',
+      emailBody: '',
+      smsBody: '',
     };
-    this.showCreateModal = true;
+    this.showEditorModal = true;
   }
 
   closeCreateModal(): void {
@@ -384,48 +535,387 @@ export class TemplatesPageComponent implements OnInit {
   }
 
   saveTemplate(): void {
-    const { code, name, format, messageType, lastEditedBy } = this.newTemplate;
-    if (!code.trim() || !name.trim()) {
-      Utilities.showToast("Template code and name are required", "warning");
+    // Save backed by SP crm_notifications_templates_crud
+    const { name, emailSubject, emailBody, smsBody, type } = this.templateForm;
+    if (!name.trim()) {
+      Utilities.showToast('Template name is required', 'warning');
       return;
     }
-    const now = new Date();
-    const row: TemplateRow = {
-      id: `new-${Date.now()}`,
-      code: code.trim(),
-      name: name.trim(),
-      format: format.trim() || null,
-      messageType: messageType.trim() || null,
-      lastEdited: now.toISOString(),
-      lastEditedBy: lastEditedBy.trim() || "You",
+    if (!emailBody.trim() && !smsBody.trim()) {
+      Utilities.showToast('Provide at least Email or SMS content', 'warning');
+      return;
+    }
+
+    const currentUser = this.authSession.user?.user || 'system';
+
+    const callCrud = async (
+      action: 'C'|'U'|'D',
+      params: {
+        id: string | number | null;
+        templateName: string;
+        subject: string | null;
+        body: string | null;
+        typeCode: string | null;
+        channel: 'Email'|'SMS';
+        createdBy?: string | null;
+        updatedBy?: string | null;
+        isActive?: number | 0 | 1 | null;
+        idTemplateTwilio?: string | number | null;
+      }
+    ) => {
+      const api: IDriveWhipCoreAPI = {
+        commandName: DriveWhipAdminCommand.crm_notifications_templates_crud,
+        parameters: [
+          action,
+          params.id ?? null,
+          params.templateName ?? null,
+          params.subject ?? null,
+          params.body ?? null,
+          params.typeCode ?? null,
+          params.channel ?? null,
+          action === 'C' ? (params.createdBy ?? currentUser) : null,
+          action !== 'C' ? (params.updatedBy ?? currentUser) : null,
+          params.isActive ?? 1,
+          params.idTemplateTwilio ?? null,
+        ],
+      } as any;
+      const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse>(api));
+      if (!res || res.ok === false) {
+        const message = (res as any)?.error?.toString() || 'Operation failed';
+        throw new Error(message);
+      }
+      return res;
     };
-    this.rowData = [row, ...this.rowData];
-    Utilities.showToast("Template draft added", "success");
-    this.closeCreateModal();
+
+    const run = async () => {
+      if (this.editorMode === 'add') {
+        const tasks: Promise<any>[] = [];
+        if (emailBody.trim()) {
+          tasks.push(callCrud('C', {
+            id: null,
+            templateName: name.trim(),
+            subject: (emailSubject || '').trim() || null,
+            body: emailBody.trim(),
+            typeCode: type || null,
+            channel: 'Email',
+            createdBy: currentUser,
+            isActive: 1,
+            idTemplateTwilio: null,
+          }));
+        }
+        if (smsBody.trim()) {
+          tasks.push(callCrud('C', {
+            id: null,
+            templateName: name.trim(),
+            subject: null,
+            body: smsBody.trim(),
+            typeCode: type || null,
+            channel: 'SMS',
+            createdBy: currentUser,
+            isActive: 1,
+            idTemplateTwilio: null,
+          }));
+        }
+        await Promise.all(tasks);
+        Utilities.showToast('Template saved', 'success');
+      } else {
+        const channel = (this.editingRow?.format || '').toString().toUpperCase() === 'SMS' ? 'SMS' : 'Email';
+        if (channel === 'Email') {
+          if (!(emailSubject || '').trim()) {
+            Utilities.showToast('Email subject is required to update the Email template', 'warning');
+            return;
+          }
+          if (!emailBody.trim()) {
+            Utilities.showToast('Email body is required to update the Email template', 'warning');
+            return;
+          }
+        } else if (channel === 'SMS') {
+          if (!smsBody.trim()) {
+            Utilities.showToast('SMS body is required to update the SMS template', 'warning');
+            return;
+          }
+        }
+
+        await callCrud('U', {
+          id: this.templateForm.id,
+          templateName: name.trim(),
+          subject: channel === 'Email' ? ((emailSubject || '').trim() || null) : null,
+          body: channel === 'Email' ? emailBody.trim() : smsBody.trim(),
+          typeCode: type || null,
+          channel,
+          updatedBy: currentUser,
+          isActive: 1,
+          idTemplateTwilio: null,
+        });
+        Utilities.showToast('Template updated', 'success');
+      }
+      this.showEditorModal = false;
+      await this.loadTemplates();
+    };
+
+    run().catch(err => {
+      const message = (err && err.message) ? err.message : 'Failed to save template';
+      Utilities.showToast(message, 'error');
+    });
   }
 
   onActionClick(action: string, row: TemplateRow): void {
     switch (action) {
       case "edit":
-        Utilities.showToast(`Edit template "${row.name}"`, "info");
+        this.openEditTemplate(row);
         break;
       case "clone":
-        Utilities.showToast(`Clone template "${row.name}"`, "info");
+        void Swal.fire({
+          title: 'Clone template',
+          input: 'text',
+          inputLabel: 'New template name',
+          inputValue: `${row.name}`,
+          inputAttributes: { maxlength: '100', style: 'color: var(--bs-body-color)' },
+          showCancelButton: true,
+          confirmButtonText: 'Clone',
+          allowOutsideClick: false,
+          preConfirm: async (value) => {
+            const newName = (value || '').trim();
+            if (!newName) {
+              Swal.showValidationMessage('Name is required');
+              return false;
+            }
+            const currentUser = this.authSession.user?.user || 'system';
+            const api: IDriveWhipCoreAPI = {
+              commandName: DriveWhipAdminCommand.notifcations_template_clone,
+              parameters: [
+                row.id ?? null, // p_id_template
+                newName,        // p_description (name)
+                currentUser     // p_user
+              ],
+            } as any;
+            try {
+              const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse>(api));
+              if (!res || res.ok === false) {
+                const message = (res as any)?.error?.toString() || 'Clone failed';
+                throw new Error(message);
+              }
+              return true;
+            } catch (err: any) {
+              Swal.showValidationMessage((err?.message || 'Clone failed').toString());
+              return false;
+            }
+          }
+        }).then(result => {
+          if (result.isConfirmed) {
+            Utilities.showToast('Template cloned', 'success');
+            void this.loadTemplates();
+          }
+        });
         break;
       case "delete":
         Utilities.confirm({
           title: "Delete template",
           text: `Are you sure you want to delete "${row.name}"?`,
           confirmButtonText: "Delete",
+          allowOutsideClick: false,
         }).then((confirmed) => {
-          if (confirmed) {
-            this.rowData = this.rowData.filter((r) => r !== row);
-            Utilities.showToast("Template deleted", "success");
-          }
+          if (!confirmed) return;
+          const currentUser = this.authSession.user?.user || 'system';
+          const api: IDriveWhipCoreAPI = {
+            commandName: DriveWhipAdminCommand.crm_notifications_templates_crud,
+            parameters: [
+              'D',
+              row.id ?? null,
+              null,
+              null,
+              null,
+              null,
+              row.format ?? null,
+              null,
+              currentUser,
+              1,
+              null
+            ]
+          } as any;
+          firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse>(api))
+            .then(res => {
+              if (!res || res.ok === false) {
+                const message = (res as any)?.error?.toString() || 'Failed to delete template';
+                throw new Error(message);
+              }
+              Utilities.showToast("Template deleted", "success");
+              return this.loadTemplates();
+            })
+            .catch(err => {
+              const message = (err && err.message) ? err.message : 'Failed to delete template';
+              Utilities.showToast(message, 'error');
+            });
         });
         break;
       default:
         break;
     }
+  }
+
+  private openEditTemplate(row: TemplateRow): void {
+    this.editorMode = 'edit';
+    this.editingRow = row;
+    this.templateForm = {
+      id: row.id ?? null,
+      name: row.name || '',
+      type: this.templateTypes[0]?.value || 'Follow Up',
+      emailSubject: row.emailSubject || '',
+      emailBody: row.emailBody || '',
+      smsBody: row.smsBody || '',
+    };
+    this.showEditorModal = true;
+  }
+
+  // --- Sub-editors ---
+  openSmsEditor(): void {
+    this.showSmsEditor = true;
+  }
+  openEmailEditor(): void {
+    this.showEmailEditor = true;
+  }
+  saveSmsEditor(): void {
+    // Just close; data already two-way bound via template binding
+    this.showSmsEditor = false;
+  }
+  saveEmailEditor(): void {
+    this.showEmailEditor = false;
+  }
+  openPreview(tab: 'email' | 'sms'): void {
+    this.previewTab = tab;
+    this.showPreviewModal = true;
+  }
+  closePreview(): void {
+    this.showPreviewModal = false;
+  }
+
+  deleteCurrentTemplate(): void {
+    const id = this.templateForm.id;
+    if (id == null) { this.showEditorModal = false; return; }
+    const row = this.rowData.find(r => r.id === id);
+    if (!row) { this.showEditorModal = false; return; }
+    this.onActionClick('delete', row);
+    this.showEditorModal = false;
+  }
+
+  private toggleActionsMenu(menu: HTMLElement, toggleBtn: HTMLElement, row: TemplateRow): void {
+    if (this.activeActionsMenu?.menu === menu) {
+      this.closeActiveActionsMenu();
+      return;
+    }
+    this.closeActiveActionsMenu();
+    this.openActionsMenu(menu, toggleBtn, row);
+  }
+
+  private openActionsMenu(menu: HTMLElement, toggleBtn: HTMLElement, row: TemplateRow): void {
+    const placeholder = document.createElement('span');
+    placeholder.className = 'actions-menu-placeholder';
+    placeholder.style.display = 'none';
+    const parent = menu.parentElement;
+    parent?.insertBefore(placeholder, menu);
+    document.body.appendChild(menu);
+
+    menu.classList.add('show');
+  menu.classList.add('template-actions-menu');
+    menu.style.position = 'fixed';
+    menu.style.visibility = 'hidden';
+    menu.style.display = 'block';
+    menu.style.zIndex = '5000';
+    this.positionActionsMenu(menu, toggleBtn);
+    menu.style.visibility = 'visible';
+
+    const menuClickHandler = (event: MouseEvent) => {
+      const actionBtn = (event.target as HTMLElement | null)?.closest('button[data-action]') as HTMLButtonElement | null;
+      if (!actionBtn) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      const action = actionBtn.dataset.action ?? '';
+      this.closeActiveActionsMenu();
+      this.onActionClick(action, row);
+    };
+    const outsideClickHandler = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (menu.contains(target) || toggleBtn.contains(target)) return;
+      this.closeActiveActionsMenu();
+    };
+    const keydownHandler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        this.closeActiveActionsMenu();
+      }
+    };
+    const scrollHandler = () => {
+      this.positionActionsMenu(menu, toggleBtn);
+    };
+    const resizeHandler = () => {
+      this.positionActionsMenu(menu, toggleBtn);
+    };
+
+    menu.addEventListener('click', menuClickHandler);
+    document.addEventListener('click', outsideClickHandler, true);
+    document.addEventListener('keydown', keydownHandler, true);
+    window.addEventListener('scroll', scrollHandler, true);
+    window.addEventListener('resize', resizeHandler);
+
+    this.activeActionsMenu = {
+      menu,
+      placeholder,
+      toggleBtn,
+      row,
+      menuClickHandler,
+      outsideClickHandler,
+      keydownHandler,
+      scrollHandler,
+      resizeHandler,
+    };
+  }
+
+  private positionActionsMenu(menu: HTMLElement, toggleBtn: HTMLElement): void {
+    if (!document.body.contains(toggleBtn)) {
+      this.closeActiveActionsMenu();
+      return;
+    }
+    const rect = toggleBtn.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      this.closeActiveActionsMenu();
+      return;
+    }
+    const menuWidth = menu.offsetWidth || 160;
+    const menuHeight = menu.offsetHeight || 120;
+    const margin = 6;
+    let left = rect.right - menuWidth;
+    const maxLeft = window.innerWidth - menuWidth - margin;
+    if (left > maxLeft) left = maxLeft;
+    if (left < margin) left = margin;
+    let top = rect.bottom + margin;
+    const maxTop = window.innerHeight - menuHeight - margin;
+    if (top > maxTop) top = Math.max(margin, rect.top - menuHeight - margin);
+    menu.style.left = `${Math.round(left)}px`;
+    menu.style.top = `${Math.round(top)}px`;
+  }
+
+  private closeActiveActionsMenu(): void {
+    const info = this.activeActionsMenu;
+    if (!info) return;
+    const { menu, placeholder, menuClickHandler, outsideClickHandler, keydownHandler, scrollHandler, resizeHandler } = info;
+    menu.classList.remove('show');
+    menu.style.position = '';
+    menu.style.display = '';
+    menu.style.visibility = '';
+    menu.style.zIndex = '';
+  menu.style.left = '';
+  menu.style.top = '';
+    menu.removeEventListener('click', menuClickHandler);
+    document.removeEventListener('click', outsideClickHandler, true);
+    document.removeEventListener('keydown', keydownHandler, true);
+    window.removeEventListener('scroll', scrollHandler, true);
+    window.removeEventListener('resize', resizeHandler);
+    if (placeholder.parentElement) {
+      placeholder.parentElement.insertBefore(menu, placeholder);
+    }
+    placeholder.remove();
+    this.activeActionsMenu = null;
   }
 }

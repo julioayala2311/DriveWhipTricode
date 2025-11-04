@@ -199,7 +199,8 @@ export class UserAccountsComponent implements OnInit {
     Utilities.confirm({
       title: 'Disable account',
       text: `The user \"${rec.user}\" will be disabled. Continue?`,
-      confirmButtonText: 'Disable'
+      confirmButtonText: 'Disable',
+      allowOutsideClick: false,
     }).then(c => {
       if (!c) return;
       this.mutate('D', rec);

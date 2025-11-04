@@ -238,7 +238,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   recollectTemplateError: string | null = null;
   private _recollectTemplateToken = 0;
 
-  employmentProfileSnapshot: string = '{"id":"61192fe2-c13d-3e6b-b28e-1155147845a2","account":"019a0b0b-62a0-25bd-5102-11b4d292a7e8","address":{"city":null,"line1":null,"line2":null,"state":null,"country":"SV","postal_code":null},"first_name":"Juan","last_name":"Zamora","full_name":"Juan Zamora","birth_date":null,"email":"zamora125@hotmail.com","phone_number":"+50377461468","picture_url":"https://api.argyle.com/v2/payroll-documents/019a0b0e-9a2c-eca8-a5b6-a2d9c921e31c/file","employment_status":null,"employment_type":"contractor","job_title":"Driver","ssn":null,"marital_status":null,"gender":null,"hire_date":"2020-04-04","original_hire_date":"2020-04-04","termination_date":null,"termination_reason":null,"employer":"uber","base_pay":{"amount":null,"period":null,"currency":null},"pay_cycle":null,"platform_ids":{"employee_id":null,"position_id":null,"platform_user_id":null},"created_at":"2025-10-22T08:34:57.708Z","updated_at":"2025-10-22T08:34:57.708Z","metadata":{"driverStatus":"scanner_common.data.MissingT","raw_employment_type":"Contractor"},"employment":"8675e413-ef4f-3ea0-8f4f-008128c81d47"}'; 
+  employmentProfileSnapshot: string =
+    '{"id":"61192fe2-c13d-3e6b-b28e-1155147845a2","account":"019a0b0b-62a0-25bd-5102-11b4d292a7e8","address":{"city":null,"line1":null,"line2":null,"state":null,"country":"SV","postal_code":null},"first_name":"Juan","last_name":"Zamora","full_name":"Juan Zamora","birth_date":null,"email":"zamora125@hotmail.com","phone_number":"+50377461468","picture_url":"https://api.argyle.com/v2/payroll-documents/019a0b0e-9a2c-eca8-a5b6-a2d9c921e31c/file","employment_status":null,"employment_type":"contractor","job_title":"Driver","ssn":null,"marital_status":null,"gender":null,"hire_date":"2020-04-04","original_hire_date":"2020-04-04","termination_date":null,"termination_reason":null,"employer":"uber","base_pay":{"amount":null,"period":null,"currency":null},"pay_cycle":null,"platform_ids":{"employee_id":null,"position_id":null,"platform_user_id":null},"created_at":"2025-10-22T08:34:57.708Z","updated_at":"2025-10-22T08:34:57.708Z","metadata":{"driverStatus":"scanner_common.data.MissingT","raw_employment_type":"Contractor"},"employment":"8675e413-ef4f-3ea0-8f4f-008128c81d47"}';
 
   // --- Move To Modal state ---
   moveToOpen = false;
@@ -258,7 +259,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (id === null || id === undefined) return "";
     const sid = Number(id);
     if (!Number.isFinite(sid)) return "";
-    const found = (this.moveToStageOptions || []).find((st) => Number(st.id) === sid);
+    const found = (this.moveToStageOptions || []).find(
+      (st) => Number(st.id) === sid
+    );
     return found?.name || "";
   }
 
@@ -268,8 +271,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (this.eventSidebarOpen) this.closeEventSidebar();
     if (this.emailSidebarOpen) this.closeEmailSidebar();
 
-  const to = this.getApplicantPhone(this.applicant) || "";
-  const defaultFrom = this.defaultSmsFromNumber();
+    const to = this.getApplicantPhone(this.applicant) || "";
+    const defaultFrom = this.defaultSmsFromNumber();
     this.smsFrom = defaultFrom;
     this.smsTo = to;
     this.smsMessage = "";
@@ -291,6 +294,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         title: "Argyle Information",
         text: "We couldn't identify the applicant.",
         confirmButtonText: "Close",
+        allowOutsideClick: false,
       });
       return;
     }
@@ -315,74 +319,95 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       next: (res) => {
         try {
           // Ensure loading spinner is removed before rendering final content
-          try { Swal.hideLoading(); } catch {}
+          try {
+            Swal.hideLoading();
+          } catch {}
           if (!res?.ok) {
             Swal.update({
-              icon: 'info',
+              icon: "info",
               html: '<div class="text-secondary">No Argyle information available for this applicant.</div>',
               showConfirmButton: true,
-              confirmButtonText: 'Close',
+              confirmButtonText: "Close",
             });
             return;
           }
           // Extract first row
           let raw: any = res.data;
           if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
-          const row = Array.isArray(raw) ? (raw[0] ?? null) : raw;
-          const jsonInfo = row?.JSONInfo ?? row?.json_info ?? row?.JsonInfo ?? row?.jsonInfo ?? null;
+          const row = Array.isArray(raw) ? raw[0] ?? null : raw;
+          const jsonInfo =
+            row?.JSONInfo ??
+            row?.json_info ??
+            row?.JsonInfo ??
+            row?.jsonInfo ??
+            null;
           if (!jsonInfo) {
-            try { Swal.hideLoading(); } catch {}
+            try {
+              Swal.hideLoading();
+            } catch {}
             Swal.update({
-              icon: 'info',
+              icon: "info",
               html: '<div class="text-secondary">No Argyle information available for this applicant.</div>',
               showConfirmButton: true,
-              confirmButtonText: 'Close',
+              confirmButtonText: "Close",
             });
             return;
           }
           let profile: any = null;
-          if (typeof jsonInfo === 'string') {
-            try { profile = JSON.parse(jsonInfo); } catch { profile = null; }
-          } else if (typeof jsonInfo === 'object') {
+          if (typeof jsonInfo === "string") {
+            try {
+              profile = JSON.parse(jsonInfo);
+            } catch {
+              profile = null;
+            }
+          } else if (typeof jsonInfo === "object") {
             profile = jsonInfo;
           }
           if (!profile) {
-            try { Swal.hideLoading(); } catch {}
+            try {
+              Swal.hideLoading();
+            } catch {}
             Swal.update({
-              icon: 'info',
+              icon: "info",
               html: '<div class="text-secondary">Argyle data format is invalid or empty.</div>',
               showConfirmButton: true,
-              confirmButtonText: 'Close',
+              confirmButtonText: "Close",
             });
             return;
           }
           const html = this.buildEmploymentDetailsMarkup(profile);
-          try { Swal.hideLoading(); } catch {}
+          try {
+            Swal.hideLoading();
+          } catch {}
           Swal.update({
             icon: undefined as any,
             html,
             showCloseButton: true,
             showConfirmButton: true,
-            confirmButtonText: 'Close',
-            customClass: { popup: 'employment-profile-popup' },
+            confirmButtonText: "Close",
+            customClass: { popup: "employment-profile-popup" },
           });
         } catch (e) {
-          try { Swal.hideLoading(); } catch {}
+          try {
+            Swal.hideLoading();
+          } catch {}
           Swal.update({
-            icon: 'error',
+            icon: "error",
             html: '<div class="text-danger">Failed to render Argyle information.</div>',
             showConfirmButton: true,
-            confirmButtonText: 'Close',
+            confirmButtonText: "Close",
           });
         }
       },
       error: (err) => {
-        try { Swal.hideLoading(); } catch {}
+        try {
+          Swal.hideLoading();
+        } catch {}
         Swal.update({
-          icon: 'error',
+          icon: "error",
           html: '<div class="text-danger">Failed to load Argyle information.</div>',
           showConfirmButton: true,
-          confirmButtonText: 'Close',
+          confirmButtonText: "Close",
         });
       },
     });
@@ -534,10 +559,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           this.closeSmsSidebar();
         },
         error: (_err) => {
-          // Remove optimistic and surface an error toast via history or simply keep message with not_delivered
+          // Remove optimistic and show guidance about phone format and country code
           try {
             this.removeOptimistic(optimistic.id || "");
           } catch {}
+          this.smsSendFailureToast();
         },
         complete: () => {
           this.smsSending = false;
@@ -568,7 +594,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
     const id = this.resolveApplicantId(this.applicant) || this.applicantId;
     const to = (this.getApplicantPhone(this.applicant) || "").trim();
-  const from = (this.smsFrom || this.defaultSmsFromNumber()).trim();
+    const from = (this.smsFrom || this.defaultSmsFromNumber()).trim();
     if (!id || !to || !from) {
       Utilities.showToast(
         "Missing phone or applicant id for resend",
@@ -633,7 +659,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           try {
             this.removeOptimistic(optimistic.id || "");
           } catch {}
-          Utilities.showToast("Failed to resend message", "error");
+          this.smsSendFailureToast();
         },
       });
   }
@@ -877,6 +903,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       confirmButtonColor: "#d33",
       focusCancel: true,
       reverseButtons: true,
+      allowOutsideClick: false,
     }).then((result) => {
       if (result.isConfirmed) {
         this.performDeleteApplicant(applicantId);
@@ -1106,16 +1133,16 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.realtimeSub = this.smsRealtime
-      .messages()
-      .subscribe((msg) => {
+    this.realtimeSub = this.smsRealtime.messages().subscribe((msg) => {
+      try {
+        this.handleRealtimeMessage(msg);
+      } catch (err) {
         try {
-          this.handleRealtimeMessage(msg);
-        } catch (err) {
-          try { console.error('[ApplicantPanel] handleRealtimeMessage error', err); } catch {}
-          // Swallow to avoid terminating the subscription on runtime errors
-        }
-      });
+          console.error("[ApplicantPanel] handleRealtimeMessage error", err);
+        } catch {}
+        // Swallow to avoid terminating the subscription on runtime errors
+      }
+    });
     // use capture phase to avoid being canceled by stopPropagation on inner handlers
     document.addEventListener("click", this._outsideClickListener, true);
   }
@@ -1131,7 +1158,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
     this.currentRealtimeApplicantId = null;
     if (this.currentRealtimePhoneNumber) {
-      this.smsRealtime.leavePhone(this.currentRealtimePhoneNumber).catch(() => {});
+      this.smsRealtime
+        .leavePhone(this.currentRealtimePhoneNumber)
+        .catch(() => {});
       this.currentRealtimePhoneNumber = null;
     }
     this.smsRealtime.disconnectIfIdle().catch(() => {});
@@ -1223,7 +1252,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.moveToLocationId = Number.isFinite(id) && id > 0 ? id : null;
     this.moveToWorkflowId = null;
     this.moveToStageId = null;
-    if (this.moveToLocationId) this.loadWorkflowsForLocation(this.moveToLocationId);
+    if (this.moveToLocationId)
+      this.loadWorkflowsForLocation(this.moveToLocationId);
   }
 
   onMoveToStageChange(raw: any): void {
@@ -1232,90 +1262,124 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private ensureMoveToLocations(): void {
-    if (this.moveToLocationsLoading || this.moveToLocationOptions.length) return;
+    if (this.moveToLocationsLoading || this.moveToLocationOptions.length)
+      return;
     this.moveToLocationsLoading = true;
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_locations_dropdown, parameters: [] } as any;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_locations_dropdown,
+      parameters: [],
+    } as any;
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
       next: (res) => {
         this.moveToLocationsLoading = false;
         try {
           let rows: any[] = [];
-          if (res.ok && Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
-          const mapped = (rows || []).map(r => ({
-            id: Number(r.id_location ?? r.ID_LOCATION ?? r.id ?? r.value),
-            name: String(r.name ?? r.NAME ?? r.label ?? r.LABEL ?? '')
-          })).filter(x => Number.isFinite(x.id) && x.name);
-          mapped.sort((a,b)=> a.name.localeCompare(b.name));
+          if (res.ok && Array.isArray(res.data))
+            rows = Array.isArray(res.data[0])
+              ? res.data[0]
+              : (res.data as any[]);
+          const mapped = (rows || [])
+            .map((r) => ({
+              id: Number(r.id_location ?? r.ID_LOCATION ?? r.id ?? r.value),
+              name: String(r.name ?? r.NAME ?? r.label ?? r.LABEL ?? ""),
+            }))
+            .filter((x) => Number.isFinite(x.id) && x.name);
+          mapped.sort((a, b) => a.name.localeCompare(b.name));
           this.moveToLocationOptions = mapped;
           // preselect current by name if possible
-          const currentLocName = (this.locationName || '').trim().toLowerCase();
-          const preset = mapped.find(m => m.name.trim().toLowerCase() === currentLocName);
+          const currentLocName = (this.locationName || "").trim().toLowerCase();
+          const preset = mapped.find(
+            (m) => m.name.trim().toLowerCase() === currentLocName
+          );
           if (preset) {
             this.moveToLocationId = preset.id;
             this.loadWorkflowsForLocation(preset.id);
           }
         } catch (e) {
-          this.moveToError = 'Failed to parse locations list';
+          this.moveToError = "Failed to parse locations list";
         }
       },
       error: () => {
         this.moveToLocationsLoading = false;
-        this.moveToError = 'Failed to load locations';
-      }
+        this.moveToError = "Failed to load locations";
+      },
     });
   }
 
   private loadWorkflowsForLocation(locationId: number): void {
     if (!locationId) return;
     this.moveToWorkflowsLoading = true;
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_workflows_list, parameters: [] } as any;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_workflows_list,
+      parameters: [],
+    } as any;
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
       next: (res) => {
         this.moveToWorkflowsLoading = false;
         try {
           let rows: any[] = [];
-          if (res.ok && Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
-          const filtered = (rows || []).filter(r => Number(r.id_location ?? r.ID_LOCATION ?? 0) === Number(locationId));
+          if (res.ok && Array.isArray(res.data))
+            rows = Array.isArray(res.data[0])
+              ? res.data[0]
+              : (res.data as any[]);
+          const filtered = (rows || []).filter(
+            (r) =>
+              Number(r.id_location ?? r.ID_LOCATION ?? 0) === Number(locationId)
+          );
           const wf = filtered[0];
-          this.moveToWorkflowId = wf ? Number(wf.id_workflow ?? wf.ID_WORKFLOW ?? wf.id) : null;
-          if (this.moveToWorkflowId) this.loadStagesForWorkflow(this.moveToWorkflowId);
+          this.moveToWorkflowId = wf
+            ? Number(wf.id_workflow ?? wf.ID_WORKFLOW ?? wf.id)
+            : null;
+          if (this.moveToWorkflowId)
+            this.loadStagesForWorkflow(this.moveToWorkflowId);
           else this.moveToStageOptions = [];
         } catch {
-          this.moveToError = 'Failed to parse workflows list';
+          this.moveToError = "Failed to parse workflows list";
         }
       },
       error: () => {
         this.moveToWorkflowsLoading = false;
-        this.moveToError = 'Failed to load workflows';
-      }
+        this.moveToError = "Failed to load workflows";
+      },
     });
   }
 
   private loadStagesForWorkflow(workflowId: number): void {
     if (!workflowId) return;
     this.moveToStagesLoading = true;
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_list, parameters: [workflowId] } as any;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_stages_list,
+      parameters: [workflowId],
+    } as any;
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
       next: (res) => {
         this.moveToStagesLoading = false;
         try {
           let rows: any[] = [];
-          if (res.ok && Array.isArray(res.data)) rows = Array.isArray(res.data[0]) ? res.data[0] : (res.data as any[]);
-          const mapped = (rows || []).map(r => ({ id: Number(r.id_stage ?? r.ID_STAGE ?? r.id), name: String(r.name ?? r.stage_name ?? r.NAME ?? '') }))
-            .filter(x => Number.isFinite(x.id) && x.name)
-            .sort((a,b)=> a.name.localeCompare(b.name));
+          if (res.ok && Array.isArray(res.data))
+            rows = Array.isArray(res.data[0])
+              ? res.data[0]
+              : (res.data as any[]);
+          const mapped = (rows || [])
+            .map((r) => ({
+              id: Number(r.id_stage ?? r.ID_STAGE ?? r.id),
+              name: String(r.name ?? r.stage_name ?? r.NAME ?? ""),
+            }))
+            .filter((x) => Number.isFinite(x.id) && x.name)
+            .sort((a, b) => a.name.localeCompare(b.name));
           this.moveToStageOptions = mapped;
           const currentId = this.currentStageIdNum;
-          if (currentId != null && mapped.some(m => m.id === currentId)) this.moveToStageId = currentId;
+          if (currentId != null && mapped.some((m) => m.id === currentId))
+            this.moveToStageId = currentId;
           else this.moveToStageId = mapped.length ? mapped[0].id : null;
         } catch {
-          this.moveToError = 'Failed to parse stages list';
+          this.moveToError = "Failed to parse stages list";
         }
       },
       error: () => {
         this.moveToStagesLoading = false;
-        this.moveToError = 'Failed to load stages';
-      }
+        this.moveToError = "Failed to load stages";
+      },
     });
   }
 
@@ -1323,31 +1387,43 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (this.moveToSaving) return;
     const applId = this.resolveApplicantId(this.applicant) || this.applicantId;
     if (!this.moveToLocationId || !this.moveToStageId || !applId) {
-      this.moveToError = 'Select a location and stage';
+      this.moveToError = "Select a location and stage";
       return;
     }
     const user = this.currentUserIdentifier();
     // SP signature: (p_id_location, p_id_stage, p_id_applicant, p_user)
-    const params: any[] = [ this.moveToLocationId, this.moveToStageId, applId, user ];
-    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_applicants_moveto_new, parameters: params } as any;
+    const params: any[] = [
+      this.moveToLocationId,
+      this.moveToStageId,
+      applId,
+      user,
+    ];
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_applicants_moveto_new,
+      parameters: params,
+    } as any;
     this.moveToSaving = true;
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
       next: (res) => {
         this.moveToSaving = false;
         if (!res.ok) {
-          this.moveToError = String(res.error || 'Failed to move applicant');
-          Utilities.showToast(this.moveToError, 'error');
+          this.moveToError = String(res.error || "Failed to move applicant");
+          Utilities.showToast(this.moveToError, "error");
           return;
         }
-        Utilities.showToast('Applicant moved', 'success');
+        Utilities.showToast("Applicant moved", "success");
         this.moveToOpen = false;
-        if (applId && this.moveToStageId) this.stageMoved.emit({ idApplicant: String(applId), toStageId: Number(this.moveToStageId) });
+        if (applId && this.moveToStageId)
+          this.stageMoved.emit({
+            idApplicant: String(applId),
+            toStageId: Number(this.moveToStageId),
+          });
       },
       error: () => {
         this.moveToSaving = false;
-        this.moveToError = 'Failed to move applicant';
-        Utilities.showToast(this.moveToError, 'error');
-      }
+        this.moveToError = "Failed to move applicant";
+        Utilities.showToast(this.moveToError, "error");
+      },
     });
   }
 
@@ -1709,7 +1785,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   ): Promise<string | null> {
     const code = (template.code ?? template.id ?? "").toString().trim();
     if (!code) {
-      Utilities.showToast("Template code is not available", "warning");
+      // No remote code available; fall back to local content without warning
       return null;
     }
     const description = (
@@ -1782,10 +1858,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           err
         );
         this.templateApplyError = "Unable to load the template message.";
-        Utilities.showToast(
-          "Unable to load the template message.",
-          "error"
-        );
+        Utilities.showToast("Unable to load the template message.", "error");
       }
       return null;
     } finally {
@@ -1800,7 +1873,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.loadMessageTemplates(true);
   }
 
-  trackTemplate(_index: number, item: MessageTemplateSummary): string | number | null {
+  trackTemplate(
+    _index: number,
+    item: MessageTemplateSummary
+  ): string | number | null {
     return item?.id ?? item?.description ?? null;
   }
 
@@ -1810,22 +1886,26 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     };
     try {
       const app: any = this.applicant || {};
-      const rawFirstSource =
-        app.first_name ?? app.firstname ?? app.name ?? "";
-      const first = rawFirstSource ? String(rawFirstSource).trim().split(" ")[0] ?? "" : "";
+      const rawFirstSource = app.first_name ?? app.firstname ?? app.name ?? "";
+      const first = rawFirstSource
+        ? String(rawFirstSource).trim().split(" ")[0] ?? ""
+        : "";
       const last = String(app.last_name ?? app.lastname ?? "").trim();
       const fullNameCandidate =
         app.full_name ??
         app.display_name ??
-        `${app.first_name ?? app.firstname ?? ""} ${app.last_name ?? app.lastname ?? ""}`;
+        `${app.first_name ?? app.firstname ?? ""} ${
+          app.last_name ?? app.lastname ?? ""
+        }`;
       const fullName = String(fullNameCandidate ?? "").trim();
       if (first) context.applicantFirstName = first.trim();
       if (last) context.applicantLastName = last;
       if (fullName) context.applicantFullName = fullName;
       const phone = this.getApplicantPhone(app);
       if (phone) context.applicantPhone = phone;
-      const email =
-        (app.email ?? app.email_address ?? app.primary_email ?? "").toString().trim();
+      const email = (app.email ?? app.email_address ?? app.primary_email ?? "")
+        .toString()
+        .trim();
       if (email) context.applicantEmail = email;
     } catch {
       /* noop */
@@ -1863,9 +1943,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.templatesLoading = true;
     this.templatesError = null;
     const api: IDriveWhipCoreAPI = {
-      commandName: DriveWhipAdminCommand.notification_templates_crud,
-      parameters: ["R", null, null, null, null, null, null, null],
-    };
+      commandName: DriveWhipAdminCommand.crm_notifications_templates_chat_list as any,
+      parameters: [],
+    } as any;
     this.templatesRequestSub = this.core
       .executeCommand<DriveWhipCommandResponse>(api)
       .pipe(
@@ -1878,7 +1958,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         next: (res) => {
           if (!res || res.ok === false) {
             const message =
-              ((res as any)?.error?.toString() || "").trim() || "Failed to load templates";
+              ((res as any)?.error?.toString() || "").trim() ||
+              "Failed to load templates";
             this.templatesError = message;
             Utilities.showToast(message, "error");
             return;
@@ -1920,8 +2001,18 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       row.subject ??
       (id != null ? `Template #${id}` : "");
     const description = (descriptionRaw ?? "").toString().trim();
-    const subject = (row.subject ?? row.title ?? row.email_subject ?? "").toString().trim();
-    const type = (row.type ?? row.channel ?? row.delivery ?? row.delivery_method ?? "").toString().trim();
+    const subject = (row.subject ?? row.title ?? row.email_subject ?? "")
+      .toString()
+      .trim();
+    const type = (
+      row.type ??
+      row.channel ??
+      row.delivery ??
+      row.delivery_method ??
+      ""
+    )
+      .toString()
+      .trim();
     const code =
       row.code ??
       row.CODE ??
@@ -1947,8 +2038,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       row.type ??
       row.template_type ??
       null;
-    const channel =
-      channelRaw != null ? String(channelRaw).trim() : null;
+    const channel = channelRaw != null ? String(channelRaw).trim() : null;
     const rawBody =
       row.body ??
       row.template_body ??
@@ -1957,7 +2047,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       row.email_body ??
       row.content ??
       "";
-    const rawBodyStr = typeof rawBody === "string" ? rawBody : String(rawBody ?? "");
+    const rawBodyStr =
+      typeof rawBody === "string" ? rawBody : String(rawBody ?? "");
     const content = this.toPlainText(rawBodyStr);
     if (!description && !content) {
       return null;
@@ -2022,17 +2113,21 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       status: "sending",
       statusLabel: "Sending",
       automated: false,
-      dayLabel: new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date()),
+      dayLabel: new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      }).format(new Date()),
       sentAt: nowIso,
       createdBy: this.authSession.user?.user || "You",
     };
     this.messages = [...(this.messages ?? []), optimistic];
-  this.refreshResolvedMessages();
-  // Force-stick on local send to keep view anchored
-  this.scrollMessagesToBottomSoon(0, true);
+    this.refreshResolvedMessages();
+    // Force-stick on local send to keep view anchored
+    this.scrollMessagesToBottomSoon(0, true);
 
     this.chatSending = true;
-  const fromNumber = this.defaultSmsFromNumber();
+    const fromNumber = this.defaultSmsFromNumber();
     this.core
       .sendChatSms({
         from: fromNumber,
@@ -2049,7 +2144,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         },
         error: (err) => {
           console.error("[ApplicantPanel] sendChatSms error", err);
-          Utilities.showToast("Failed to send message", "error");
+          this.smsSendFailureToast();
           this.removeOptimistic(optimistic.id!);
         },
         complete: () => {
@@ -2066,14 +2161,17 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     });
   }
 
-  private normalizeApplicantIdValue(value: string | null | undefined): string | null {
+  private normalizeApplicantIdValue(
+    value: string | null | undefined
+  ): string | null {
     const str = (value ?? "").toString().trim();
     return str ? str.toLowerCase() : null;
   }
 
   private handleRealtimeMessage(evt: ApplicantChatRealtimeMessage): void {
     if (!evt) return;
-    const activeId = this.resolveApplicantId(this.applicant) || this.applicantId;
+    const activeId =
+      this.resolveApplicantId(this.applicant) || this.applicantId;
     const normalizedActive = this.normalizeApplicantIdValue(activeId);
     // We attempt two matching strategies: applicantId first, then phone-pair fallback
     let accept = false;
@@ -2093,13 +2191,22 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     // (some backend events may omit applicantId and rely solely on the phone group).
     try {
       if (!this.currentRealtimePhoneNumber) {
-        const inferred = this.normalizePhone(evt.from) || this.normalizePhone(evt.to);
+        const inferred =
+          this.normalizePhone(evt.from) || this.normalizePhone(evt.to);
         if (inferred) {
           // Best-effort join; service is idempotent for already-joined phones
-          this.smsRealtime.joinPhone(inferred).then(() => {
-            this.currentRealtimePhoneNumber = inferred;
-            try { console.debug('[ApplicantPanel] Auto-joined phone from realtime', inferred); } catch {}
-          }).catch(() => {});
+          this.smsRealtime
+            .joinPhone(inferred)
+            .then(() => {
+              this.currentRealtimePhoneNumber = inferred;
+              try {
+                console.debug(
+                  "[ApplicantPanel] Auto-joined phone from realtime",
+                  inferred
+                );
+              } catch {}
+            })
+            .catch(() => {});
         }
       }
     } catch {}
@@ -2107,18 +2214,22 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const body = (evt.body || "").toString();
     if (!body.trim()) return;
 
-    const candidateId = evt.chatId != null
-      ? String(evt.chatId)
-      : evt.messageSid
-      ? `sid-${evt.messageSid}`
-      : null;
+    const candidateId =
+      evt.chatId != null
+        ? String(evt.chatId)
+        : evt.messageSid
+        ? `sid-${evt.messageSid}`
+        : null;
 
     // Do not short-circuit when chatId repeats (backend may reuse ids per thread);
     // allow downstream logic to reconcile just like MessengerComponent does.
 
     const direction: "inbound" | "outbound" =
-      (evt.direction || "").toLowerCase() === "outbound" ? "outbound" : "inbound";
-    const sentSource = evt.sentAtUtc || evt.createdAtUtc || new Date().toISOString();
+      (evt.direction || "").toLowerCase() === "outbound"
+        ? "outbound"
+        : "inbound";
+    const sentSource =
+      evt.sentAtUtc || evt.createdAtUtc || new Date().toISOString();
     const sentDate = new Date(sentSource);
     const timestampLabel = new Intl.DateTimeFormat("en-US", {
       hour: "numeric",
@@ -2159,7 +2270,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       automated: false,
       dayLabel,
       sentAt: sentSource,
-      createdBy: direction === "outbound" ? this.authSession.user?.user || null : null,
+      createdBy:
+        direction === "outbound" ? this.authSession.user?.user || null : null,
       __isNew: true,
     };
 
@@ -2185,7 +2297,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       setTimeout(() => {
         const cur = this.messages || [];
         const next = cur.map((m) =>
-          (m.id || "") === (message.id || "") ? ({ ...(m as any), __isNew: false } as any) : m
+          (m.id || "") === (message.id || "")
+            ? ({ ...(m as any), __isNew: false } as any)
+            : m
         );
         // Only update if changed
         if (next !== cur) {
@@ -2209,7 +2323,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const v = (raw || "").trim();
     if (!v) return null;
     // Strict E.164-ish normalization: collapse to digits and ensure single leading '+'
-    const digits = v.split("").filter((ch) => /\d/.test(ch)).join("");
+    const digits = v
+      .split("")
+      .filter((ch) => /\d/.test(ch))
+      .join("");
     if (!digits) return null;
     return `+${digits}`;
   }
@@ -2227,9 +2344,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       if (current && current !== normalizedTo) {
         try {
           await this.smsRealtime.leavePhone(current);
-          console.debug('[ApplicantPanel] leavePhone', current, 'group=sms:' + current);
+          console.debug(
+            "[ApplicantPanel] leavePhone",
+            current,
+            "group=sms:" + current
+          );
         } catch (err: unknown) {
-          console.debug('[ApplicantPanel] leavePhone error', current, err);
+          console.debug("[ApplicantPanel] leavePhone error", current, err);
         } finally {
           this.currentRealtimePhoneNumber = null;
         }
@@ -2241,13 +2362,26 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
       await this.smsRealtime.joinPhone(normalizedTo);
       this.currentRealtimePhoneNumber = normalizedTo;
-      console.debug('[ApplicantPanel] joinPhone', normalizedTo, 'group=sms:' + normalizedTo);
+      console.debug(
+        "[ApplicantPanel] joinPhone",
+        normalizedTo,
+        "group=sms:" + normalizedTo
+      );
       try {
-        console.debug('[ApplicantPanel] joinedPhones=', this.smsRealtime.getJoinedPhones());
-        console.log('[ApplicantPanel] Active SignalR group', `sms:${normalizedTo}`);
+        console.debug(
+          "[ApplicantPanel] joinedPhones=",
+          this.smsRealtime.getJoinedPhones()
+        );
+        console.log(
+          "[ApplicantPanel] Active SignalR group",
+          `sms:${normalizedTo}`
+        );
       } catch {}
     } catch (err: unknown) {
-      console.debug('[ApplicantPanel] updatePhoneSubscription inner error', err);
+      console.debug(
+        "[ApplicantPanel] updatePhoneSubscription inner error",
+        err
+      );
     }
   }
 
@@ -2262,7 +2396,12 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       if (!target) return false;
       const from = this.normalizePhone(evt.from);
       const to = this.normalizePhone(evt.to);
-      console.debug('[ApplicantPanel] match phone?', { target, from, to, meta: (evt as any)?.metadata });
+      console.debug("[ApplicantPanel] match phone?", {
+        target,
+        from,
+        to,
+        meta: (evt as any)?.metadata,
+      });
       return from === target || to === target;
     } catch {
       return false;
@@ -2273,6 +2412,14 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (!applicant) return null;
     const phone = applicant.phone_number || applicant.phone || null;
     return phone ? String(phone) : null;
+  }
+
+  /** Show a clear guidance toast when an SMS cannot be sent due to likely phone formatting issues */
+  private smsSendFailureToast(): void {
+    const msg =
+      "The SMS could not be sent. Please make sure the phone number is entered correctly and includes the country code. " +
+      "Example: +1XXXXXXXXXX.";
+    Utilities.showToast(msg, "error");
   }
 
   get resolvedMessages(): ApplicantMessage[] {
@@ -2601,7 +2748,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         null, // p_type_notification
       ];
       const api: IDriveWhipCoreAPI = {
-        commandName: DriveWhipAdminCommand.crm_applicants_documents_crud_new as any,
+        commandName:
+          DriveWhipAdminCommand.crm_applicants_documents_crud_new as any,
         parameters: params,
       } as any;
       this._eventDocSub = this.core
@@ -2716,7 +2864,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (!ev) return;
 
     const finish = (detailText?: string) => {
-      console.log('Finished processing event:', detailText);
+      console.log("Finished processing event:", detailText);
     };
 
     const who = ev.actorName
@@ -3374,7 +3522,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   /** Load documents for applicant and build groups by data_key */
-  private loadApplicantDocuments(applicantId: string, force: boolean = false): void {
+  private loadApplicantDocuments(
+    applicantId: string,
+    force: boolean = false
+  ): void {
     if (!applicantId) return;
     if (!force) {
       if (
@@ -3433,8 +3584,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
             },
           });
         }
-  this.documentGroups = this.groupDocuments(docs);
-  this.docsLoadedForApplicantId = applicantId;
+        this.documentGroups = this.groupDocuments(docs);
+        this.docsLoadedForApplicantId = applicantId;
       },
       error: (err) => {
         console.error("[ApplicantPanel] loadApplicantDocuments error", err);
@@ -3617,13 +3768,17 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
    * Smoothly stick to bottom if the user is near the bottom, or force when requested.
    * Prevents jarring jumps while reading older messages.
    */
-  private scrollMessagesToBottomSoon(delay: number = 50, force: boolean = false): void {
+  private scrollMessagesToBottomSoon(
+    delay: number = 50,
+    force: boolean = false
+  ): void {
     setTimeout(() => {
       try {
         const el = this.messagesScroll?.nativeElement;
         if (!el) return;
         const threshold = 120;
-        const distanceFromBottom = el.scrollHeight - el.clientHeight - el.scrollTop;
+        const distanceFromBottom =
+          el.scrollHeight - el.clientHeight - el.scrollTop;
         if (force || distanceFromBottom <= threshold) {
           el.scrollTop = el.scrollHeight;
         }
@@ -3743,19 +3898,32 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   /** Return a SafeResourceUrl for embedding a PDF in an <iframe> */
   pdfViewerSrc(doc: ApplicantDocument | null | undefined) {
-    const url = doc?.url || (doc
-      ? this.core.getFileUrl(String(doc.folder || ""), String(doc.document_name || ""))
-      : "");
-    const viewUrl = url ? `${url}#toolbar=0&navpanes=0&zoom=page-width` : "about:blank";
+    const url =
+      doc?.url ||
+      (doc
+        ? this.core.getFileUrl(
+            String(doc.folder || ""),
+            String(doc.document_name || "")
+          )
+        : "");
+    const viewUrl = url
+      ? `${url}#toolbar=0&navpanes=0&zoom=page-width`
+      : "about:blank";
     return this.sanitizer.bypassSecurityTrustResourceUrl(viewUrl);
   }
 
   /** Return a SafeResourceUrl for Office Online viewer embedding Word-like docs */
   officeViewerSrc(doc: ApplicantDocument | null | undefined) {
-    const url = doc?.url || (doc
-      ? this.core.getFileUrl(String(doc.folder || ""), String(doc.document_name || ""))
-      : "");
-    if (!url) return this.sanitizer.bypassSecurityTrustResourceUrl("about:blank");
+    const url =
+      doc?.url ||
+      (doc
+        ? this.core.getFileUrl(
+            String(doc.folder || ""),
+            String(doc.document_name || "")
+          )
+        : "");
+    if (!url)
+      return this.sanitizer.bypassSecurityTrustResourceUrl("about:blank");
     const encoded = encodeURIComponent(url);
     const viewUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encoded}&wdPrint=0&wdDownloadButton=1`;
     return this.sanitizer.bypassSecurityTrustResourceUrl(viewUrl);
@@ -3794,11 +3962,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     return normalized.replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  viewDocument(
-    group: DocumentGroup,
-    doc: ApplicantDocument,
-    ev?: Event
-  ): void {
+  viewDocument(group: DocumentGroup, doc: ApplicantDocument, ev?: Event): void {
     if (!doc) return;
     if (ev) {
       ev.preventDefault();
@@ -3812,10 +3976,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   /** Open the in-app image viewer for the selected group/doc (falls back to openDocument for non-images) */
-  openImageViewer(
-    group: DocumentGroup,
-    doc?: ApplicantDocument
-  ): void {
+  openImageViewer(group: DocumentGroup, doc?: ApplicantDocument): void {
     try {
       const images = (group?.items || []).filter((d) =>
         this.isImageDocument(d)
@@ -4497,7 +4658,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           smsText = this.currentRecollectDescription();
         }
         smsText = (smsText || "").trim().slice(0, 1000);
-  const from = this.defaultSmsFromNumber();
+        const from = this.defaultSmsFromNumber();
         try {
           await firstValueFrom(
             this.core.sendChatSms({
@@ -4509,7 +4670,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           );
         } catch (e) {
           console.error("[ApplicantPanel] Re-collect SMS send error", e);
-          Utilities.showToast("Failed to send SMS", "error");
+          this.smsSendFailureToast();
         }
       }
 
@@ -4530,7 +4691,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
   }
 
-  /** Ensure recollect reason options are loaded (from crm_applicants_recollect_options) */
+  /** Ensure recollect reason options are loaded (from crm_notifications_templates_combos('RECOLLECT_DOCUMENTS')) */
   private ensureRecollectOptions(): void {
     if (
       this.disapproveReasonOptions.length > 0 ||
@@ -4544,9 +4705,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.disapproveOptionsLoading = true;
     this.disapproveOptionsError = null;
     const api: IDriveWhipCoreAPI = {
-      commandName:
-        DriveWhipAdminCommand.crm_applicants_recollect_options as any,
-      parameters: [],
+      commandName: DriveWhipAdminCommand
+        .crm_notifications_templates_combos as any,
+      parameters: ["RECOLLECT_DOCUMENTS"],
     } as any;
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
       next: (res) => {
@@ -4556,18 +4717,26 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         const items: Array<{ code: string; description: string }> = [];
         const map: Record<string, string> = {};
         for (const r of rows) {
-          // SP returns: option (event code), description (label)
+          // SP returns flexible columns; normalize to { code, description }
+          // Prefer textual event/code fields; fall back to id-based keys if needed.
           const code = String(
-            r.option ?? r.OPTION ?? r.event ?? r.EVENT ?? r.code ?? r.CODE ?? ""
+            r.option ?? r.OPTION ?? r.event ?? r.EVENT ?? r.code ?? r.CODE ?? r.key ?? r.KEY ?? r.type ?? r.TYPE ?? ""
+          ).trim() || String(
+            r.id ?? r.ID ?? r.template_id ?? r.TEMPLATE_ID ?? r.id_template ?? r.ID_TEMPLATE ?? ""
           ).trim();
           const description = String(
-            r.description ?? r.DESCRIPTION ?? code
+            r.description ?? r.DESCRIPTION ?? r.label ?? r.LABEL ?? r.name ?? r.NAME ?? r.template_name ?? r.TEMPLATE_NAME ?? r.subject ?? r.SUBJECT ?? code
           ).trim();
           if (!code || !description) continue;
           if (!map[code]) {
             map[code] = description;
             items.push({ code, description });
           }
+        }
+        // Ensure custom option exists if backend doesn't include it
+        if (!map["RECOLLECT_CUSTOM"]) {
+          map["RECOLLECT_CUSTOM"] = "Custom reason";
+          items.push({ code: "RECOLLECT_CUSTOM", description: "Custom reason" });
         }
         this.disapproveReasonMap = map;
         this.disapproveReasonOptions = items;
@@ -4697,27 +4866,33 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private isStatusRecollecting(status: string | null | undefined): boolean {
-    const s = (status || '').toString().trim().toUpperCase();
-    return s === 'RECOLLECTING' || s === 'RE-COLLECTING' || s === 'RE-COLLECTING FILE' || s === 'RE COLLECTING FILE' || s.includes('RE-COLLECT');
+    const s = (status || "").toString().trim().toUpperCase();
+    return (
+      s === "RECOLLECTING" ||
+      s === "RE-COLLECTING" ||
+      s === "RE-COLLECTING FILE" ||
+      s === "RE COLLECTING FILE" ||
+      s.includes("RE-COLLECT")
+    );
   }
 
   private isStatusApproved(status: string | null | undefined): boolean {
-    return (status || '').toString().trim().toUpperCase() === 'APPROVED';
+    return (status || "").toString().trim().toUpperCase() === "APPROVED";
   }
 
   private isStatusDisapproved(status: string | null | undefined): boolean {
-    return (status || '').toString().trim().toUpperCase() === 'DISAPPROVED';
+    return (status || "").toString().trim().toUpperCase() === "DISAPPROVED";
   }
 
   private isStatusPending(status: string | null | undefined): boolean {
-    return (status || '').toString().trim().toUpperCase() === 'PENDING';
+    return (status || "").toString().trim().toUpperCase() === "PENDING";
   }
 
   private docStatusClassByStatus(status: string | null | undefined): string {
-    if (this.isStatusApproved(status)) return 'text-success';
-    if (this.isStatusDisapproved(status)) return 'text-danger';
-    if (this.isStatusRecollecting(status)) return 'text-warning';
-    return 'text-secondary';
+    if (this.isStatusApproved(status)) return "text-success";
+    if (this.isStatusDisapproved(status)) return "text-danger";
+    if (this.isStatusRecollecting(status)) return "text-warning";
+    return "text-secondary";
   }
 
   docStatusClass(doc: ApplicantDocument): string {
@@ -4725,25 +4900,34 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   /** Compute a group-level status: if any item is Re-collecting, show that; else if any Disapproved; else if any Pending; else if any Approved; else fallback first item's status. */
-  getGroupStatus(group: { items?: ApplicantDocument[] } | null | undefined): string | null {
+  getGroupStatus(
+    group: { items?: ApplicantDocument[] } | null | undefined
+  ): string | null {
     const items = group?.items || [];
     if (!items.length) return null;
-    if (items.some(d => this.isStatusRecollecting(d.status))) return 'Re-collecting File';
-    if (items.some(d => this.isStatusDisapproved(d.status))) return 'Disapproved';
-    if (items.some(d => this.isStatusPending(d.status))) return 'Pending';
-    if (items.some(d => this.isStatusApproved(d.status))) return 'Approved';
+    if (items.some((d) => this.isStatusRecollecting(d.status)))
+      return "Re-collecting File";
+    if (items.some((d) => this.isStatusDisapproved(d.status)))
+      return "Disapproved";
+    if (items.some((d) => this.isStatusPending(d.status))) return "Pending";
+    if (items.some((d) => this.isStatusApproved(d.status))) return "Approved";
     // Fallback to the first non-empty status
-    const firstStatus = (items.find(d => !!d.status)?.status) || items[0].status || null;
+    const firstStatus =
+      items.find((d) => !!d.status)?.status || items[0].status || null;
     return firstStatus || null;
   }
 
-  groupStatusClass(group: { items?: ApplicantDocument[] } | null | undefined): string {
+  groupStatusClass(
+    group: { items?: ApplicantDocument[] } | null | undefined
+  ): string {
     return this.docStatusClassByStatus(this.getGroupStatus(group));
   }
 
-  isGroupRecollecting(group: { items?: ApplicantDocument[] } | null | undefined): boolean {
+  isGroupRecollecting(
+    group: { items?: ApplicantDocument[] } | null | undefined
+  ): boolean {
     const items = group?.items || [];
-    return items.some(d => this.isStatusRecollecting(d.status));
+    return items.some((d) => this.isStatusRecollecting(d.status));
   }
 
   // Public helpers for template conditionals per-document
@@ -4863,7 +5047,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       is_active: isActive,
       // returned by READ branch of crm_applicants_crud when p_id_applicant provided
       go_to_driver: this.booleanize(
-        (record.go_to_driver ?? (record.GO_TO_DRIVER as any)) ?? false
+        record.go_to_driver ?? (record.GO_TO_DRIVER as any) ?? false
       ),
       country_code: countryCode,
       state_code: stateCode,
@@ -4917,7 +5101,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   // Whether to show the Approve-as-Driver CTA in More actions
   get showApproveDriver(): boolean {
-    const v = (this.applicant as any)?.go_to_driver ?? (this.applicant as any)?.GO_TO_DRIVER;
+    const v =
+      (this.applicant as any)?.go_to_driver ??
+      (this.applicant as any)?.GO_TO_DRIVER;
     return this.booleanize(v);
   }
 
@@ -4971,58 +5157,66 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private isReviewFiles(stage: string | null | undefined): boolean {
-    const s = (stage || '').toString().trim().toLowerCase();
-    return s === 'review files';
+    const s = (stage || "").toString().trim().toLowerCase();
+    return s === "review files";
   }
 
   private isAllFilesApproved(stage: string | null | undefined): boolean {
-    const s = (stage || '').toString().trim().toLowerCase();
-    return s === 'all files approved';
+    const s = (stage || "").toString().trim().toLowerCase();
+    return s === "all files approved";
   }
 
   private isRecollecting(stage: string | null | undefined): boolean {
-    const s = (stage || '').toString().trim().toLowerCase();
+    const s = (stage || "").toString().trim().toLowerCase();
     // Match phrases like "Re-collecting", case-insensitive
     return /\bre-collecting\b/i.test(s);
   }
 
   statusBadgeClass(status: ApplicantStatus | null | undefined): string {
-    if (!status) return 'bg-secondary-subtle text-secondary';
-    const stage = (status.stage || '').toString();
-    if (this.isAllFilesApproved(stage)) return 'bg-success-subtle text-success';
-    if (this.isReviewFiles(stage)) return 'bg-info text-white';
-    if (this.isRecollecting(stage)) return 'bg-info-subtle text-info';
-    return status.isComplete ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary';
+    if (!status) return "bg-secondary-subtle text-secondary";
+    const stage = (status.stage || "").toString();
+    if (this.isAllFilesApproved(stage)) return "bg-success-subtle text-success";
+    if (this.isReviewFiles(stage)) return "bg-info text-white";
+    if (this.isRecollecting(stage)) return "bg-info-subtle text-info";
+    return status.isComplete
+      ? "bg-success-subtle text-success"
+      : "bg-primary-subtle text-primary";
   }
 
   statusBadgeIcon(status: ApplicantStatus | null | undefined): string {
-    if (!status) return 'icon-shield';
-    const stage = (status.stage || '').toString();
-    if (this.isAllFilesApproved(stage)) return 'icon-check-circle';
-    if (this.isReviewFiles(stage)) return 'icon-folder';
-    if (this.isRecollecting(stage)) return 'icon-clock';
-    return status.isComplete ? 'icon-check-circle' : 'icon-shield';
+    if (!status) return "icon-shield";
+    const stage = (status.stage || "").toString();
+    if (this.isAllFilesApproved(stage)) return "icon-check-circle";
+    if (this.isReviewFiles(stage)) return "icon-folder";
+    if (this.isRecollecting(stage)) return "icon-clock";
+    return status.isComplete ? "icon-check-circle" : "icon-shield";
   }
 
   private toTitleCaseSimple(s: string): string {
-    const t = (s || '').toString().trim();
-    if (!t) return '';
+    const t = (s || "").toString().trim();
+    if (!t) return "";
     return t
       .split(/\s+/)
-      .map(w => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ''))
-      .join(' ');
+      .map((w) =>
+        w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ""
+      )
+      .join(" ");
   }
 
   statusBadgeText(status: ApplicantStatus | null | undefined): string {
-    if (!status) return 'Status';
-    const stage = (status.stage || 'Stage').toString().trim();
+    if (!status) return "Status";
+    const stage = (status.stage || "Stage").toString().trim();
     // For special stages, show only the stage text (grid behavior parity)
-    if (this.isAllFilesApproved(stage) || this.isReviewFiles(stage) || this.isRecollecting(stage)) {
+    if (
+      this.isAllFilesApproved(stage) ||
+      this.isReviewFiles(stage) ||
+      this.isRecollecting(stage)
+    ) {
       return stage;
     }
-    const raw = (status.statusName ?? '').toString().trim();
-    const name = raw ? this.toTitleCaseSimple(raw) : 'Incomplete';
-    return `${stage || 'Stage'} - ${name}`;
+    const raw = (status.statusName ?? "").toString().trim();
+    const name = raw ? this.toTitleCaseSimple(raw) : "Incomplete";
+    return `${stage || "Stage"} - ${name}`;
   }
 
   statusMetaClass(status: MessageStatus | undefined): string {
@@ -5326,6 +5520,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       showCancelButton: true,
       confirmButtonText: "Delete",
       cancelButtonText: "Cancel",
+      allowOutsideClick: false,
     }).then((result) => {
       if (!result.isConfirmed) return;
       this.notesSaving = true;
@@ -5391,6 +5586,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       showCancelButton: true,
       confirmButtonText: "Move",
       cancelButtonText: "Cancel",
+      allowOutsideClick: false,
     }).then((result) => {
       if (result.isConfirmed) {
         this.performMoveToStage(stageId, note);
@@ -5559,42 +5755,48 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         a.uuid,
         a.guid,
       ];
-      const found = candidates.find((v: any) => v !== null && v !== undefined && v !== '');
+      const found = candidates.find(
+        (v: any) => v !== null && v !== undefined && v !== ""
+      );
       return found !== undefined ? String(found) : null;
     })();
     if (!id) {
-      Utilities.showToast('Applicant id not found', 'warning');
+      Utilities.showToast("Applicant id not found", "warning");
       return;
     }
 
     void Swal.fire({
-      title: 'Approve as Driver?',
-      text: 'Are you sure you want to approve this applicant as a Driver?',
-      icon: 'warning',
+      title: "Approve as Driver?",
+      text: "Are you sure you want to approve this applicant as a Driver?",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonText: 'Yes, approve',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: "Yes, approve",
+      cancelButtonText: "Cancel",
       focusCancel: true,
       reverseButtons: true,
       showLoaderOnConfirm: true,
       allowOutsideClick: () => !Swal.isLoading(),
       preConfirm: async () => {
         try {
-          const res = await firstValueFrom(this.core.driverOnboarding(String(id)));
+          const res = await firstValueFrom(
+            this.core.driverOnboarding(String(id))
+          );
           // If backend uses a wrapped response with ok=false, surface as error
           if (res && (res as any).ok === false) {
-            const msg = ((res as any).error || 'Failed to approve').toString();
+            const msg = ((res as any).error || "Failed to approve").toString();
             throw new Error(msg);
           }
           return res;
         } catch (err: any) {
-          Swal.showValidationMessage((err?.message || 'Request failed').toString());
+          Swal.showValidationMessage(
+            (err?.message || "Request failed").toString()
+          );
           throw err;
         }
-      }
+      },
     }).then((result) => {
       if (result.isConfirmed) {
-        Utilities.showToast('Applicant approved as Driver', 'success');
+        Utilities.showToast("Applicant approved as Driver", "success");
         // Ask parent views to refresh stages and grid
         try {
           const toStageId = this.currentStageIdNum ?? 0;

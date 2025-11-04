@@ -107,6 +107,15 @@
             </select>
           </div>
         </div>
+        <div class="row g-3 mt-1">
+          <div class="col-12 col-md-6">
+            <label class="form-label d-block">Status</label>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="tplActiveSwitch" [(ngModel)]="templateForm.isActive">
+              <label class="form-check-label" for="tplActiveSwitch">{{ templateForm.isActive ? 'Active' : 'Inactive' }}</label>
+            </div>
+          </div>
+        </div>
 
         <div class="mt-4">
           <label class="form-label">What do you want to say? <span class="text-danger">At least one required</span></label>
@@ -116,7 +125,7 @@
                 <i class="feather icon-mail"></i>
                 <strong>Edit Email</strong>
               </span>
-              <span class="text-truncate small text-secondary" [title]="templateForm.emailSubject || 'Set subject'">
+              <span class="editor-snippet text-truncate small text-secondary" [title]="templateForm.emailSubject || 'Set subject'">
                 {{ templateForm.emailSubject || 'Set subject' }}
               </span>
             </button>
@@ -125,7 +134,7 @@
                 <i class="feather icon-message-square"></i>
                 <strong>Edit SMS</strong>
               </span>
-              <span class="text-truncate small text-secondary" [title]="templateForm.smsBody || 'Set SMS message'">
+              <span class="editor-snippet text-truncate small text-secondary" [title]="templateForm.smsBody || 'Set SMS message'">
                 {{ templateForm.smsBody || 'Set SMS message' }}
               </span>
             </button>
@@ -158,7 +167,23 @@
         </div>
       </div>
       <div class="modal-body">
-        <textarea rows="6" class="form-control" placeholder="Enter SMS text" [(ngModel)]="templateForm.smsBody"></textarea>
+        <div class="row g-2 align-items-end mb-2">
+          <div class="col-12 col-md-4">
+            <label class="form-label small mb-1">Insert variable - Type</label>
+            <select class="form-select form-select-sm" [(ngModel)]="smsDataKeyType" (change)="onSmsDataKeyTypeChange()">
+              <option value="" disabled>Select type</option>
+              <option *ngFor="let t of dataKeyTypes" [value]="t">{{ t }}</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-8">
+            <label class="form-label small mb-1">Variable</label>
+            <select class="form-select form-select-sm" [disabled]="!smsDataKeyType" [(ngModel)]="smsDataKey" (change)="onInsertDataKey('sms', smsDataKey)">
+              <option value="" disabled>Select variable</option>
+              <option *ngFor="let k of smsDataKeyOptions" [value]="k">{{ k }}</option>
+            </select>
+          </div>
+        </div>
+        <textarea rows="6" class="form-control" placeholder="Enter SMS text" [(ngModel)]="templateForm.smsBody" #smsArea></textarea>
         <div class="text-secondary small mt-2">Estimated Characters Per Message: {{ (templateForm.smsBody || '').length }}/1000</div>
       </div>
       <div class="modal-footer d-flex justify-content-between align-items-center">
@@ -182,13 +207,29 @@
         </div>
       </div>
       <div class="modal-body">
+        <div class="row g-2 align-items-end mb-2">
+          <div class="col-12 col-md-4">
+            <label class="form-label small mb-1">Insert variable - Type</label>
+            <select class="form-select form-select-sm" [(ngModel)]="emailDataKeyType" (change)="onEmailDataKeyTypeChange()">
+              <option value="" disabled>Select type</option>
+              <option *ngFor="let t of dataKeyTypes" [value]="t">{{ t }}</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-8">
+            <label class="form-label small mb-1">Variable</label>
+            <select class="form-select form-select-sm" [disabled]="!emailDataKeyType" [(ngModel)]="emailDataKey" (change)="onInsertDataKey('email', emailDataKey)">
+              <option value="" disabled>Select variable</option>
+              <option *ngFor="let k of emailDataKeyOptions" [value]="k">{{ k }}</option>
+            </select>
+          </div>
+        </div>
         <div class="mb-2">
           <label class="form-label">Email Subject <span class="text-danger">*</span></label>
           <input class="form-control" [(ngModel)]="templateForm.emailSubject" placeholder="Subject" />
         </div>
         <div>
           <label class="form-label">Email Body</label>
-          <textarea rows="12" class="form-control code-area" [(ngModel)]="templateForm.emailBody" placeholder="HTML or text body..."></textarea>
+          <textarea rows="12" class="form-control code-area" [(ngModel)]="templateForm.emailBody" placeholder="HTML or text body..." #emailArea></textarea>
         </div>
         <div class="small text-secondary mt-2">Attachments</div>
         <div class="small text-secondary">No Attachments</div>

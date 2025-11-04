@@ -65,6 +65,10 @@ export enum DriveWhipAdminCommand {
     notifcations_templates_list ="notifcations_templates_list",
     // Template types list for Templates page combo
     notifcations_templates_type_list = "notifcations_templates_type_list",
+    // DataKey type list for editor inserts
+    notifcations_datakey_type_list = "notifcations_datakey_type_list",
+    // DataKey list by type for editor inserts
+    notifcations_datakey_list = "notifcations_datakey_list",
     // Templates CRUD (C/U/D via p_action)
     crm_notifications_templates_crud = "crm_notifications_templates_crud",
     // Templates combos by type code for selects
@@ -73,6 +77,7 @@ export enum DriveWhipAdminCommand {
     crm_notifications_templates_chat_list = "crm_notifications_templates_chat_list",
     // Clone a notification template
     notifcations_template_clone = "notifcations_template_clone",
+    crm_notifications_template_body = "crm_notifications_template_body",
 }
 
 export enum DriveWhipAplicantsCommand {

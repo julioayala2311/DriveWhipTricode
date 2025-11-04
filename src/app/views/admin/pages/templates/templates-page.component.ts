@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, inject } from "@angular/core";
+import { Component, OnInit, OnDestroy, ViewChild, inject, ChangeDetectorRef } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { AgGridAngular } from "ag-grid-angular";
 import {
@@ -49,10 +49,13 @@ interface TemplateRow {
 })
 export class TemplatesPageComponent implements OnInit, OnDestroy {
   @ViewChild(AgGridAngular) grid?: AgGridAngular;
+  @ViewChild('smsArea') smsArea?: any;
+  @ViewChild('emailArea') emailArea?: any;
   private gridApi?: GridApi;
   private core = inject(DriveWhipCoreService);
   private authSession = inject(AuthSessionService);
   private sanitizer = inject(DomSanitizer);
+  private cdr = inject(ChangeDetectorRef);
 
   loading = false;
   error: string | null = null;
@@ -92,7 +95,107 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
     emailSubject: '',
     emailBody: '',
     smsBody: '',
+    isActive: true as boolean,
   };
+
+  private readonly cardSnippetLength = 140;
+  private readonly smsSegmentLength = 160;
+  private readonly smsMaxLength = 1000;
+
+  // --- DataKey dependent selects state ---
+  dataKeyTypes: string[] = [];
+  private dataKeysCache: Record<string, string[]> = {};
+  // SMS modal selections
+  smsDataKeyType: string = '';
+  smsDataKey: string = '';
+  smsDataKeyOptions: string[] = [];
+  // Email modal selections
+  emailDataKeyType: string = '';
+  emailDataKey: string = '';
+  emailDataKeyOptions: string[] = [];
+
+  get emailCard() {
+    const subjectRaw = (this.templateForm.emailSubject || '').trim();
+    const bodyHtml = (this.templateForm.emailBody || '').toString();
+    const bodyText = this.normalizeWhitespace(this.stripHtml(bodyHtml));
+    const configured = !!(subjectRaw || bodyText);
+    const previewSource = bodyText || subjectRaw || 'Click to compose the email message.';
+    const preview = this.truncate(previewSource, this.cardSnippetLength);
+    const subjectLabel = subjectRaw || 'Subject pending';
+    const metaParts: string[] = [];
+    if (subjectRaw) {
+      metaParts.push(`${subjectRaw.length} subject chars`);
+    }
+    if (bodyText) {
+      metaParts.push(`${bodyText.length} body chars`);
+    }
+    const meta = configured ? metaParts.join(' · ') : 'Add a subject or body to get started.';
+    return {
+      configured,
+      subject: subjectLabel,
+      preview,
+      status: configured ? 'Ready' : 'Draft',
+      badge: configured ? 'ready' : 'pending',
+      meta,
+    } as const;
+  }
+
+  get smsCard() {
+    const bodyRaw = (this.templateForm.smsBody || '').trim();
+    const bodyText = this.normalizeWhitespace(bodyRaw);
+    const configured = bodyText.length > 0;
+    const previewSource = bodyText || 'Click to compose the SMS message.';
+    const preview = this.truncate(previewSource, this.cardSnippetLength);
+    const length = bodyText.length;
+    const segments = length > 0 ? Math.ceil(length / this.smsSegmentLength) : 0;
+    const overLimit = length > this.smsMaxLength;
+    let status = 'Draft';
+    let badge = 'pending';
+    if (configured) {
+      if (overLimit) {
+        status = 'Too long';
+        badge = 'danger';
+      } else {
+        status = 'Ready';
+        badge = segments > 1 ? 'warning' : 'ready';
+      }
+    }
+    const metaParts: string[] = [];
+    metaParts.push(`${length}/${this.smsMaxLength} chars`);
+    if (length > 0) {
+      metaParts.push(`${segments || 1} segment${segments === 1 ? '' : 's'}`);
+    } else {
+      metaParts.push('Add copy to send a text');
+    }
+    if (overLimit) {
+      metaParts.push('Trim to stay within limit');
+    } else if (segments > 1) {
+      metaParts.push('Multiple SMS parts');
+    }
+    const meta = metaParts.join(' · ');
+    return {
+      configured,
+      preview,
+      status,
+      badge,
+      meta,
+    } as const;
+  }
+
+  private stripHtml(value: string): string {
+    return value.replace(/<[^>]+>/g, ' ');
+  }
+
+  private normalizeWhitespace(value: string): string {
+    return value.replace(/\s+/g, ' ').trim();
+  }
+
+  private truncate(value: string, maxLength: number): string {
+    if (value.length <= maxLength) {
+      return value;
+    }
+    return `${value.slice(0, Math.max(maxLength - 3, 0)).trimEnd()}...`;
+  }
 
   // Build a sandboxed HTML document for preview within an iframe
   get emailPreviewDoc(): SafeHtml {
@@ -226,7 +329,11 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
       cellClass: 'overflow-visible', // allow dropdown to overflow the cell
       headerComponent: GridHeaderComponent,
       headerComponentParams: { icon: "icon-sliders" },
-      cellRenderer: () => {
+      cellRenderer: (p: any) => {
+        const v = p?.data?.active;
+        const isActive = v === true || v === 1 || String(v).toLowerCase?.() === 'true';
+        const toggleLabel = isActive ? 'Disable' : 'Activate';
+        const toggleAction = isActive ? 'delete' : 'activate';
         return `
           <div class="template-actions-inline dropdown position-relative">
             <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-toggle="actions-menu">
@@ -236,6 +343,7 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
               <button type="button" class="dropdown-item" data-action="edit">Edit</button>
               <button type="button" class="dropdown-item" data-action="clone">Clone</button>
               <button type="button" class="dropdown-item text-danger" data-action="delete">Disable</button>
+              <!-- <button type="button" class="dropdown-item ${isActive ? 'text-danger' : 'text-success'}" data-action="${toggleAction}">${toggleLabel}</button> -->
             </div>
           </div>
         `;
@@ -284,6 +392,8 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
       .finally(() => {
         void this.loadTemplates();
       });
+    // Load datakey types for editor selects
+    void this.loadDataKeyTypes();
   }
 
   ngOnDestroy(): void {
@@ -526,6 +636,7 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
       emailSubject: '',
       emailBody: '',
       smsBody: '',
+      isActive: true,
     };
     this.showEditorModal = true;
   }
@@ -569,7 +680,7 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
           action,
           params.id ?? null,
           params.templateName ?? null,
-          params.subject ?? null,
+          params.subject ?? "",
           params.body ?? null,
           params.typeCode ?? null,
           params.channel ?? null,
@@ -599,7 +710,7 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
             typeCode: type || null,
             channel: 'Email',
             createdBy: currentUser,
-            isActive: 1,
+            isActive: this.templateForm.isActive ? 1 : 0,
             idTemplateTwilio: null,
           }));
         }
@@ -612,7 +723,7 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
             typeCode: type || null,
             channel: 'SMS',
             createdBy: currentUser,
-            isActive: 1,
+            isActive: this.templateForm.isActive ? 1 : 0,
             idTemplateTwilio: null,
           }));
         }
@@ -644,7 +755,7 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
           typeCode: type || null,
           channel,
           updatedBy: currentUser,
-          isActive: 1,
+          isActive: this.templateForm.isActive ? 1 : 0,
           idTemplateTwilio: null,
         });
         Utilities.showToast('Template updated', 'success');
@@ -664,6 +775,47 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
       case "edit":
         this.openEditTemplate(row);
         break;
+      case "activate": {
+        void (async () => {
+          const currentUser = this.authSession.user?.user || 'system';
+          console.log(currentUser)
+          // Robustly determine channel
+          const fmt = (row.format ?? '').toString().trim().toUpperCase();
+          const msgType = (row.messageType ?? '').toString().trim().toUpperCase();
+          const channel: 'Email' | 'SMS' = (fmt === 'SMS' || msgType === 'SMS') ? 'SMS' : 'Email';
+          // Fetch existing subject/body so SP non-null constraints are satisfied
+          const { body, subject } = await this.fetchTemplateBody(row.id);
+          const api: IDriveWhipCoreAPI = {
+            commandName: DriveWhipAdminCommand.crm_notifications_templates_crud,
+            parameters: [
+              'U',
+              row.id ?? null,
+              row.name ?? null, // templateName required by SP on update
+              channel === 'Email' ? (subject ?? '') : null,
+              channel === 'Email' ? (body ?? '') : (body ?? ''),
+              null, // typeCode unknown in grid context
+              channel,
+              null,
+              currentUser,       // updatedBy
+              1,                 // isActive = 1
+              null
+            ]
+          } as any;
+          try {
+            const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse>(api));
+            if (!res || (res as any).ok === false) {
+              const message = (res as any)?.error?.toString() || 'Failed to activate template';
+              throw new Error(message);
+            }
+            Utilities.showToast('Template activated', 'success');
+            await this.loadTemplates();
+          } catch (err: any) {
+            const message = (err && err.message) ? err.message : 'Failed to activate template';
+            Utilities.showToast(message, 'error');
+          }
+        })();
+        break;
+      }
       case "clone":
         void Swal.fire({
           title: 'Clone template',
@@ -763,8 +915,77 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
       emailSubject: row.emailSubject || '',
       emailBody: row.emailBody || '',
       smsBody: row.smsBody || '',
+      isActive: row.active === true,
     };
     this.showEditorModal = true;
+    // After opening the modal, fetch the latest subject/body for this template id
+    // using the SP crm_notifications_template_body. For Email we set subject+body; for SMS only body.
+    void this.loadTemplateBodyForRow(row);
+  }
+
+  /**
+   * Load subject/body for the given template row by executing the SP:
+   *   crm_notifications_template_body(p_template_id)
+   * Returns a row with fields: Body (template_body), Subject (template_subject)
+   * - If the row is SMS: only apply Body to smsBody
+   * - If the row is Email: apply Subject and Body to emailSubject/emailBody
+   */
+  private async loadTemplateBodyForRow(row: TemplateRow): Promise<void> {
+    const templateId = row?.id;
+    if (templateId == null) return;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_notifications_template_body,
+      parameters: [templateId],
+    } as any;
+    try {
+      const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse>(api));
+      const data = Array.isArray(res?.data)
+        ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
+        : [];
+      const first = (data && data[0]) ? data[0] : {};
+      const body = (first.Body ?? first.body ?? first.template_body ?? '')?.toString?.() ?? '';
+      const subject = (first.Subject ?? first.subject ?? first.template_subject ?? '')?.toString?.() ?? '';
+
+      // Prefer `format` to decide channel, fallback to `messageType`
+      const fmt = (row.format ?? '').toString().trim().toUpperCase();
+      const msgType = (row.messageType ?? '').toString().trim().toUpperCase();
+      const isSms = fmt === 'SMS' || msgType === 'SMS';
+      if (isSms) {
+        this.templateForm.smsBody = body || '';
+        row.smsBody = this.templateForm.smsBody;
+      } else {
+        this.templateForm.emailSubject = subject || '';
+        this.templateForm.emailBody = body || '';
+        row.emailSubject = this.templateForm.emailSubject;
+        row.emailBody = this.templateForm.emailBody;
+      }
+      // Ensure change detection picks up async updates even if the service runs outside NgZone
+      try { this.cdr.detectChanges(); } catch {}
+    } catch (err) {
+      console.error('[TemplatesPage] loadTemplateBodyForRow error', err);
+      // Non-blocking: keep modal open even if details fail to load
+    }
+  }
+
+  // Fetch subject/body without mutating UI state; used for background updates like Activate
+  private async fetchTemplateBody(templateId: string | number | null): Promise<{ body: string; subject: string; }> {
+    if (templateId == null) return { body: '', subject: '' };
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_notifications_template_body,
+      parameters: [templateId],
+    } as any;
+    try {
+      const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse>(api));
+      const data = Array.isArray(res?.data)
+        ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
+        : [];
+      const first = (data && data[0]) ? data[0] : {};
+      const body = (first.Body ?? first.body ?? first.template_body ?? '')?.toString?.() ?? '';
+      const subject = (first.Subject ?? first.subject ?? first.template_subject ?? '')?.toString?.() ?? '';
+      return { body, subject };
+    } catch {
+      return { body: '', subject: '' };
+    }
   }
 
   // --- Sub-editors ---
@@ -796,6 +1017,106 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
     if (!row) { this.showEditorModal = false; return; }
     this.onActionClick('delete', row);
     this.showEditorModal = false;
+  }
+
+  // --- DataKey selects: load & interactions ---
+  private async loadDataKeyTypes(): Promise<void> {
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.notifcations_datakey_type_list,
+      parameters: [],
+    } as any;
+    try {
+      const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse>(api));
+      const data = Array.isArray(res?.data)
+        ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
+        : [];
+      const types = (data || []).map((row: any) =>
+        (row.value ?? row.id ?? row.TYPE ?? row.type ?? '').toString().trim()
+      ).filter((v: string) => !!v);
+      this.dataKeyTypes = Array.from(new Set(types));
+      // Default the selects to first option if empty
+      if (!this.smsDataKeyType && this.dataKeyTypes.length) this.smsDataKeyType = this.dataKeyTypes[0];
+      if (!this.emailDataKeyType && this.dataKeyTypes.length) this.emailDataKeyType = this.dataKeyTypes[0];
+      // Preload options for defaults
+      if (this.smsDataKeyType) { void this.onSmsDataKeyTypeChange(); }
+      if (this.emailDataKeyType) { void this.onEmailDataKeyTypeChange(); }
+    } catch (err) {
+      console.error('[TemplatesPage] loadDataKeyTypes error', err);
+      // Keep empty gracefully
+    }
+  }
+
+  private async getDataKeysForType(type: string): Promise<string[]> {
+    const key = (type || '').toUpperCase();
+    if (!key) return [];
+    if (this.dataKeysCache[key]) {
+      return this.dataKeysCache[key];
+    }
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.notifcations_datakey_list,
+      parameters: [key],
+    } as any;
+    try {
+      const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse>(api));
+      const rows = Array.isArray(res?.data)
+        ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
+        : [];
+      const list = (rows || []).map((row: any) =>
+        (row.data_key ?? row.value ?? row.id ?? '').toString().trim()
+      ).filter((v: string) => !!v);
+      this.dataKeysCache[key] = list;
+      return list;
+    } catch (err) {
+      console.error('[TemplatesPage] getDataKeysForType error', err);
+      return [];
+    }
+  }
+
+  async onSmsDataKeyTypeChange(): Promise<void> {
+    this.smsDataKey = '';
+    this.smsDataKeyOptions = await this.getDataKeysForType(this.smsDataKeyType);
+  }
+
+  async onEmailDataKeyTypeChange(): Promise<void> {
+    this.emailDataKey = '';
+    this.emailDataKeyOptions = await this.getDataKeysForType(this.emailDataKeyType);
+  }
+
+  onInsertDataKey(channel: 'sms' | 'email', token: string): void {
+    if (!token) return;
+    const area: HTMLTextAreaElement | null = channel === 'sms'
+      ? (this.smsArea?.nativeElement as HTMLTextAreaElement | undefined) ?? null
+      : (this.emailArea?.nativeElement as HTMLTextAreaElement | undefined) ?? null;
+    if (!area) {
+      // Fallback: append to end
+      if (channel === 'sms') {
+        this.templateForm.smsBody = (this.templateForm.smsBody || '') + token;
+      } else {
+        this.templateForm.emailBody = (this.templateForm.emailBody || '') + token;
+      }
+      return;
+    }
+    const value = channel === 'sms' ? (this.templateForm.smsBody || '') : (this.templateForm.emailBody || '');
+    const start = area.selectionStart ?? value.length;
+    const end = area.selectionEnd ?? start;
+    const before = value.slice(0, start);
+    const after = value.slice(end);
+    const next = before + token + after;
+    if (channel === 'sms') {
+      this.templateForm.smsBody = next;
+    } else {
+      this.templateForm.emailBody = next;
+    }
+    // Restore focus and place caret after inserted token
+    setTimeout(() => {
+      area.focus();
+      const pos = start + token.length;
+      area.setSelectionRange(pos, pos);
+    }, 0);
+
+    // Clear the selected token to allow reusing the same dropdown
+    if (channel === 'sms') this.smsDataKey = '';
+    else this.emailDataKey = '';
   }
 
   private toggleActionsMenu(menu: HTMLElement, toggleBtn: HTMLElement, row: TemplateRow): void {

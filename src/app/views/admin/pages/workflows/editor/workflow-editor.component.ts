@@ -290,7 +290,8 @@ export class WorkflowEditorComponent implements OnInit {
       this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(() => this.deletingStageId.set(null))).subscribe({
         next: res => {
           if (!res || !res.ok) {
-            Utilities.showToast('Failed to delete stage','error');
+            // Utilities.showToast('Failed to delete stage','error');
+            Utilities.showToast(String(res?.error ?? 'Submit failed'), 'error');
             return;
           }
           Utilities.showToast('Stage deleted','success');

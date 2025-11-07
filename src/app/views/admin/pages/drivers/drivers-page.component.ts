@@ -91,22 +91,22 @@ export class DriversPageComponent implements OnInit {
   ];
 
   columnDefs: ColDef[] = [
-    {
-      headerName: "Driver ID",
-      field: "driverId",
-      width: 140,
-      headerComponent: GridHeaderComponent,
-      headerComponentParams: { icon: "icon-hash" },
-      filter: "agTextColumnFilter",
-    },
-    {
-      headerName: "Applicant ID",
-      field: "applicantId",
-      width: 140,
-      headerComponent: GridHeaderComponent,
-      headerComponentParams: { icon: "icon-user" },
-      filter: "agTextColumnFilter",
-    },
+    // {
+    //   headerName: "Driver ID",
+    //   field: "driverId",
+    //   width: 140,
+    //   headerComponent: GridHeaderComponent,
+    //   headerComponentParams: { icon: "icon-hash" },
+    //   filter: "agTextColumnFilter",
+    // },
+    // {
+    //   headerName: "Applicant ID",
+    //   field: "applicantId",
+    //   width: 140,
+    //   headerComponent: GridHeaderComponent,
+    //   headerComponentParams: { icon: "icon-user" },
+    //   filter: "agTextColumnFilter",
+    // },
     {
       headerName: "Driver",
       field: "name",
@@ -319,8 +319,8 @@ export class DriversPageComponent implements OnInit {
 
       this.error = null;
       this.rowData = data.map((row: any) => {
-        const driverId = row.id_driver ?? row.ID_DRIVER ?? row.driver_id ?? row.ID ?? null;
-        const applicantId = row.id_applicant ?? row.ID_APPLICANT ?? row.applicant_id ?? null;
+        const driverId = row.ID_Driver ?? row.ID_Driver ?? row.ID_Driver ?? row.ID_Driver ?? null;
+        const applicantId = row.ID_Applicant ?? row.ID_Applicant ?? row.ID_Applicant ?? null;
         const countryCode = row.country_code ?? row.COUNTRY_CODE ?? row.CountryCode ?? null;
         const stateCode = row.state_code ?? row.STATE_CODE ?? row.StateCode ?? null;
         const city = row.city ?? row.City ?? null;
@@ -328,7 +328,7 @@ export class DriversPageComponent implements OnInit {
         const isActive = row.is_active ?? row.IS_ACTIVE ?? row.active ?? row.Active ?? null;
 
         const name =
-          row.name ?? [row.first_name ?? "", row.last_name ?? ""].join(" ").trim();
+          row.Name ?? [row.Name ?? "", row.Name ?? ""].join(" ").trim();
 
         const statusText = isActive ? "Active" : "Inactive";
         const statuses: DriverStatusEntry[] = [
@@ -344,8 +344,8 @@ export class DriversPageComponent implements OnInit {
           driverId: driverId ?? null,
           applicantId: applicantId ?? null,
           name: name || "(no name)",
-          email: row.email ?? row.email_address ?? "",
-          phone: row.phone ?? row.phone_number ?? "",
+          email: row.Email ?? row.Email ?? "",
+          phone: row.PhoneNumber ?? row.PhoneNumber ?? "",
           countryCode: countryCode ?? "",
           stateCode: stateCode ?? "",
             street: row.street ?? row.Street ?? "",
@@ -518,4 +518,6 @@ export class DriversPageComponent implements OnInit {
       .map(renderOne)
       .join("")}</div>`;
   }
+
+  
 }

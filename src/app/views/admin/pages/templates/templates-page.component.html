@@ -47,6 +47,7 @@
         [columnDefs]="columnDefs"
         [defaultColDef]="defaultColDef"
         [gridOptions]="gridOptions"
+        [enableCellTextSelection]="true"
         [pagination]="true"
         [paginationPageSize]="pageSize"
         [paginationPageSizeSelector]="pageSizeOptions"
@@ -56,6 +57,7 @@
         (selectionChanged)="onSelectionChanged($event)"
         (paginationChanged)="onPaginationChanged($event)"
         (cellClicked)="onCellClicked($event)"
+        (cellKeyDown)="onCellKeyDown($event)"
       ></ag-grid-angular>
     </div>
 

@@ -10,6 +10,8 @@ export enum DriveWhipAdminCommand {
     crm_stages_sections_operator_crud = "crm_stages_sections_operator_crud", // Operator catalog
     notification_templates_crud = "notification_templates_crud", // Notification templates (R list)
     crm_applicants_list = "crm_applicants_list",
+    // Drivers list for Drivers page grid
+    crm_drivers_list = "crm_drivers_list",
     crm_stages_deliveryMetod_options = "crm_stages_deliveryMetod_options", // Delivery method options
     crm_stages_sections_initialmessage_crud = "crm_stages_sections_initialmessage_crud", // Initial message CRUD
     crm_stages_sections_idlemove_crud = "crm_stages_sections_idlemove_crud", // Idle move rule CRUD

@@ -39,6 +39,7 @@ export class GridHeaderComponent implements IHeaderAngularComp {
       [defaultColDef]="defaultColDef"
       rowSelection="multiple"
       [suppressRowClickSelection]="true"
+      [enableCellTextSelection]="true"
       [pagination]="true"
       [paginationPageSize]="pageSize"
       [paginationPageSizeSelector]="pageSizeOptions"
@@ -46,7 +47,8 @@ export class GridHeaderComponent implements IHeaderAngularComp {
       (selectionChanged)="onSelectionChanged()"
       (firstDataRendered)="onFirstDataRendered()"
       (paginationChanged)="onPaginationChanged()"
-      (cellClicked)="onCellClicked($event)">
+      (cellClicked)="onCellClicked($event)"
+      (cellKeyDown)="onCellKeyDown($event)">
     </ag-grid-angular>
   `,
   styles: [`
@@ -282,6 +284,24 @@ export class WorkflowsGridComponent implements OnChanges {
   clearSelection()      { this.gridApi?.deselectAll(); this.onSelectionChanged(); }
   exportCsv(onlySelected: boolean) { this.gridApi?.exportDataAsCsv({ onlySelected }); }
   onPaginationChanged() { this.updatePaginationState(); }
+
+  onCellKeyDown(event: any) {
+    const key = (event.event as KeyboardEvent)?.key?.toLowerCase?.() || "";
+    const ctrl = (event.event as KeyboardEvent)?.ctrlKey || (event.event as KeyboardEvent)?.metaKey;
+    if (ctrl && key === "c") {
+      const api = event.api;
+      const ranges = (api as any).getCellRanges?.() || [];
+      if (ranges && ranges.length && (api as any).copySelectedRangeToClipboard) {
+        try { (api as any).copySelectedRangeToClipboard({ includeHeaders: true }); return; } catch {}
+      }
+      const selectedRows = api.getSelectedRows?.() || [];
+      if (selectedRows.length) {
+        try { api.copySelectedRowsToClipboard({ includeHeaders: true }); return; } catch {}
+      }
+      const value = (event.value ?? "").toString();
+      if (value) navigator.clipboard?.writeText(value).catch(() => {});
+    }
+  }
 
   private updatePaginationState() {
     if (!this.gridApi) return;

@@ -391,6 +391,24 @@ export class UserRolesComponent implements OnInit, OnDestroy {
     }
   }
 
+  onGridCellKeyDown(event: any): void {
+    const key = (event.event as KeyboardEvent)?.key?.toLowerCase?.() || '';
+    const ctrl = (event.event as KeyboardEvent)?.ctrlKey || (event.event as KeyboardEvent)?.metaKey;
+    if (ctrl && key === 'c') {
+      const api = event.api;
+      const ranges = (api as any).getCellRanges?.() || [];
+      if (ranges && ranges.length && (api as any).copySelectedRangeToClipboard) {
+        try { (api as any).copySelectedRangeToClipboard({ includeHeaders: true }); return; } catch {}
+      }
+      const selectedRows = api.getSelectedRows?.() || [];
+      if (selectedRows.length) {
+        try { api.copySelectedRowsToClipboard({ includeHeaders: true }); return; } catch {}
+      }
+      const value = (event.value ?? '').toString();
+      if (value) navigator.clipboard?.writeText(value).catch(() => {});
+    }
+  }
+
   // CRUD placeholders
   onCreate(): void {
     this._dialogMode.set('create');

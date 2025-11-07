@@ -50,7 +50,6 @@ export interface RoleDialogResult {
               name="role"
               [(ngModel)]="role"
               required
-              [readonly]="mode === 'edit'"
             />
             <div class="invalid-feedback d-block" *ngIf="roleError">
               {{ roleError }}

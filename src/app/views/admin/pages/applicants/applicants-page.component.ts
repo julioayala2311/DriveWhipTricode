@@ -10,6 +10,7 @@ import {
   SelectionChangedEvent,
   PaginationChangedEvent,
   ICellRendererParams,
+  CellClickedEvent,
 } from "ag-grid-community";
 import { DriveWhipCoreService } from "../../../../core/services/drivewhip-core/drivewhip-core.service";
 import { DriveWhipAdminCommand } from "../../../../core/db/procedures";
@@ -20,6 +21,7 @@ import {
 import { Utilities } from "../../../../Utilities/Utilities";
 import { firstValueFrom } from "rxjs";
 import { GridHeaderComponent } from "../home/home-grid.component";
+import { ApplicantPanelComponent } from "../locations/applicants/applicants-panel.component";
 
 interface ApplicantStatusEntry {
   stage: string;
@@ -31,7 +33,7 @@ interface ApplicantStatusEntry {
 @Component({
   selector: "dw-admin-applicants-page",
   standalone: true,
-  imports: [CommonModule, AgGridAngular, GridHeaderComponent],
+  imports: [CommonModule, AgGridAngular, GridHeaderComponent, ApplicantPanelComponent],
   templateUrl: "./applicants-page.component.html",
   styleUrls: ["./applicants-page.component.scss"],
 })
@@ -48,6 +50,10 @@ export class ApplicantsPageComponent implements OnInit {
   totalPages = 0;
   pageSize = 25;
   pageSizeOptions: number[] = [10, 25, 50, 100];
+
+  // Panel state
+  selectedApplicantId: string | null = null;
+  selectedApplicantRow: any | null = null;
 
   private readonly fallbackRows = [
     {
@@ -108,7 +114,7 @@ export class ApplicantsPageComponent implements OnInit {
           .toString()
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
-        return `<span style="color: var(--bs-primary, #0d6efd)" >${name}</span>`;
+        return `<span class="grid-link" title="View applicant details">${name}</span>`;
       },
     },
     {
@@ -224,6 +230,7 @@ export class ApplicantsPageComponent implements OnInit {
     rowHeight: 48,
     headerHeight: 44,
     pagination: true,
+    enableCellTextSelection: true,
     paginationPageSize: this.pageSize,
     paginationPageSizeSelector: this.pageSizeOptions,
     animateRows: true,
@@ -260,12 +267,54 @@ export class ApplicantsPageComponent implements OnInit {
   }
 
   onSelectionChanged(event: SelectionChangedEvent): void {
-    this.selectedCount = event.api.getSelectedNodes().length;
+    const rows = event.api.getSelectedRows?.() || [];
+    this.selectedCount = rows.length;
+    const first = rows[0] || null;
+    this.selectedApplicantRow = first ?? null;
+    this.selectedApplicantId = first?.applicantId ?? first?.id ?? null;
   }
 
   onPaginationChanged(event: PaginationChangedEvent): void {
     if (event.api) {
       this.updatePaginationState(event.api);
+    }
+  }
+
+  onCellClicked(event: CellClickedEvent): void {
+    const colId = event.colDef?.field || event.column?.getColId?.();
+    if (colId === "name" || colId === "applicantId") {
+      const row = event.data || null;
+      this.selectedApplicantRow = row;
+      this.selectedApplicantId = row?.applicantId ?? row?.id ?? null;
+      // keep grid selection state unchanged due to suppressRowClickSelection
+    }
+  }
+
+  onCellKeyDown(event: any): void {
+    const key = (event.event as KeyboardEvent)?.key?.toLowerCase?.() || "";
+    const ctrl = (event.event as KeyboardEvent)?.ctrlKey || (event.event as KeyboardEvent)?.metaKey;
+    if (ctrl && key === "c") {
+      // Prefer copying ranges, then rows, else focused cell
+      const api = event.api;
+      const ranges = (api as any).getCellRanges?.() || [];
+      if (ranges && ranges.length && (api as any).copySelectedRangeToClipboard) {
+        try {
+          (api as any).copySelectedRangeToClipboard({ includeHeaders: true });
+          return;
+        } catch {}
+      }
+      const selectedRows = api.getSelectedRows?.() || [];
+      if (selectedRows.length) {
+        try {
+          api.copySelectedRowsToClipboard({ includeHeaders: true });
+          return;
+        } catch {}
+      }
+      // Fallback: copy current cell value
+      const value = (event.value ?? "").toString();
+      if (value) {
+        navigator.clipboard?.writeText(value).catch(() => {/* ignore */});
+      }
     }
   }
 
@@ -419,10 +468,49 @@ export class ApplicantsPageComponent implements OnInit {
   clearSelection(): void {
     this.gridApi?.deselectAll();
     this.selectedCount = 0;
+    this.selectedApplicantId = null;
+    this.selectedApplicantRow = null;
   }
 
   exportCsv(onlySelected: boolean): void {
     this.gridApi?.exportDataAsCsv({ onlySelected });
+  }
+
+  copySelected(includeHeaders: boolean = true): void {
+    // Copy selected rows to clipboard (AG Grid clipboard API)
+    try {
+  this.gridApi?.copySelectedRowsToClipboard({ includeHeaders });
+      Utilities.showToast("Copied selected rows to clipboard", "success");
+    } catch (e) {
+      console.warn("Clipboard copy failed, falling back", e);
+      const rows = this.gridApi?.getSelectedRows?.() || [];
+      if (rows.length) {
+        const text = this.rowsToTsv(rows, includeHeaders);
+        navigator.clipboard?.writeText(text).catch(() => {/* ignore */});
+      }
+    }
+  }
+
+  private rowsToTsv(rows: any[], includeHeaders: boolean): string {
+    if (!rows?.length) return "";
+    const cols = this.columnDefs.map(c => String(c.field || c.headerName || "")).filter(Boolean);
+    const header = includeHeaders ? cols.join("\t") + "\n" : "";
+    const body = rows
+      .map(r =>
+        cols
+          .map(k => {
+            const v = (r as any)[k as any];
+            return v == null ? "" : String(v).replace(/\n/g, " ");
+          })
+          .join("\t")
+      )
+      .join("\n");
+    return header + body;
+  }
+
+  // Close handler from embedded panel
+  closeApplicantPanel(): void {
+    this.clearSelection();
   }
 
   goToPreviousPage(): void {

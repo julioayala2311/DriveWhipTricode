@@ -1,0 +1,57 @@
+<section class="drivers-page">
+  <header class="page-header">
+    <div>
+      <h5>Drivers</h5>
+      <p class="page-subtitle">
+        List of registered drivers in the system.
+      </p>
+    </div>
+    <button
+      type="button"
+      class="btn btn-outline-secondary btn-sm"
+      (click)="loadDrivers()"
+      [disabled]="loading"
+    >
+      <span
+        *ngIf="loading"
+        class="spinner-border spinner-border-sm me-1"
+        role="status"
+      ></span>
+      Refresh
+    </button>
+  </header>
+
+  <div class="grid-card">
+    <div class="alert alert-warning py-2 px-3 mb-0" *ngIf="error">
+      {{ error }}
+    </div>
+    <div class="grid-toolbar">
+      <div>
+        <strong>{{ rowCount }}</strong> drivers
+        <span class="text-secondary" *ngIf="selectedCount">
+          &bull; {{ selectedCount }} selected
+        </span>
+      </div>
+      
+    </div>
+
+    <div class="grid-wrapper">
+      <ag-grid-angular
+        class="ag-theme-quartz dw-grid-theme drivers-grid"
+        [rowData]="rowData"
+        [columnDefs]="columnDefs"
+        [defaultColDef]="defaultColDef"
+        [gridOptions]="gridOptions"
+        [pagination]="true"
+        [paginationPageSize]="pageSize"
+        [paginationPageSizeSelector]="pageSizeOptions"
+        rowSelection="multiple"
+        (gridReady)="onGridReady($event)"
+        (firstDataRendered)="onFirstDataRendered($event)"
+        (selectionChanged)="onSelectionChanged($event)"
+        (paginationChanged)="onPaginationChanged($event)"
+        (cellKeyDown)="onCellKeyDown($event)"
+      ></ag-grid-angular>
+    </div>
+  </div>
+</section>

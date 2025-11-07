@@ -363,6 +363,7 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
     rowHeight: 48,
     headerHeight: 44,
     pagination: true,
+    enableCellTextSelection: true,
     paginationPageSize: this.pageSize,
     paginationPageSizeSelector: this.pageSizeOptions,
     animateRows: true,
@@ -427,6 +428,24 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
   onPaginationChanged(event: PaginationChangedEvent): void {
     if (event.api) {
       this.updatePaginationState(event.api);
+    }
+  }
+
+  onCellKeyDown(event: any): void {
+    const key = (event.event as KeyboardEvent)?.key?.toLowerCase?.() || "";
+    const ctrl = (event.event as KeyboardEvent)?.ctrlKey || (event.event as KeyboardEvent)?.metaKey;
+    if (ctrl && key === "c") {
+      const api = event.api;
+      const ranges = (api as any).getCellRanges?.() || [];
+      if (ranges && ranges.length && (api as any).copySelectedRangeToClipboard) {
+        try { (api as any).copySelectedRangeToClipboard({ includeHeaders: true }); return; } catch {}
+      }
+      const selectedRows = api.getSelectedRows?.() || [];
+      if (selectedRows.length) {
+        try { api.copySelectedRowsToClipboard({ includeHeaders: true }); return; } catch {}
+      }
+      const value = (event.value ?? "").toString();
+      if (value) navigator.clipboard?.writeText(value).catch(() => {});
     }
   }
 

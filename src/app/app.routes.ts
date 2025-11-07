@@ -49,6 +49,10 @@ export const routes: Routes = [
         loadChildren: () => import('./views/admin/pages/applicants/applicants.routes')
       },
       {
+        path: 'drivers',
+        loadChildren: () => import('./views/admin/pages/drivers/drivers.routes')
+      },
+      {
         path: 'icons',
         loadChildren: () => import('./views/icons/icons.routes')
       },

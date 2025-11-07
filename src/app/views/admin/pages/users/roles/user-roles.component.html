@@ -102,11 +102,13 @@
   [defaultColDef]="defaultColDef"
   rowSelection="single"
   [suppressRowClickSelection]="false"
+  [enableCellTextSelection]="true"
   [pagination]="true"
   [paginationPageSize]="pageSize"
   [paginationPageSizeSelector]="pageSizeOptions"
   (gridReady)="onGridReady($event)"
   (cellClicked)="onCellClicked($event)"
+  (cellKeyDown)="onGridCellKeyDown($event)"
   (selectionChanged)="onRoleSelectionChanged()"
 >
 </ag-grid-angular>
@@ -129,11 +131,13 @@
     [columnDefs]="permColumnDefs"
     [defaultColDef]="defaultColDef"
     [suppressRowClickSelection]="false"
+    [enableCellTextSelection]="true"
     [pagination]="true"
     [paginationPageSize]="pageSize"
     [paginationPageSizeSelector]="pageSizeOptions"
     [pagination]="true"
     (gridReady)="onGridReady($event)"
+    (cellKeyDown)="onGridCellKeyDown($event)"
 
   >
   </ag-grid-angular>

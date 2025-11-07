@@ -32,34 +32,7 @@
           &bull; {{ selectedCount }} selected
         </span>
       </div>
-      <!-- <div class="toolbar-actions">
-        <button
-          class="btn btn-outline-secondary btn-sm"
-          type="button"
-          (click)="clearSelection()"
-          [disabled]="selectedCount === 0"
-        >
-          Clear selection
-        </button>
-        <div class="btn-group btn-group-sm" role="group">
-          <button
-            type="button"
-            class="btn btn-outline-secondary"
-            (click)="exportCsv(false)"
-            [disabled]="!rowCount"
-          >
-            Export all
-          </button>
-          <button
-            type="button"
-            class="btn btn-outline-secondary"
-            (click)="exportCsv(true)"
-            [disabled]="selectedCount === 0"
-          >
-            Export selected
-          </button>
-        </div>
-      </div> -->
+      
     </div>
 
     <div class="grid-wrapper">
@@ -77,6 +50,8 @@
         (firstDataRendered)="onFirstDataRendered($event)"
         (selectionChanged)="onSelectionChanged($event)"
         (paginationChanged)="onPaginationChanged($event)"
+        (cellClicked)="onCellClicked($event)"
+        (cellKeyDown)="onCellKeyDown($event)"
       ></ag-grid-angular>
     </div>
 
@@ -103,5 +78,14 @@
         </button>
       </div>
     </div>
+  </div>
+  <!-- Applicant detail panel -->
+  <div class="grid-card" *ngIf="selectedApplicantId">
+    <app-applicant-panel
+      [applicantId]="selectedApplicantId"
+      [locationName]="selectedApplicantRow?.locationName"
+      [stageName]="selectedApplicantRow?.stageName"
+      (closePanel)="closeApplicantPanel()"
+    ></app-applicant-panel>
   </div>
 </section>

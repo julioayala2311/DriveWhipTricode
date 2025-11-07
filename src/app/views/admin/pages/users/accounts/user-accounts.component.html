@@ -45,10 +45,12 @@
   [columnDefs]="columnDefs"
   [defaultColDef]="defaultColDef"
   rowSelection="single"
+  [enableCellTextSelection]="true"
   [pagination]="true"
   [paginationPageSize]="pageSize"
   [paginationPageSizeSelector]="pageSizeOptions"
   (gridReady)="onGridReady($event)"
   (cellClicked)="onCellClicked($event)"
+  (cellKeyDown)="onGridCellKeyDown($event)"
 >
 </ag-grid-angular>

@@ -17,6 +17,7 @@
           <i class="feather icon-x"></i>
         </button>
         <button
+          *ngIf="!readOnly"
           type="button"
           class="btn btn-link btn-sm panel-nav px-2"
           (click)="goToPrevious.emit()"
@@ -26,6 +27,7 @@
           <i class="feather icon-chevron-left"></i> Prev
         </button>
         <button
+          *ngIf="!readOnly"
           type="button"
           class="btn btn-link btn-sm panel-nav px-2"
           (click)="goToNext.emit()"
@@ -105,7 +107,7 @@
                     {{ applicantDetailsError }}
                   </li>
                   <!-- Editable applicant fields -->
-                  <li *ngIf="isEditingApplicant" class="edit-applicant-block">
+                  <li *ngIf="isEditingApplicant && !readOnly" class="edit-applicant-block">
                     <div class="edit-card">
                       <div class="edit-card-header">
                         <div>
@@ -362,7 +364,7 @@
                               n.created_at | date : "MM/dd/yyyy h:mm a"
                             }}</span>
                           </div>
-                          <div class="note-actions" *ngIf="!isEditingNote(n)">
+                          <div class="note-actions" *ngIf="!isEditingNote(n) && !readOnly">
                             <button
                               type="button"
                               class="btn btn-link btn-xxs text-secondary"
@@ -386,7 +388,7 @@
                           {{ n.note }}
                         </div>
 
-                        <div *ngIf="isEditingNote(n)" class="note-edit mt-2">
+                        <div *ngIf="isEditingNote(n) && !readOnly" class="note-edit mt-2">
                           <textarea
                             class="form-control form-control-sm"
                             [(ngModel)]="editingNoteText"
@@ -423,7 +425,7 @@
                 </div>
 
                 <!-- Add note form -->
-                <form class="add-note-form" (submit)="onAddNote($event)">
+                <form class="add-note-form" (submit)="onAddNote($event)" *ngIf="!readOnly">
                   <div class="input-group">
                     <input
                       type="text"
@@ -526,7 +528,7 @@
             </div>
           </div>
         </div>
-        <div class="panel-actions">
+  <div class="panel-actions" *ngIf="!readOnly">
           <button
             type="button"
             class="btn btn-primary btn-sm"
@@ -990,7 +992,7 @@
                               {{ docStatusLabel(doc.status) }}
                             </span>
                           </div>
-                          <div class="file-preview__actions d-flex flex-wrap gap-2">
+                          <div class="file-preview__actions d-flex flex-wrap gap-2" *ngIf="!readOnly">
                             <button
                               type="button"
                               class="btn btn-soft-primary btn-sm"
@@ -1194,9 +1196,9 @@
         <form
           class="chat-input"
           (submit)="onSendMessage($event)"
-          *ngIf="activeTab === 'messages'"
+          *ngIf="activeTab === 'messages' && !readOnly"
         >
-          <div class="composer">
+          <div class="composer" *ngIf="!readOnly">
             <button
               type="button"
               class="attach-btn"

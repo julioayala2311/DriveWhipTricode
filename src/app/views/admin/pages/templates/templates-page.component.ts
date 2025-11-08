@@ -665,7 +665,7 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
   }
 
   saveTemplate(): void {
-    // Save backed by SP crm_notifications_templates_crud
+    // Save backed by SP crm_notifications_templates_crud_v2
     const { name, emailSubject, emailBody, smsBody, type } = this.templateForm;
     if (!name.trim()) {
       Utilities.showToast('Template name is required', 'warning');
@@ -678,15 +678,15 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
 
     const currentUser = this.authSession.user?.user || 'system';
 
-    const callCrud = async (
+    const callCrudV2 = async (
       action: 'C'|'U'|'D',
       params: {
         id: string | number | null;
         templateName: string;
         subject: string | null;
-        body: string | null;
+        emailBody: string | null;
+        smsBody: string | null;
         typeCode: string | null;
-        channel: 'Email'|'SMS';
         createdBy?: string | null;
         updatedBy?: string | null;
         isActive?: number | 0 | 1 | null;
@@ -694,15 +694,15 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
       }
     ) => {
       const api: IDriveWhipCoreAPI = {
-        commandName: DriveWhipAdminCommand.crm_notifications_templates_crud,
+        commandName: DriveWhipAdminCommand.crm_notifications_templates_crud_v2,
         parameters: [
           action,
           params.id ?? null,
           params.templateName ?? null,
-          params.subject ?? "",
-          params.body ?? null,
+          params.subject ?? null,
+          params.emailBody ?? null,
+          params.smsBody ?? null,
           params.typeCode ?? null,
-          params.channel ?? null,
           action === 'C' ? (params.createdBy ?? currentUser) : null,
           action !== 'C' ? (params.updatedBy ?? currentUser) : null,
           params.isActive ?? 1,
@@ -719,60 +719,34 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
 
     const run = async () => {
       if (this.editorMode === 'add') {
-        const tasks: Promise<any>[] = [];
-        if (emailBody.trim()) {
-          tasks.push(callCrud('C', {
-            id: null,
-            templateName: name.trim(),
-            subject: (emailSubject || '').trim() || null,
-            body: emailBody.trim(),
-            typeCode: type || null,
-            channel: 'Email',
-            createdBy: currentUser,
-            isActive: this.templateForm.isActive ? 1 : 0,
-            idTemplateTwilio: null,
-          }));
-        }
-        if (smsBody.trim()) {
-          tasks.push(callCrud('C', {
-            id: null,
-            templateName: name.trim(),
-            subject: null,
-            body: smsBody.trim(),
-            typeCode: type || null,
-            channel: 'SMS',
-            createdBy: currentUser,
-            isActive: this.templateForm.isActive ? 1 : 0,
-            idTemplateTwilio: null,
-          }));
-        }
-        await Promise.all(tasks);
+        await callCrudV2('C', {
+          id: null,
+          templateName: name.trim(),
+          subject: (emailSubject || '').trim() || null,
+          emailBody: emailBody.trim() || null,
+          smsBody: smsBody.trim() || null,
+          typeCode: type || null,
+          createdBy: currentUser,
+          isActive: this.templateForm.isActive ? 1 : 0,
+          idTemplateTwilio: null,
+        });
         Utilities.showToast('Template saved', 'success');
       } else {
-        const channel = (this.editingRow?.format || '').toString().toUpperCase() === 'SMS' ? 'SMS' : 'Email';
-        if (channel === 'Email') {
-          if (!(emailSubject || '').trim()) {
-            Utilities.showToast('Email subject is required to update the Email template', 'warning');
-            return;
-          }
-          if (!emailBody.trim()) {
-            Utilities.showToast('Email body is required to update the Email template', 'warning');
-            return;
-          }
-        } else if (channel === 'SMS') {
-          if (!smsBody.trim()) {
-            Utilities.showToast('SMS body is required to update the SMS template', 'warning');
-            return;
-          }
+        if (!emailBody.trim() && !smsBody.trim()) {
+          Utilities.showToast('Provide at least Email or SMS content', 'warning');
+          return;
         }
-
-        await callCrud('U', {
+        if (emailBody.trim() && !(emailSubject || '').trim()) {
+          Utilities.showToast('Email subject is required when providing email body', 'warning');
+          return;
+        }
+        await callCrudV2('U', {
           id: this.templateForm.id,
           templateName: name.trim(),
-          subject: channel === 'Email' ? ((emailSubject || '').trim() || null) : null,
-          body: channel === 'Email' ? emailBody.trim() : smsBody.trim(),
+          subject: (emailSubject || '').trim() || null,
+          emailBody: emailBody.trim() || null,
+          smsBody: smsBody.trim() || null,
           typeCode: type || null,
-          channel,
           updatedBy: currentUser,
           isActive: this.templateForm.isActive ? 1 : 0,
           idTemplateTwilio: null,
@@ -798,26 +772,22 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
         void (async () => {
           const currentUser = this.authSession.user?.user || 'system';
           console.log(currentUser)
-          // Robustly determine channel
-          const fmt = (row.format ?? '').toString().trim().toUpperCase();
-          const msgType = (row.messageType ?? '').toString().trim().toUpperCase();
-          const channel: 'Email' | 'SMS' = (fmt === 'SMS' || msgType === 'SMS') ? 'SMS' : 'Email';
-          // Fetch existing subject/body so SP non-null constraints are satisfied
-          const { body, subject } = await this.fetchTemplateBody(row.id);
+          // Fetch existing combined bodies for activation
+          const { emailBody, smsBody, subject } = await this.fetchTemplateBody(row.id);
           const api: IDriveWhipCoreAPI = {
-            commandName: DriveWhipAdminCommand.crm_notifications_templates_crud,
+            commandName: DriveWhipAdminCommand.crm_notifications_templates_crud_v2,
             parameters: [
-              'U',
-              row.id ?? null,
-              row.name ?? null, // templateName required by SP on update
-              channel === 'Email' ? (subject ?? '') : null,
-              channel === 'Email' ? (body ?? '') : (body ?? ''),
-              null, // typeCode unknown in grid context
-              channel,
-              null,
-              currentUser,       // updatedBy
-              1,                 // isActive = 1
-              null
+              'U',                    // action update
+              row.id ?? null,         // template id
+              row.name ?? null,       // template name
+              (subject ?? ''),        // subject
+              emailBody ?? null,      // body email
+              smsBody ?? null,        // body sms
+              null,                   // type code (not available in grid row)
+              null,                   // created_by (null on update)
+              currentUser,            // updated_by
+              1,                      // is_active (activate)
+              null                    // twilio id
             ]
           } as any;
           try {
@@ -889,19 +859,19 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
           if (!confirmed) return;
           const currentUser = this.authSession.user?.user || 'system';
           const api: IDriveWhipCoreAPI = {
-            commandName: DriveWhipAdminCommand.crm_notifications_templates_crud,
+            commandName: DriveWhipAdminCommand.crm_notifications_templates_crud_v2,
             parameters: [
-              'D',
-              row.id ?? null,
-              null,
-              null,
-              null,
-              null,
-              row.format ?? null,
-              null,
-              currentUser,
-              1,
-              null
+              'D',                  // action delete (logical inactivation)
+              row.id ?? null,       // template id
+              null,                 // name (not needed for delete)
+              null,                 // subject
+              null,                 // body email
+              null,                 // body sms
+              row.format ?? null,   // type code (if available)
+              null,                 // created_by
+              currentUser,          // updated_by
+              0,                    // is_active -> set inactive
+              null                  // twilio id
             ]
           } as any;
           firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse>(api))
@@ -943,11 +913,10 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Load subject/body for the given template row by executing the SP:
+   * Load both email & sms bodies plus subject for the given template row by executing the SP:
    *   crm_notifications_template_body(p_template_id)
-   * Returns a row with fields: Body (template_body), Subject (template_subject)
-   * - If the row is SMS: only apply Body to smsBody
-   * - If the row is Email: apply Subject and Body to emailSubject/emailBody
+   * New SP returns: BodyEmail, BodySMS, Subject
+   * We now populate emailSubject/emailBody and smsBody regardless of template format so user can view both.
    */
   private async loadTemplateBodyForRow(row: TemplateRow): Promise<void> {
     const templateId = row?.id;
@@ -962,22 +931,17 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
         ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
         : [];
       const first = (data && data[0]) ? data[0] : {};
-      const body = (first.Body ?? first.body ?? first.template_body ?? '')?.toString?.() ?? '';
+      const emailBody = (first.BodyEmail ?? first.bodyEmail ?? first.body_email ?? '')?.toString?.() ?? '';
+      const smsBody = (first.BodySMS ?? first.bodySMS ?? first.body_sms ?? '')?.toString?.() ?? '';
       const subject = (first.Subject ?? first.subject ?? first.template_subject ?? '')?.toString?.() ?? '';
 
-      // Prefer `format` to decide channel, fallback to `messageType`
-      const fmt = (row.format ?? '').toString().trim().toUpperCase();
-      const msgType = (row.messageType ?? '').toString().trim().toUpperCase();
-      const isSms = fmt === 'SMS' || msgType === 'SMS';
-      if (isSms) {
-        this.templateForm.smsBody = body || '';
-        row.smsBody = this.templateForm.smsBody;
-      } else {
-        this.templateForm.emailSubject = subject || '';
-        this.templateForm.emailBody = body || '';
-        row.emailSubject = this.templateForm.emailSubject;
-        row.emailBody = this.templateForm.emailBody;
-      }
+      // Populate both channels so editor modal can show/edit both regardless of original format
+      this.templateForm.emailSubject = subject || '';
+      this.templateForm.emailBody = emailBody || '';
+      this.templateForm.smsBody = smsBody || '';
+      row.emailSubject = this.templateForm.emailSubject;
+      row.emailBody = this.templateForm.emailBody;
+      row.smsBody = this.templateForm.smsBody;
       // Ensure change detection picks up async updates even if the service runs outside NgZone
       try { this.cdr.detectChanges(); } catch {}
     } catch (err) {
@@ -987,8 +951,8 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
   }
 
   // Fetch subject/body without mutating UI state; used for background updates like Activate
-  private async fetchTemplateBody(templateId: string | number | null): Promise<{ body: string; subject: string; }> {
-    if (templateId == null) return { body: '', subject: '' };
+  private async fetchTemplateBody(templateId: string | number | null): Promise<{ emailBody: string; smsBody: string; subject: string; }> {
+    if (templateId == null) return { emailBody: '', smsBody: '', subject: '' };
     const api: IDriveWhipCoreAPI = {
       commandName: DriveWhipAdminCommand.crm_notifications_template_body,
       parameters: [templateId],
@@ -999,11 +963,12 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
         ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
         : [];
       const first = (data && data[0]) ? data[0] : {};
-      const body = (first.Body ?? first.body ?? first.template_body ?? '')?.toString?.() ?? '';
+      const emailBody = (first.BodyEmail ?? first.bodyEmail ?? first.body_email ?? '')?.toString?.() ?? '';
+      const smsBody = (first.BodySMS ?? first.bodySMS ?? first.body_sms ?? '')?.toString?.() ?? '';
       const subject = (first.Subject ?? first.subject ?? first.template_subject ?? '')?.toString?.() ?? '';
-      return { body, subject };
+      return { emailBody, smsBody, subject };
     } catch {
-      return { body: '', subject: '' };
+      return { emailBody: '', smsBody: '', subject: '' };
     }
   }
 

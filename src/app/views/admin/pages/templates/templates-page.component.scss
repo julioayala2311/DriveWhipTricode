@@ -195,6 +195,7 @@
   background: transparent;
   /* Ensure long text inside stays within button */
   overflow: hidden;
+  align-items: center; /* keep both sides vertically centered */
 }
 .editor-modal .editor-tile:hover { background: rgba(0,0,0,0.03); }
 .editor-modal .code-area { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
@@ -207,6 +208,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: right;
+  margin-left: 5px;
+}
+
+/* Prevent the left label (icon + text) from shrinking when the snippet is long */
+.editor-modal .editor-tile > span:first-child {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .message-editors { display: grid; grid-template-columns: 1fr; gap: 0.5rem; }

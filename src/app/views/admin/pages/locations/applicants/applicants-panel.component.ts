@@ -84,6 +84,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   @Input() statuses: Array<ApplicantStatus & { order?: number }> | null = null;
   // Controls visibility of file moderation actions (Approve / Re-collect)
   @Input() uploadFiles: boolean = false;
+  /** When true the panel is rendered in read-only / informational mode (no actions, no editing, no tab changes) */
+  @Input() readOnly: boolean = false;
   @Output() draftMessageChange = new EventEmitter<string>();
   @Output() closePanel = new EventEmitter<void>();
   @Output() goToPrevious = new EventEmitter<void>();

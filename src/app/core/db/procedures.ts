@@ -73,6 +73,8 @@ export enum DriveWhipAdminCommand {
     notifcations_datakey_list = "notifcations_datakey_list",
     // Templates CRUD (C/U/D via p_action)
     crm_notifications_templates_crud = "crm_notifications_templates_crud",
+    // New Templates CRUD v2 (single call supports both Email + SMS bodies)
+    crm_notifications_templates_crud_v2 = "crm_notifications_templates_crud_v2",
     // Templates combos by type code for selects
     crm_notifications_templates_combos = "crm_notifications_templates_combos",
     // Chat templates list for applicant panel modal

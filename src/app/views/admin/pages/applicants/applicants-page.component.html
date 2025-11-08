@@ -85,6 +85,9 @@
       [applicantId]="selectedApplicantId"
       [locationName]="selectedApplicantRow?.locationName"
       [stageName]="selectedApplicantRow?.stageName"
+      [readOnly]="true"
+      [activeTab]="appPanelActiveTab"
+      (setTab)="onApplicantPanelTabChange($event)"
       (closePanel)="closeApplicantPanel()"
     ></app-applicant-panel>
   </div>

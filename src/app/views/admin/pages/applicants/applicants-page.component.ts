@@ -54,6 +54,8 @@ export class ApplicantsPageComponent implements OnInit {
   // Panel state
   selectedApplicantId: string | null = null;
   selectedApplicantRow: any | null = null;
+  // Read-only panel tab state (allow Messages/History/Files; composer/actions are hidden in panel)
+  appPanelActiveTab: "messages" | "history" | "files" = "history";
 
   private readonly fallbackRows = [
     {
@@ -286,6 +288,8 @@ export class ApplicantsPageComponent implements OnInit {
       const row = event.data || null;
       this.selectedApplicantRow = row;
       this.selectedApplicantId = row?.applicantId ?? row?.id ?? null;
+      // Reset tab to History when opening a new panel
+      this.appPanelActiveTab = "history";
       // keep grid selection state unchanged due to suppressRowClickSelection
     }
   }
@@ -316,6 +320,11 @@ export class ApplicantsPageComponent implements OnInit {
         navigator.clipboard?.writeText(value).catch(() => {/* ignore */});
       }
     }
+  }
+
+  // Handle tab changes from embedded ApplicantPanel (read-only, restrict to History/Files)
+  onApplicantPanelTabChange(tab: "messages" | "history" | "files"): void {
+    this.appPanelActiveTab = tab;
   }
 
   async loadApplicants(): Promise<void> {

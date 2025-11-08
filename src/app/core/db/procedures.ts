@@ -1,7 +1,8 @@
 export enum DriveWhipAdminCommand {
     auth_users_info = "auth_users_info",
     auth_users_list = "auth_users_list",
-    auth_roles_crud = "auth_roles_crud", // Generic CRUD (C,R,U,D) via p_action parameter
+    auth_roles_crud = "auth_roles_crud", // Generic CRUD (deprecated - use v2)
+    auth_roles_crud_v2 = "auth_roles_crud_v2", // New CRUD: (action, id_role, role, description, active)
     auth_users_crud = "auth_users_crud", // Users CRUD stored procedure
     crm_stages_crud = "crm_stages_crud", // CRUD + logical delete for stages (p_action)
     crm_stages_sections_crud = "crm_stages_sections_crud", // CRUD for stage sections (data collection config)
@@ -40,7 +41,9 @@ export enum DriveWhipAdminCommand {
     crm_workflows_list = "crm_workflows_list",
     auth_roles_routes = "auth_roles_routes",
     crm_locations_crud = "crm_locations_crud",
-    auth_roles_routes_crud = "auth_roles_routes_crud",
+    auth_roles_routes_crud = "auth_roles_routes_crud", // legacy (deprecated)
+    // New v2: unified assign/update/delete of role-route and permissions
+    auth_roles_routes_crud_v2 = "auth_roles_routes_crud_v2",
     crm_workflows_crud = "crm_workflows_crud",
     crm_locations_active = "crm_locations_active",
     commun_country_states = "commun_country_states",

@@ -137,8 +137,9 @@ export class UserAccountsComponent implements OnInit {
 
   private loadRoles(): void {
     const api: IDriveWhipCoreAPI = {
-      commandName: DriveWhipAdminCommand.auth_roles_crud,
-      parameters: ['R', null, null, null]
+      commandName: DriveWhipAdminCommand.auth_roles_crud_v2,
+      // v2 signature: (action, id_role, role, description, active)
+      parameters: ['R', null, null, null, null]
     };
     this.core.executeCommand<DriveWhipCommandResponse<RoleRecord>>(api).subscribe({
       next: res => {

@@ -1,4 +1,5 @@
 export interface RoleRecord {
+  Id?: number;        // New numeric identifier from auth_roles_crud_v2 (alias "Id")
   role: string;
   description: string;
   createdat: string; // raw from API (keep naming to match SP alias)

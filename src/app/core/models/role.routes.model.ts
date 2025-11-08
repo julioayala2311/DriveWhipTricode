@@ -9,6 +9,16 @@ export interface RoleRouteRecord {
   is_menu: number;  
   is_active: number;  
   is_assigned: number;
+  // New fields returned by updated SP
+  code?: string;
+  action?: string;
+  // CRUD permission flags (0/1)
+  Create?: number;
+  Read?: number;
+  Update?: number;
+  Delete?: number;
+  // Derived client-side for grouping: parent label of this route
+  parentLabel?: string;
 }
 
 export interface RoleRouteListResponse extends Array<RoleRouteRecord> {}

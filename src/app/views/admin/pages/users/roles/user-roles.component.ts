@@ -171,6 +171,9 @@ export class UserRolesComponent implements OnInit, OnDestroy {
         };
         const container = document.createElement('div');
         container.className = 'permission-buttons perm-btn-group';
+        // Accessibility: group semantics
+        container.setAttribute('role', 'group');
+        container.setAttribute('aria-label', `Permissions for route ${data.label}`);
 
         const spec: Array<{icon:string; field: 'Create'|'Read'|'Update'|'Delete'; label: string; aria: string}> = [
           { icon: 'icon-plus', field: 'Create', label: 'Add', aria: 'Toggle Add permission' },
@@ -178,6 +181,15 @@ export class UserRolesComponent implements OnInit, OnDestroy {
           { icon: 'icon-edit', field: 'Update', label: 'Edit', aria: 'Toggle Edit permission' },
           { icon: 'icon-trash', field: 'Delete', label: 'Remove', aria: 'Toggle Remove permission' },
         ];
+
+        let badge: HTMLSpanElement | null = null;
+        const updateBadge = () => {
+          if (!badge) return;
+          const total = Object.values(perms).filter(v => v === 1).length;
+          badge.textContent = `${total}/4`;
+          badge.classList.toggle('perm-total-all', total === 4);
+          badge.setAttribute('aria-label', `Active permissions: ${total} of 4`);
+        };
 
         const makeBtn = (item: typeof spec[number]) => {
           const btn = document.createElement('button');
@@ -244,11 +256,18 @@ export class UserRolesComponent implements OnInit, OnDestroy {
               icon.classList.toggle('perm-icon-active', perms[item.field] === 1);
               icon.classList.toggle('perm-icon-inactive', perms[item.field] !== 1);
             }
+            updateBadge();
           });
           return btn;
         };
 
         spec.forEach(s => container.appendChild(makeBtn(s)));
+        // Summary badge (active count) appended at end
+        badge = document.createElement('span');
+        badge.className = 'badge perm-total';
+        badge.style.marginLeft = '4px';
+        updateBadge();
+        container.appendChild(badge);
         return container;
       }
     },
@@ -689,6 +708,9 @@ export class UserRolesComponent implements OnInit, OnDestroy {
   loadRolesRoutes(roleId?: number | null): void {
     this._loading.set(true);
     this._error.set(null);
+    // Preserve scroll & selection of permissions grid before reload
+  const prevFirstIdx = this.permGridApi?.getFirstDisplayedRow?.() ?? null;
+  const prevSelectedRouteId = this.permGridApi?.getSelectedRows?.()[0]?.id_route ?? null;
     const api: IDriveWhipCoreAPI = {
       commandName: DriveWhipAdminCommand.auth_roles_routes,
       // Now send the Role Id from v2 list; backend expects id over role string
@@ -753,6 +775,23 @@ export class UserRolesComponent implements OnInit, OnDestroy {
           });
 
           this._rolesroutes.set(withParent);
+          // Restore selection & scroll after data set
+          queueMicrotask(() => {
+            if (this.permGridApi) {
+              if (prevSelectedRouteId != null) {
+                const rowNode = this.permGridApi.getDisplayedRowAtIndex?.(0);
+                // Iterate to find matching id_route
+                this.permGridApi.forEachNode((n) => {
+                  if ((n.data as any)?.id_route === prevSelectedRouteId) {
+                    n.setSelected(true);
+                  }
+                });
+              }
+              if (prevFirstIdx != null && prevFirstIdx >= 0) {
+                try { this.permGridApi.ensureIndexVisible(prevFirstIdx, 'top'); } catch {}
+              }
+            }
+          });
         },
         error: (err) => {
           console.error("[UserRolesComponent] loadRoles error", err);
@@ -774,6 +813,12 @@ export class UserRolesComponent implements OnInit, OnDestroy {
     } else {
       this.adjustActionsColumnWidth();
     }
+  }
+
+  // Separate api for permissions child grid to preserve its scroll
+  private permGridApi?: GridApi;
+  onPermGridReady(e: GridReadyEvent) {
+    this.permGridApi = e.api;
   }
 
   onGridCellKeyDown(event: any): void {

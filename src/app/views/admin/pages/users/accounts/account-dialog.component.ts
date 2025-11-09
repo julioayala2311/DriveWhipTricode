@@ -14,9 +14,11 @@ export interface AccountDialogResult {
   user: string;
   firstname: string;
   lastname: string;
-  role: string;
+  roleId: number;   // send numeric role Id to backend
+  role?: string;    // optional label for convenience
   active: boolean; // only relevant on edit (hidden on create)
 }
+import { RoleRecord } from "../../../../../core/models/role.model";
 
 @Component({
   selector: "dw-account-dialog",
@@ -89,20 +91,15 @@ export interface AccountDialogResult {
               >
               <select
                 class="form-select form-select-sm"
-                name="role"
-                [(ngModel)]="role"
+                name="roleId"
+                [(ngModel)]="roleId"
                 required
                 [disabled]="roles.length === 0"
               >
-                <option value="" disabled>Select a role...</option>
-                <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
+                <option [ngValue]="null" disabled>Select a role...</option>
+                <option *ngFor="let r of roles" [ngValue]="r.Id">{{ r.role }}</option>
               </select>
-              <div
-                class="invalid-feedback d-block"
-                *ngIf="role && roles.length && !roles.includes(role)"
-              >
-                Selected role is no longer active.
-              </div>
+              <!-- Invalid feedback placeholder removed until role list diff logic needed -->
               <div
                 class="text-muted small fst-italic pt-1"
                 *ngIf="roles.length === 0"
@@ -118,8 +115,12 @@ export interface AccountDialogResult {
                   id="accActiveSwitch"
                   [(ngModel)]="active"
                   name="active"
+                  [disabled]="isAdminRecord"
                 />
                 <label class="form-check-label small" for="accActiveSwitch">Active</label>
+                <div class="text-warning small pt-1" *ngIf="isAdminRecord">
+                  Administrator accounts cannot be disabled.
+                </div>
               </div>
             </div>
           </div>
@@ -174,24 +175,30 @@ export class AccountDialogComponent implements OnChanges {
   @Input() record: UserAccountRecord | null = null;
   @Input() existingUsernames: string[] = [];
   @Input() saving = false;
-  @Input() roles: string[] = [];
+  @Input() roles: RoleRecord[] = [];
   @Output() closed = new EventEmitter<void>();
   @Output() saved = new EventEmitter<AccountDialogResult>();
 
   user = "";
   firstname = "";
   lastname = "";
-  role = "";
+  role = "";      // label only (for edit display/compat)
+  roleId: number | null = null;
   active = true;
   userError: string | null = null;
+  isAdminRecord = false; // UI guard for ADMIN role
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["record"] || changes["mode"]) {
+    if (changes["record"] || changes["mode"] || changes["roles"]) {
       if (this.mode === "edit" && this.record) {
         this.user = this.record.user;
         this.firstname = this.record.firstname;
         this.lastname = this.record.lastname;
         this.role = this.record.role;
+  // try to map current role label to Id from provided roles
+        const match = this.roles.find(r => r.role?.trim().toLowerCase() === (this.record!.role || '').trim().toLowerCase());
+        this.roleId = match?.Id ?? null;
+  this.isAdminRecord = (this.record.role || '').trim().toUpperCase() === 'ADMIN';
         // Accept numeric 1, boolean true, or string 'true'
         const a: any = (this.record as any).active;
         this.active = (a === 1 || a === true || String(a).toLowerCase() === 'true');
@@ -200,7 +207,9 @@ export class AccountDialogComponent implements OnChanges {
         this.firstname = "";
         this.lastname = "";
         this.role = "";
+        this.roleId = null;
         this.active = true; // SP will enforce 1 on create
+        this.isAdminRecord = false;
       }
       this.userError = null;
     }
@@ -211,7 +220,7 @@ export class AccountDialogComponent implements OnChanges {
       !this.user.trim() ||
       // !this.firstname.trim() ||
       // !this.lastname.trim() ||
-      !this.role.trim()
+      this.roleId == null
     )
       return false;
     if (
@@ -219,12 +228,16 @@ export class AccountDialogComponent implements OnChanges {
       this.existingUsernames.includes(this.user.trim().toLowerCase())
     )
       return false;
-    if (this.roles.length > 0 && !this.roles.includes(this.role.trim()))
+    if (this.roles.length > 0 && this.roleId != null && !this.roles.some(r => r.Id === this.roleId))
       return false;
     return true;
   }
 
   save(): void {
+    // Hard guard: never allow deactivating ADMIN via dialog
+    if (this.isAdminRecord) {
+      this.active = true;
+    }
     this.user = this.user.trim();
     this.firstname = this.firstname.trim();
     this.lastname = this.lastname.trim();
@@ -236,11 +249,13 @@ export class AccountDialogComponent implements OnChanges {
       else this.userError = null;
       return;
     }
+    const selectedRole = this.roles.find(r => r.Id === this.roleId!);
     this.saved.emit({
       user: this.user,
       firstname: this.firstname,
       lastname: this.lastname,
-      role: this.role,
+      roleId: this.roleId!,
+      role: selectedRole?.role,
       active: this.active,
     });
   }

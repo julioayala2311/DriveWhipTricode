@@ -57,6 +57,8 @@ export class GridHeaderComponent implements IHeaderAngularComp {
 })
 export class WorkflowsGridComponent implements OnChanges {
   @Input() rowData: WorkflowRecord[] = [];
+  @Input() allowEdit = true;
+  @Input() allowDelete = true;
 
   @Output() editRow = new EventEmitter<WorkflowRecord>();
   @Output() deleteRow = new EventEmitter<WorkflowRecord>();
@@ -213,10 +215,12 @@ export class WorkflowsGridComponent implements OnChanges {
   private actionButtons(rec: WorkflowRecord) {
     if (!rec) return '';
     const disabled = Number((rec as any).is_active ?? 1) === 0;
+    const canEdit = this.allowEdit;
+    const canDelete = this.allowDelete;
     return `
       <div class="d-flex gap-1">
-        <button class="btn btn-xs btn-outline-secondary" type="button" data-action="edit">Edit</button>
-        <button class="btn btn-xs btn-outline-danger" type="button" data-action="delete" ${disabled ? 'disabled' : ''}>Disable</button>
+        <button class="btn btn-xs btn-outline-secondary" type="button" data-action="edit" ${canEdit ? '' : 'disabled'}>Edit</button>
+        <button class="btn btn-xs btn-outline-danger" type="button" data-action="delete" ${(!canDelete || disabled) ? 'disabled' : ''}>Disable</button>
       </div>`;
   }
 
@@ -258,13 +262,20 @@ export class WorkflowsGridComponent implements OnChanges {
     if (btn) {
       const action = btn.getAttribute('data-action');
       const rec = e.data as WorkflowRecord;
-      if (action === 'edit')   this.editRow.emit(rec);
-      if (action === 'delete') this.deleteRow.emit(rec);
+      if (action === 'edit') {
+        if (!this.allowEdit) return;
+        this.editRow.emit(rec);
+      }
+      if (action === 'delete') {
+        if (!this.allowDelete) return;
+        this.deleteRow.emit(rec);
+      }
       return;
     }
 
     // 2) Click on workflow name → navigate
   if (e.colDef.field === 'workflow_name') {
+      if (!this.allowEdit) return;
       const id = (e.data as any)?.id_workflow;
       if (id != null) {
         e.event?.preventDefault?.();

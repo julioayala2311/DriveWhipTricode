@@ -771,7 +771,6 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
       case "activate": {
         void (async () => {
           const currentUser = this.authSession.user?.user || 'system';
-          console.log(currentUser)
           // Fetch existing combined bodies for activation
           const { emailBody, smsBody, subject } = await this.fetchTemplateBody(row.id);
           const api: IDriveWhipCoreAPI = {

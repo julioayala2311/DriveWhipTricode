@@ -12,6 +12,7 @@ import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
 import { WorkflowsDialogComponent, WorkflowDialogResult, WorkflowRecord } from './workflows-dialog.component';
 import { Utilities } from '../../../../Utilities/Utilities';
 import { AuthSessionService } from '../../../../core/services/auth/auth-session.service';
+import { RoutePermissionAction, RoutePermissionService } from '../../../../core/services/auth/route-permission.service';
 
 @Component({
   selector: 'app-workflow',
@@ -35,6 +36,7 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly _dialogMode = signal<'create' | 'edit'>('create');
   private readonly _editing = signal<WorkflowRecord | null>(null);
   private readonly _saving = signal(false);
+  private readonly permissions = inject(RoutePermissionService);
 
   readonly loading = computed(() => this._loading());
   readonly error   = computed(() => this._error());
@@ -131,12 +133,20 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /* ==================== D I A L O G  ==================== */
   openCreate(): void {
+    if (!this.hasPermission('Create')) {
+      Utilities.showToast('You do not have permission to create workflows.', 'warning');
+      return;
+    }
     this._dialogMode.set('create');
     this._editing.set(null);
     this._dialogOpen.set(true);
   }
 
   openEdit(rec: WorkflowRecord): void {
+    if (!this.hasPermission('Update')) {
+      Utilities.showToast('You do not have permission to edit workflows.', 'warning');
+      return;
+    }
     // Prefill: pass record to dialog
     this._dialogMode.set('edit');
     this._editing.set(rec);
@@ -152,6 +162,10 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this._saving()) return;
     const mode = this._dialogMode();
     const action: 'C' | 'U' = mode === 'create' ? 'C' : 'U';
+    if ((action === 'C' && !this.hasPermission('Create')) || (action === 'U' && !this.hasPermission('Update'))) {
+      Utilities.showToast('You do not have permission to perform this action.', 'warning');
+      return;
+    }
     this._saving.set(true);
 
     const idWf = mode === 'edit' ? (this._editing()?.id_workflow ?? null) : null;
@@ -167,6 +181,10 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   delete(rec: WorkflowRecord): void {
+    if (!this.hasPermission('Delete')) {
+      Utilities.showToast('You do not have permission to disable workflows.', 'warning');
+      return;
+    }
     Utilities.confirm({
       title: 'Disable workflow',
       text: `The workflow "${rec.workflow_name}" will be disabled. Continue?`,
@@ -180,6 +198,14 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** CRUD → ajusta orden/params según tu SP */
   private mutate(action: 'C'|'U'|'D', rec: Partial<WorkflowRecord> & { is_active?: number }) {
+    const required: Record<'C'|'U'|'D', RoutePermissionAction> = { C: 'Create', U: 'Update', D: 'Delete' };
+    const needed = required[action];
+    if (!this.hasPermission(needed)) {
+      Utilities.showToast('You do not have permission to perform this action.', 'warning');
+      this._saving.set(false);
+      this._loading.set(false);
+      return;
+    }
     this._loading.set(true);
 
     // Firma real del SP:
@@ -225,6 +251,10 @@ export class WorkFlowsComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       });
   }
+
+    hasPermission(action: RoutePermissionAction): boolean {
+      return this.permissions.canCurrent(action);
+    }
 
   /** Try to get a user string for audit fields, fallback to 'system' */
   private resolveActor(): string {

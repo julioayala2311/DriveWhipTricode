@@ -23,7 +23,7 @@
             class="btn btn-sm btn-primary"
             aria-label="Add workflow"
             (click)="openCreate()"
-            [disabled]="loading()">
+            [disabled]="loading() || !hasPermission('Create')">
       <span>Add WorkFlow</span>
     </button>
   </div>
@@ -50,6 +50,8 @@
 <!-- Grid (conecta eventos de acciones) -->
 <app-workflows-grid
   [rowData]="rowsForGrid"
+  [allowEdit]="hasPermission('Update')"
+  [allowDelete]="hasPermission('Delete')"
   (editRow)="openEdit($event)"
   (deleteRow)="delete($event)">
 </app-workflows-grid>

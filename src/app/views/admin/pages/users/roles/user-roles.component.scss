@@ -1,29 +1,31 @@
-/* Permission buttons (icon-based) */
-.permission-buttons {
+/* Permission buttons (icon-based)
+   NOTE: Content is created dynamically inside ag-Grid. We pierce view encapsulation
+   so these styles apply to generated elements. */
+:host ::ng-deep .permission-buttons {
   display: inline-flex;
   align-items: center;
   gap: 12px;
 }
 
-.perm-btn-group {
+:host ::ng-deep .perm-btn-group {
   display: inline-flex;
   gap: 8px;
 }
 
-.perm-btn-group .btn + .btn {
+:host ::ng-deep .perm-btn-group .btn + .btn {
   margin-left: 0;
 }
 
-.perm-btn-group .perm-btn {
+:host ::ng-deep .perm-btn-group .perm-btn {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border-radius: 12px;
-  border: 1px solid rgba(15, 23, 42, .16);
+  border-radius: 50px;
+  border: 0px;
   background: rgba(15, 23, 42, .06);
   color: rgba(30, 41, 59, .72);
   transition: transform .18s ease, background .18s ease, color .18s ease,
@@ -32,37 +34,38 @@
   font-size: 0;
 }
 
-.perm-btn-group .perm-btn .perm-icon {
+:host ::ng-deep .perm-btn-group .perm-btn .perm-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 18px;
   height: 18px;
-  font-size: 16px;
+  font-size: 10px;
+  color: white;
   line-height: 1;
   transition: transform .18s ease, opacity .18s ease;
 }
 
-.perm-btn-group .perm-btn .perm-icon path,
-.perm-btn-group .perm-btn .perm-icon circle,
-.perm-btn-group .perm-btn .perm-icon line,
-.perm-btn-group .perm-btn .perm-icon polyline {
+:host ::ng-deep .perm-btn-group .perm-btn .perm-icon path,
+:host ::ng-deep .perm-btn-group .perm-btn .perm-icon circle,
+:host ::ng-deep .perm-btn-group .perm-btn .perm-icon line,
+:host ::ng-deep .perm-btn-group .perm-btn .perm-icon polyline {
   stroke: currentColor;
   fill: none;
 }
 
-.perm-btn-group .perm-btn .perm-icon.perm-icon-inactive {
+:host ::ng-deep .perm-btn-group .perm-btn .perm-icon.perm-icon-inactive {
   opacity: .55;
   transform: scale(.92);
 }
 
-.perm-btn-group .perm-btn .perm-icon.perm-icon-active {
+:host ::ng-deep .perm-btn-group .perm-btn .perm-icon.perm-icon-active {
   opacity: 1;
   transform: scale(1.08);
 }
 
 /* OFF state */
-.perm-btn-group .perm-btn.perm-off {
+:host ::ng-deep .perm-btn-group .perm-btn.perm-off {
   background: rgba(148, 163, 184, .08);
   border-color: rgba(148, 163, 184, .3);
   color: rgba(71, 85, 105, .9);
@@ -70,12 +73,12 @@
 }
 
 /* ON state base */
-.perm-btn-group .perm-btn.perm-on {
+:host ::ng-deep .perm-btn-group .perm-btn.perm-on {
   color: #fff;
   box-shadow: 0 10px 18px rgba(15, 23, 42, .2), 0 0 0 1px rgba(255, 255, 255, .2) inset;
 }
 
-.perm-btn-group .perm-btn.perm-on::after {
+:host ::ng-deep .perm-btn-group .perm-btn.perm-on::after {
   content: '';
   position: absolute;
   inset: 2px;
@@ -86,53 +89,54 @@
 }
 
 /* Saturated backgrounds for ON variants */
-.perm-btn-group .perm-btn.perm-on.perm-success {
+:host ::ng-deep .perm-btn-group .perm-btn.perm-on.perm-success {
   background: linear-gradient(140deg, rgba(16, 185, 129, .78), rgba(4, 120, 87, .95));
   border-color: rgba(4, 120, 87, .9)!important;
 }
 
-.perm-btn-group .perm-btn.perm-on.perm-info {
+:host ::ng-deep .perm-btn-group .perm-btn.perm-on.perm-info {
   background: linear-gradient(140deg, rgba(59, 130, 246, .8), rgba(29, 78, 216, .95));
   border-color: rgba(29, 78, 216, .9);
 }
 
-.perm-btn-group .perm-btn.perm-on.perm-warning {
+:host ::ng-deep .perm-btn-group .perm-btn.perm-on.perm-warning {
   background: linear-gradient(140deg, rgba(251, 191, 36, .82), rgba(217, 119, 6, .95));
   border-color: rgba(217, 119, 6, .9);
 }
 
-.perm-btn-group .perm-btn.perm-on.perm-danger {
+:host ::ng-deep .perm-btn-group .perm-btn.perm-on.perm-danger {
   background: linear-gradient(140deg, rgba(248, 113, 113, .82), rgba(185, 28, 28, .95));
   border-color: rgba(185, 28, 28, .92);
 }
 
-.perm-btn-group .perm-btn:hover:not([disabled]) {
+:host ::ng-deep .perm-btn-group .perm-btn:hover:not([disabled]) {
   transform: translateY(-2px);
   box-shadow: 0 16px 24px rgba(15, 23, 42, .2), 0 0 0 1px rgba(255, 255, 255, .25) inset;
 }
 
-.perm-btn-group .perm-btn:focus-visible {
+:host ::ng-deep .perm-btn-group .perm-btn:focus-visible {
   outline: 2px solid var(--bs-primary, #0d6efd);
   outline-offset: 3px;
 }
 
-.perm-btn-group .perm-btn[disabled],
-.perm-btn-group .perm-btn.perm-disabled {
+:host ::ng-deep .perm-btn-group .perm-btn[disabled],
+:host ::ng-deep .perm-btn-group .perm-btn.perm-disabled {
   cursor: not-allowed;
   opacity: .45;
   box-shadow: none;
 }
-.perm-total.badge.perm-total-all {
+
+:host ::ng-deep .perm-total.badge.perm-total-all {
   background: rgba(16,185,129,.25)!important; /* success tint */
   color: #34d399!important;
   border-color: rgba(16,185,129,.45);
 }
 
-.perm-total.badge {
+:host ::ng-deep .perm-total.badge {
   font-size: 11px;
   padding: 4px 6px;
-  background: rgba(148,163,184,.18)!important;
-  color: rgba(226,232,240,.85)!important;
+  background: var(--bs-secondary)!important;
+  color: white!important;
   border: 1px solid rgba(148,163,184,.35);
   font-weight: 600;
   letter-spacing: .5px;

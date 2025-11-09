@@ -44,6 +44,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   // Navbar message indicator state
   hasNewMessages = false;
+  // Whether '/messenger' exists in current menu
+  hasMessengerRoute = false;
   private readonly INDICATOR_STORAGE_KEY = 'dw.nav.hasNewMessages';
 
   constructor(
@@ -71,6 +73,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   // ==========================
   onNavbarSearch(ev: Event): void {
     try { ev.preventDefault(); } catch { /* ignore */ }
+    if (!this.hasMessengerRoute) return; // guard when messenger is not available
     const form = ev.target as HTMLFormElement | null;
     let q = '';
     if (form) {
@@ -90,6 +93,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   onNavbarClear(inputEl: HTMLInputElement, ev?: Event): void {
     try { ev?.preventDefault(); ev?.stopPropagation(); } catch { /* ignore */ }
     try { inputEl.value = ''; } catch { /* ignore */ }
+    if (!this.hasMessengerRoute) return;
     // Remove the query param from URL by navigating to Messenger root without params
     // Use replaceUrl to avoid polluting history with a redundant entry
     this.router.navigate(['/messenger'], { replaceUrl: true });
@@ -221,7 +225,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
       this.extractTopCreate();
     }
 
-    this.ensureMessengerMenuEntry();
+  this.ensureMessengerMenuEntry();
 
     // Restore indicator state from sessionStorage
     try {
@@ -310,6 +314,33 @@ export class NavbarComponent implements OnInit, OnDestroy {
         }
         return false;
       });
+      this.hasMessengerRoute = hasMessenger;
+      // If present in menu items, we remove it from rendering list to avoid duplication;
+      // the access remains available via the top-right mail icon only.
+      if (hasMessenger) {
+        const removeMessenger = (items: MenuItem[]): MenuItem[] => {
+          const target = this.normalizePath('/messenger');
+          const filtered: MenuItem[] = [];
+          for (const it of items) {
+            const link = this.normalizePath((it as any).link as any);
+            if (link === target) continue; // drop direct messenger item
+            let newItem: MenuItem = { ...it };
+            if (Array.isArray(it.subMenus) && it.subMenus.length) {
+              const newGroups = it.subMenus.map(g => {
+                const newSubs = (g.subMenuItems || []).filter(si => this.normalizePath((si as any).link as any) !== target);
+                return { ...g, subMenuItems: newSubs };
+              }).filter(g => (g.subMenuItems || []).length > 0);
+              newItem = { ...newItem, subMenus: newGroups };
+              // If after removing, the item has no link and no children, drop it
+              const hasChildren = newGroups.some(g => (g.subMenuItems || []).length > 0);
+              if (!hasChildren && !newItem.link) continue;
+            }
+            filtered.push(newItem);
+          }
+          return filtered;
+        };
+        this.menuItems = removeMessenger(this.menuItems);
+      }
     } catch (err) {
       console.warn('[Navbar] Unable to ensure messenger menu entry', err);
     }
@@ -377,6 +408,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
       localStorage.removeItem('dw.menu');
       localStorage.removeItem('dw.routes');
       localStorage.removeItem('dw.auth.user');
+      localStorage.removeItem('dw.selectedLocationId');
       localStorage.removeItem('google_picture');
     } catch { /* ignore */ }
     this.router.navigate(['/auth/login']);

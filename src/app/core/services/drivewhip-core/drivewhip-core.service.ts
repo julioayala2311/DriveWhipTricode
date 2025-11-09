@@ -216,6 +216,7 @@ export class DriveWhipCoreService {
             localStorage.removeItem('dw.routes');
             localStorage.removeItem('dw.auth.user');
             localStorage.removeItem('google_picture');
+            localStorage.removeItem('dw.selectedLocationId');
             this.handlingUnauthorized = false;
           });
         }, 800);

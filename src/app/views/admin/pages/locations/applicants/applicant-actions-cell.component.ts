@@ -14,6 +14,10 @@ import { ICellRendererParams } from "ag-grid-community";
 import { Overlay, OverlayModule, OverlayRef, ConnectionPositionPair, FlexibleConnectedPositionStrategy } from "@angular/cdk/overlay";
 import { PortalModule, TemplatePortal } from "@angular/cdk/portal";
 import { AuthSessionService } from "../../../../../core/services/auth/auth-session.service";
+import {
+  RoutePermissionAction,
+  RoutePermissionService,
+} from "../../../../../core/services/auth/route-permission.service";
 
 export type ApplicantQuickAction =
   | "openPanel"
@@ -235,73 +239,9 @@ interface StageMenuViewOption {
         gap: 0.35rem;
         padding: 0.5rem;
         z-index: 2500;
-        pointer-events: auto;
       }
-      .actions-menu::before {
-        content: "";
-        position: absolute;
-        top: -12px;
-        right: 20px;
-        width: 18px;
-        height: 12px;
-        background: inherit;
-        border-left: 1px solid rgba(15, 23, 42, 0.08);
-        border-right: 1px solid rgba(15, 23, 42, 0.08);
-        border-top: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 4px 4px 0 0;
-        clip-path: polygon(50% 0, 0 100%, 100% 100%);
-      }
-      .menu-section {
-        position: relative;
-        border-radius: 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 0.1rem;
-      }
-      .menu-item {
-        border: none;
-        background: transparent;
-        display: flex;
-        align-items: center;
-        gap: 0.55rem;
-        width: 100%;
-        padding: 0.45rem 0.55rem;
-        border-radius: 10px;
-        transition: background 0.18s ease, color 0.18s ease;
-        cursor: pointer;
-      }
-      .menu-item .icon {
-        width: 24px;
-        display: flex;
-        justify-content: center;
-        color: var(--bs-primary, #0d6efd);
-      }
-      .menu-item.disabled,
       .menu-item:disabled {
         cursor: default;
-        opacity: 0.6;
-      }
-      .menu-item.disabled .icon,
-      .menu-item:disabled .icon {
-        opacity: 0.6;
-      }
-      .menu-item.has-submenu {
-        justify-content: space-between;
-      }
-      .menu-item:not(.disabled):not(:disabled):hover {
-        background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.07);
-        color: var(--bs-primary, #0d6efd);
-      }
-      .menu-item:not(.disabled):not(:disabled):hover .icon {
-        color: inherit;
-      }
-      .menu-divider {
-        height: 1px;
-        background: rgba(15, 23, 42, 0.08);
-        margin: 0.25rem;
-      }
-      .stage-section {
-        padding-bottom: 0.15rem;
       }
       .submenu {
         position: absolute;
@@ -418,6 +358,7 @@ export class ApplicantActionsCellComponent
   stageMenuToLeft = false;
   private params!: RendererParams;
   private readonly authSession = inject(AuthSessionService);
+  private readonly permissions = inject(RoutePermissionService);
 
   @ViewChild("trigger", { static: false })
   triggerButton?: ElementRef<HTMLButtonElement>;
@@ -620,15 +561,15 @@ export class ApplicantActionsCellComponent
   }
 
   get canMove(): boolean {
-    return this.hasAnyRole(["ADMIN", "Administrator", "reviewer"]);
+    return this.hasPermission("Update");
   }
 
   get canEditApplicant(): boolean {
-    return this.hasAnyRole(["ADMIN", "Administrator", "reviewer"]);
+    return this.hasPermission("Update");
   }
 
   get canDeleteApplicant(): boolean {
-    return this.hasAnyRole(["ADMIN", "Administrator"]);
+    return this.hasPermission("Delete");
   }
 
   get showApproveDriver(): boolean {
@@ -674,47 +615,12 @@ export class ApplicantActionsCellComponent
     }
     return null;
   }
-
-  private userRoles(): string[] {
-    const service = this.authSession;
-    const roles: string[] = [];
+  private hasPermission(action: RoutePermissionAction): boolean {
     try {
-      const user: any = (service as any).user || {};
-      if (Array.isArray(user?.roles)) {
-        roles.push(...user.roles.map((r: any) => String(r)));
-      }
-      const token = (user?.token ?? (service as any).token) as
-        | string
-        | undefined;
-      if (token && typeof token === "string") {
-        const parts = token.split(".");
-        if (parts.length >= 2) {
-          const payload = JSON.parse(atob(parts[1]));
-          if (payload) {
-            if (Array.isArray(payload.roles)) {
-              roles.push(...payload.roles.map((r: any) => String(r)));
-            } else if (typeof payload.role === "string") {
-              roles.push(payload.role);
-            } else if (typeof payload.roles === "string") {
-              roles.push(
-                ...payload.roles
-                  .split(",")
-                  .map((r: string) => r.trim())
-                  .filter(Boolean)
-              );
-            }
-          }
-        }
-      }
+      return this.permissions.canCurrent(action);
     } catch {
-      // ignore
+      return false;
     }
-    return roles;
-  }
-
-  private hasAnyRole(roles: string[]): boolean {
-    const userRoles = this.userRoles().map((r) => r.toLowerCase());
-    return roles.some((role) => userRoles.includes(role.toLowerCase()));
   }
 
   private booleanize(value: any): boolean {

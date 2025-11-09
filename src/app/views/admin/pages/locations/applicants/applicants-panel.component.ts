@@ -33,6 +33,10 @@ import {
 } from "../../../../../core/services/signalr/sms-chat-signalr.service";
 import { AppConfigService } from "../../../../../core/services/app-config/app-config.service";
 import { Router } from "@angular/router";
+import {
+  RoutePermissionAction,
+  RoutePermissionService,
+} from "../../../../../core/services/auth/route-permission.service";
 
 @Component({
   selector: "app-applicant-panel",
@@ -63,6 +67,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private smsRealtime = inject(SmsChatSignalRService);
   private appConfig = inject(AppConfigService);
   private router = inject(Router);
+  private readonly permissions = inject(RoutePermissionService);
   @Input() applicant: any;
   @Input() applicantId: string | null = null;
   @Input() activeTab: "messages" | "history" | "files" = "messages";
@@ -665,79 +670,28 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         },
       });
   }
-
-  // Permission helpers - assumptions:
-  // - authSession.user?.roles is an array of role strings (e.g. ['admin','reviewer']).
-  // If your app uses a different shape, adjust hasRole/hasAnyRole accordingly.
-  private userRoles(): string[] {
-    const u: any = (this.authSession as any).user;
-    // console.debug(u, 'datos de usuario');
-    if (!u) return [];
-    // Prefer an explicit roles array
-    if (Array.isArray(u.roles) && u.roles.length > 0)
-      return u.roles.map((r: any) => String(r));
-    // Fallback to a single-string role property
-    if (typeof u.role === "string" && u.role.trim() !== "")
-      return [u.role.trim()];
-    // Some sessions provide `roles` as a comma-separated string or `role` claim in the token.
-    if (typeof u.roles === "string" && u.roles.trim() !== "") {
-      return u.roles
-        .split(",")
-        .map((s: string) => s.trim())
-        .filter(Boolean);
-    }
-    // Try to parse JWT token payload (if present) to extract claims like `role` or `roles`
+  private hasPermission(action: RoutePermissionAction): boolean {
     try {
-      const token = (u.token ?? (this.authSession as any).token) as
-        | string
-        | undefined;
-      if (token && typeof token === "string") {
-        const parts = token.split(".");
-        if (parts.length >= 2) {
-          const payload = JSON.parse(atob(parts[1]));
-          if (payload) {
-            if (Array.isArray(payload.roles) && payload.roles.length > 0)
-              return payload.roles.map((r: any) => String(r));
-            if (typeof payload.role === "string" && payload.role.trim() !== "")
-              return [payload.role.trim()];
-            if (
-              typeof payload.roles === "string" &&
-              payload.roles.trim() !== ""
-            )
-              return payload.roles
-                .split(",")
-                .map((s: string) => s.trim())
-                .filter(Boolean);
-          }
-        }
-      }
-    } catch (e) {
-      // ignore parse errors
+      return this.permissions.canCurrent(action);
+    } catch {
+      return false;
     }
-    return [];
-  }
-
-  private hasAnyRole(roles: string[]): boolean {
-    const ur = this.userRoles().map((r: string) =>
-      (r || "").toString().toLowerCase()
-    );
-    return roles.some((rr) => ur.includes(rr.toLowerCase()));
   }
 
   canMove(): boolean {
-    return this.hasAnyRole(["ADMIN", "Administrator", "reviewer"]);
+    return this.hasPermission("Update");
   }
   canEditNotes(): boolean {
-    return this.hasAnyRole(["ADMIN", "Administrator", "reviewer"]);
+    return this.hasPermission("Update");
   }
   canDeleteNotes(): boolean {
-    return this.hasAnyRole(["ADMIN", "Administrator"]);
+    return this.hasPermission("Delete");
   }
   canEditApplicant(): boolean {
-    return this.hasAnyRole(["ADMIN", "Administrator", "reviewer"]);
+    return this.hasPermission("Update");
   }
   canDeleteApplicant(): boolean {
-    return this.hasAnyRole(["ADMIN", "Administrator"]);
+    return this.hasPermission("Delete");
   }
   // Note editing state
   private editingNoteId: any = null;
@@ -1977,10 +1931,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
                 .filter((row): row is MessageTemplateSummary => !!row)
             : [];
           this.messageTemplates = normalized;
+          this.templatesError = null;
         },
         error: (err) => {
-          console.error("[ApplicantPanel] loadMessageTemplates error", err);
-          const message = "Failed to load templates";
+          console.error("[ApplicantPanel] templates load error", err);
+          const message =
+            ((err as any)?.message?.toString() || "").trim() ||
+            "Failed to load templates";
           this.templatesError = message;
           Utilities.showToast(message, "error");
         },

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AgGridAngular } from 'ag-grid-angular';
 import { ColDef, GridApi, GridReadyEvent, CellClickedEvent } from 'ag-grid-community';
@@ -10,6 +10,7 @@ import { RoleRecord } from '../../../../../core/models/role.model';
 import { Utilities } from '../../../../../Utilities/Utilities';
 import { FormsModule } from '@angular/forms';
 import { AccountDialogComponent, AccountDialogResult } from './account-dialog.component';
+import { RoutePermissionAction, RoutePermissionService } from '../../../../../core/services/auth/route-permission.service';
 
 @Component({
   selector: 'dw-user-accounts',
@@ -26,8 +27,9 @@ export class UserAccountsComponent implements OnInit {
   private readonly _dialogMode = signal<'create' | 'edit'>('create');
   private readonly _editing = signal<UserAccountRecord | null>(null);
   private readonly _saving = signal(false);
-  private readonly _roles = signal<string[]>([]); // active role names
+  private readonly _roles = signal<RoleRecord[]>([]); // active roles with Id
   private gridApi?: GridApi;
+  private readonly permissions = inject(RoutePermissionService);
 
   private readonly ADMIN_ROLES = new Set([
     'ADMIN'
@@ -149,32 +151,39 @@ export class UserAccountsComponent implements OnInit {
           const top = res.data as any[];
             if (top.length > 0 && Array.isArray(top[0])) raw = top[0]; else raw = top;
         }
-        const list: RoleRecord[] = Array.isArray(raw) ? raw : [];
-        const active = list
-          .filter(r => r && r.role && ((r as any).isactive === 1 || (r as any).isactive === true || String((r as any).isactive).toLowerCase() === 'true'))
-          .map(r => r.role.trim());
-        // Remove duplicates
-        const uniq = Array.from(new Set(active.map(r => r.toLowerCase())));
-        // Keep original casing of the first occurrence
-        const finalRoles: string[] = [];
-        uniq.forEach(lower => {
-          const original = active.find(r => r.toLowerCase() === lower);
-          if (original) finalRoles.push(original);
-        });
-        this._roles.set(finalRoles.sort((a,b)=> a.localeCompare(b)));
+        const list: RoleRecord[] = (Array.isArray(raw) ? raw : []) as RoleRecord[];
+        const activeRoles = list.filter(r => r && r.role && ((r as any).isactive === 1 || (r as any).isactive === true || String((r as any).isactive).toLowerCase() === 'true'));
+        // sort by role name for UX
+        activeRoles.sort((a,b)=> (a.role || '').localeCompare(b.role || ''));
+        this._roles.set(activeRoles);
       },
   error: () => { /* ignore roles load error to avoid breaking accounts UI */ }
     });
   }
 
+  private getRoleIdByName(name: string | undefined | null): number | null {
+    const n = (name || '').trim().toLowerCase();
+    if (!n) return null;
+    const found = this._roles().find(r => (r.role || '').trim().toLowerCase() === n);
+    return found?.Id ?? null;
+  }
+
   // Dialog
   openCreate(): void {
+    if (!this.hasPermission('Create')) {
+      Utilities.showToast('You do not have permission to create accounts.', 'warning');
+      return;
+    }
     this._dialogMode.set('create');
     this._editing.set(null);
     this._dialogOpen.set(true);
   }
 
   openEdit(rec: UserAccountRecord): void {
+    if (!this.hasPermission('Update')) {
+      Utilities.showToast('You do not have permission to edit accounts.', 'warning');
+      return;
+    }
     this._dialogMode.set('edit');
     this._editing.set(rec);
     this._dialogOpen.set(true);
@@ -189,6 +198,10 @@ export class UserAccountsComponent implements OnInit {
     if (this._saving()) return;
     const mode = this._dialogMode();
     const action: 'C'|'U' = mode === 'create' ? 'C' : 'U';
+    if ((action === 'C' && !this.hasPermission('Create')) || (action === 'U' && !this.hasPermission('Update'))) {
+      Utilities.showToast('You do not have permission to perform this action.', 'warning');
+      return;
+    }
     this._saving.set(true);
     this.mutate(action, {
       user: result.user,
@@ -197,7 +210,8 @@ export class UserAccountsComponent implements OnInit {
       // lastname: result.lastname,
       firstname: '',
       lastname: '',
-      role: result.role,
+      roleId: result.roleId,
+      role: result.role || '',
       active: result.active ? 1 : 0
     });
   }
@@ -215,6 +229,11 @@ export class UserAccountsComponent implements OnInit {
       return;
     }
 
+    if (!this.hasPermission('Delete')) {
+      Utilities.showToast('You do not have permission to disable accounts.', 'warning');
+      return;
+    }
+
     Utilities.confirm({
       title: 'Disable account',
       text: `The user \"${rec.user}\" will be disabled. Continue?`,
@@ -226,16 +245,25 @@ export class UserAccountsComponent implements OnInit {
     });
   }
 
-  private mutate(action: 'C'|'U'|'D', rec: UserAccountRecord) {
+  private mutate(action: 'C'|'U'|'D', rec: any) {
+    const required: Record<'C'|'U'|'D', RoutePermissionAction> = { C: 'Create', U: 'Update', D: 'Delete' };
+    const needed = required[action];
+    if (!this.hasPermission(needed)) {
+      Utilities.showToast('You do not have permission to perform this action.', 'warning');
+      this._saving.set(false);
+      this._loading.set(false);
+      return;
+    }
     this._loading.set(true);
     const sessionToken = this.core.getCachedToken();
+    const roleIdToSend: number | null = (rec.roleId != null ? Number(rec.roleId) : this.getRoleIdByName(rec.role)) ?? null;
     const params: any[] = [
       action,
       rec.user,
       action === 'C' ? null : rec.token,
       rec.firstname,
       rec.lastname,
-      rec.role,
+      roleIdToSend?.toString() || null,
       action === 'D' ? null : rec.active
     ];
     const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.auth_users_crud, parameters: params };
@@ -298,11 +326,17 @@ export class UserAccountsComponent implements OnInit {
   private actionButtons(rec: UserAccountRecord) {
     if (!rec) return '';
     const disabled = rec.active === 0;
+    const canEdit = this.hasPermission('Update');
+    const canDelete = this.hasPermission('Delete');
     return `
       <div class="d-flex gap-1">
-        <button class="btn btn-xs btn-outline-secondary" type="button" data-action="edit">Edit</button>
-        <button class="btn btn-xs btn-outline-danger" type="button" data-action="delete" ${disabled ? 'disabled' : ''}>Disable</button>
+        <button class="btn btn-xs btn-outline-secondary" type="button" data-action="edit" ${canEdit ? '' : 'disabled'}>Edit</button>
+        <button class="btn btn-xs btn-outline-danger" type="button" data-action="delete" ${(!canDelete || disabled) ? 'disabled' : ''}>Disable</button>
       </div>`;
+  }
+
+  hasPermission(action: RoutePermissionAction): boolean {
+    return this.permissions.canCurrent(action);
   }
 
   private activeBadge(value: any): string {

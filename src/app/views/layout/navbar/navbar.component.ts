@@ -1,20 +1,25 @@
-import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
-import { ThemeModeService } from '../../../core/services/theme-mode.service';
-import { NgClass, NgIf } from '@angular/common';
+import { Component, HostListener, OnDestroy, OnInit } from "@angular/core";
+import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+import {
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+} from "@angular/router";
+import { NgbDropdownModule } from "@ng-bootstrap/ng-bootstrap";
+import { ThemeModeService } from "../../../core/services/theme-mode.service";
+import { NgClass, NgIf } from "@angular/common";
 
-import { MENU } from './menu';
-import { MenuItem } from './menu.model';
-import { FeatherIconDirective } from '../../../core/feather-icon/feather-icon.directive';
-import { Subscription } from 'rxjs';
-import { SmsChatSignalRService } from '../../../core/services/signalr/sms-chat-signalr.service';
-import { CryptoService } from '../../../core/services/crypto/crypto.service';
-import { AUTH_USER_STORAGE_KEY } from '../../../core/services/drivewhip-core/drivewhip-core.service';
+import { MENU } from "./menu";
+import { MenuItem } from "./menu.model";
+import { FeatherIconDirective } from "../../../core/feather-icon/feather-icon.directive";
+import { Subscription } from "rxjs";
+import { SmsChatSignalRService } from "../../../core/services/signalr/sms-chat-signalr.service";
+import { CryptoService } from "../../../core/services/crypto/crypto.service";
+import { AUTH_USER_STORAGE_KEY } from "../../../core/services/drivewhip-core/drivewhip-core.service";
 
 @Component({
-  selector: 'app-navbar',
+  selector: "app-navbar",
   standalone: true,
   imports: [
     NgbDropdownModule,
@@ -22,16 +27,14 @@ import { AUTH_USER_STORAGE_KEY } from '../../../core/services/drivewhip-core/dri
     RouterLink,
     RouterLinkActive,
     NgIf,
-    NgClass
+    NgClass,
   ],
-  templateUrl: './navbar.component.html',
-  styleUrl: './navbar.component.scss'
+  templateUrl: "./navbar.component.html",
+  styleUrl: "./navbar.component.scss",
 })
-
 export class NavbarComponent implements OnInit, OnDestroy {
-
   currentTheme: string;
-  menuItems: MenuItem[] = []
+  menuItems: MenuItem[] = [];
   // If a top-level menu labeled 'Create' exists, we lift it to the top bar
   topCreate: MenuItem | null = null;
 
@@ -40,13 +43,16 @@ export class NavbarComponent implements OnInit, OnDestroy {
   private routerSub: Subscription | undefined;
   private notifSub: Subscription | undefined;
   private specialPaths: Set<string> = new Set<string>();
-  private routePropsByFull: Map<string, { sort_order: number; action?: string | null; code?: string | null }> = new Map();
+  private routePropsByFull: Map<
+    string,
+    { sort_order: number; action?: string | null; code?: string | null }
+  > = new Map();
 
   // Navbar message indicator state
   hasNewMessages = false;
   // Whether '/messenger' exists in current menu
   hasMessengerRoute = false;
-  private readonly INDICATOR_STORAGE_KEY = 'dw.nav.hasNewMessages';
+  private readonly INDICATOR_STORAGE_KEY = "dw.nav.hasNewMessages";
 
   constructor(
     private router: Router,
@@ -57,14 +63,14 @@ export class NavbarComponent implements OnInit, OnDestroy {
   ) {}
 
   private normalizePath(p: string | null | undefined): string {
-    if (!p) return '';
+    if (!p) return "";
     let s = String(p).trim();
     // collapse multiple slashes
-    s = s.replace(/\/+/g, '/');
+    s = s.replace(/\/+/g, "/");
     // ensure starts with '/'
-    if (!s.startsWith('/')) s = '/' + s;
+    if (!s.startsWith("/")) s = "/" + s;
     // remove trailing slash except root
-    if (s.length > 1 && s.endsWith('/')) s = s.slice(0, -1);
+    if (s.length > 1 && s.endsWith("/")) s = s.slice(0, -1);
     return s;
   }
 
@@ -72,65 +78,101 @@ export class NavbarComponent implements OnInit, OnDestroy {
   // Global applicant search (navbar)
   // ==========================
   onNavbarSearch(ev: Event): void {
-    try { ev.preventDefault(); } catch { /* ignore */ }
+    try {
+      ev.preventDefault();
+    } catch {
+      /* ignore */
+    }
     if (!this.hasMessengerRoute) return; // guard when messenger is not available
     const form = ev.target as HTMLFormElement | null;
-    let q = '';
+    let q = "";
     if (form) {
-      const input = (form.elements.namedItem('q') as HTMLInputElement | null);
-      q = (input?.value || '').toString().trim();
+      const input = form.elements.namedItem("q") as HTMLInputElement | null;
+      q = (input?.value || "").toString().trim();
     }
     // Navigate to Messenger with ?q=... to search and auto-select a matching chat
     if (q.length > 0) {
-      this.router.navigate(['/messenger'], { queryParams: { q } });
+      this.router.navigate(["/messenger"], { queryParams: { q } });
     } else {
       // If empty, just go to Messenger root
-      this.router.navigate(['/messenger']);
+      this.router.navigate(["/messenger"]);
     }
   }
 
   // Clear navbar search input and remove ?q from URL
   onNavbarClear(inputEl: HTMLInputElement, ev?: Event): void {
-    try { ev?.preventDefault(); ev?.stopPropagation(); } catch { /* ignore */ }
-    try { inputEl.value = ''; } catch { /* ignore */ }
+    try {
+      ev?.preventDefault();
+      ev?.stopPropagation();
+    } catch {
+      /* ignore */
+    }
+    try {
+      inputEl.value = "";
+    } catch {
+      /* ignore */
+    }
     if (!this.hasMessengerRoute) return;
     // Remove the query param from URL by navigating to Messenger root without params
     // Use replaceUrl to avoid polluting history with a redundant entry
-    this.router.navigate(['/messenger'], { replaceUrl: true });
+    this.router.navigate(["/messenger"], { replaceUrl: true });
   }
 
   ngOnInit(): void {
-    this.themeModeService.currentTheme.subscribe( (theme) => {
+    this.themeModeService.currentTheme.subscribe((theme) => {
       this.currentTheme = theme;
       this.showActiveTheme(this.currentTheme);
     });
 
     // Prefer dynamic menu from storage (dw.menu) but filter by dw.routes is_assigned; fallback to static MENU
     try {
-      const storedMenu = localStorage.getItem('dw.menu');
-      const storedRoutes = localStorage.getItem('dw.routes');
+      const storedMenu = localStorage.getItem("dw.menu");
+      const storedRoutes = localStorage.getItem("dw.routes");
       let assigned: Set<string> | null = null;
       // Maps for ordering by sort_order from dw.routes
       let topOrder: Map<string, number> | null = null; // parent_id NULL -> path -> sort_order
       let orderByFullPath: Map<string, number> | null = null; // fullPath (parent+child) -> sort_order
-  let routePropsByFull: Map<string, { sort_order: number; action?: string | null; code?: string | null }>|null = null;
+      let routePropsByFull: Map<
+        string,
+        { sort_order: number; action?: string | null; code?: string | null }
+      > | null = null;
       if (storedRoutes) {
         try {
           const rows = JSON.parse(storedRoutes);
           if (Array.isArray(rows)) {
             const all = rows.map((r: any) => ({
-              path: String(r.path || ''),
+              path: String(r.path || ""),
               parent_id: r.parent_id != null ? Number(r.parent_id) : null,
               id_route: Number(r.id_route),
-              is_active: (r.is_active === 1 || r.is_active === '1' || r.is_active === true),
-              is_assigned: (r.is_assigned === 0 || r.is_assigned === '0' || r.is_assigned === false) ? false : true,
+              is_active:
+                r.is_active === 1 ||
+                r.is_active === "1" ||
+                r.is_active === true,
+              is_assigned:
+                r.is_assigned === 0 ||
+                r.is_assigned === "0" ||
+                r.is_assigned === false
+                  ? false
+                  : true,
               sort_order: Number(r.sort_order ?? 0),
-              action: typeof r.action === 'string' ? r.action : (r.action == null ? null : String(r.action)),
-              code: typeof r.code === 'string' ? r.code : (r.code == null ? null : String(r.code))
+              action:
+                typeof r.action === "string"
+                  ? r.action
+                  : r.action == null
+                  ? null
+                  : String(r.action),
+              code:
+                typeof r.code === "string"
+                  ? r.code
+                  : r.code == null
+                  ? null
+                  : String(r.code),
             }));
             const byId = new Map<number, any>();
-            all.forEach(r => byId.set(r.id_route, r));
-            const activeAssigned = all.filter(r => r.is_active && r.is_assigned);
+            all.forEach((r) => byId.set(r.id_route, r));
+            const activeAssigned = all.filter(
+              (r) => r.is_active && r.is_assigned
+            );
             const paths = new Set<string>();
             // Build fullPath map for all rows (active or not) to compute order reliably
             const fullPathById = new Map<number, string>();
@@ -140,16 +182,17 @@ export class NavbarComponent implements OnInit, OnDestroy {
               } else {
                 const parent = byId.get(r.parent_id);
                 const full = parent
-                  ? ((parent.path.endsWith('/') || r.path.startsWith('/'))
-                      ? (parent.path + r.path)
-                      : (parent.path + '/' + r.path))
+                  ? parent.path.endsWith("/") || r.path.startsWith("/")
+                    ? parent.path + r.path
+                    : parent.path + "/" + r.path
                   : r.path;
                 fullPathById.set(r.id_route, this.normalizePath(full));
               }
             }
             // Assigned paths set for filtering menu visibility
             for (const r of activeAssigned) {
-              const full = fullPathById.get(r.id_route) || this.normalizePath(r.path);
+              const full =
+                fullPathById.get(r.id_route) || this.normalizePath(r.path);
               paths.add(full);
             }
             assigned = paths;
@@ -161,15 +204,30 @@ export class NavbarComponent implements OnInit, OnDestroy {
               }
             }
             orderByFullPath = new Map<string, number>();
-            routePropsByFull = new Map<string, { sort_order: number; action?: string|null; code?: string|null }>();
+            routePropsByFull = new Map<
+              string,
+              {
+                sort_order: number;
+                action?: string | null;
+                code?: string | null;
+              }
+            >();
             for (const r of activeAssigned) {
-              const full = fullPathById.get(r.id_route) || this.normalizePath(r.path);
+              const full =
+                fullPathById.get(r.id_route) || this.normalizePath(r.path);
               orderByFullPath.set(full, r.sort_order || 0);
-              routePropsByFull.set(full, { sort_order: r.sort_order || 0, action: r.action, code: r.code });
-              if (r.action && String(r.action).trim().length > 0) this.specialPaths.add(full);
+              routePropsByFull.set(full, {
+                sort_order: r.sort_order || 0,
+                action: r.action,
+                code: r.code,
+              });
+              if (r.action && String(r.action).trim().length > 0)
+                this.specialPaths.add(full);
             }
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
       if (storedMenu) {
         const parsed = JSON.parse(storedMenu);
@@ -185,18 +243,22 @@ export class NavbarComponent implements OnInit, OnDestroy {
                   const p = routePropsByFull.get(itLink)!;
                   if (p.action) it.action = p.action;
                   if (p.code) it.code = p.code;
-                  if (typeof p.sort_order === 'number') it.sort_order = p.sort_order;
+                  if (typeof p.sort_order === "number")
+                    it.sort_order = p.sort_order;
                 }
                 if (Array.isArray(it.subMenus)) {
                   for (const group of it.subMenus) {
                     if (Array.isArray(group.subMenuItems)) {
                       for (const si of group.subMenuItems) {
-                        const link = this.normalizePath((si && typeof si.link === 'string') ? si.link : '');
+                        const link = this.normalizePath(
+                          si && typeof si.link === "string" ? si.link : ""
+                        );
                         if (link && routePropsByFull.has(link)) {
                           const p = routePropsByFull.get(link)!;
                           if (p.action) si.action = p.action;
                           if (p.code) si.code = p.code;
-                          if (typeof p.sort_order === 'number') si.sort_order = p.sort_order;
+                          if (typeof p.sort_order === "number")
+                            si.sort_order = p.sort_order;
                         }
                       }
                     }
@@ -204,12 +266,25 @@ export class NavbarComponent implements OnInit, OnDestroy {
                 }
               }
             };
-            try { enrich(menu as any[]); } catch { /* ignore */ }
+            try {
+              enrich(menu as any[]);
+            } catch {
+              /* ignore */
+            }
             // Persist the props map for runtime lookups in onSpecialMenu
-            try { this.routePropsByFull = routePropsByFull; } catch { /* ignore */ }
+            try {
+              this.routePropsByFull = routePropsByFull;
+            } catch {
+              /* ignore */
+            }
           }
-          const filtered = assigned ? this.filterMenuByAssigned(menu, assigned) : menu;
-          this.menuItems = (topOrder && orderByFullPath) ? this.sortMenuByRoutes(filtered, topOrder, orderByFullPath) : filtered;
+          const filtered = assigned
+            ? this.filterMenuByAssigned(menu, assigned)
+            : menu;
+          this.menuItems =
+            topOrder && orderByFullPath
+              ? this.sortMenuByRoutes(filtered, topOrder, orderByFullPath)
+              : filtered;
           // Promote a top-level 'Create' entry (if present) to the top navbar and hide it from bottom menu
           this.extractTopCreate();
         } else {
@@ -225,38 +300,57 @@ export class NavbarComponent implements OnInit, OnDestroy {
       this.extractTopCreate();
     }
 
-  this.ensureMessengerMenuEntry();
+    this.ensureMessengerMenuEntry();
 
     // Restore indicator state from sessionStorage
     try {
       const stored = sessionStorage.getItem(this.INDICATOR_STORAGE_KEY);
-      this.hasNewMessages = stored === '1';
-    } catch { /* ignore */ }
+      this.hasNewMessages = stored === "1";
+    } catch {
+      /* ignore */
+    }
 
     // Join global notifications and subscribe
-    this.smsSignalR.joinNotifications()
+    this.smsSignalR
+      .joinNotifications()
       .then(() => {
-        try { console.log('[Navbar] Joined SignalR notifications group (sms:notifications)'); } catch { /* ignore */ }
+        try {
+          console.log(
+            "[Navbar] Joined SignalR notifications group (sms:notifications)"
+          );
+        } catch {
+          /* ignore */
+        }
         this.notifSub = this.smsSignalR.notifications().subscribe(() => {
           this.hasNewMessages = true;
-          try { sessionStorage.setItem(this.INDICATOR_STORAGE_KEY, '1'); } catch { /* ignore */ }
+          try {
+            sessionStorage.setItem(this.INDICATOR_STORAGE_KEY, "1");
+          } catch {
+            /* ignore */
+          }
         });
       })
-      .catch((err) => { try { console.error('[Navbar] Failed to join notifications group', err); } catch { /* ignore */ } });
+      .catch((err) => {
+        try {
+          console.error("[Navbar] Failed to join notifications group", err);
+        } catch {
+          /* ignore */
+        }
+      });
 
-  // Load profile info from storage
-  this.loadProfileFromStorage();
+    // Load profile info from storage
+    this.loadProfileFromStorage();
 
     /**
      * Close the header menu after a route change on tablet and mobile devices
      */
-  // Robust subscription to navigation events (avoids missing the first NavigationEnd that could happen with forEach)
-    this.routerSub = this.router.events.subscribe(event => {
+    // Robust subscription to navigation events (avoids missing the first NavigationEnd that could happen with forEach)
+    this.routerSub = this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
         this.closeMobileMenuIfOpen();
         // Clear navbar indicator when navigating to Messenger
-        const url = (event.urlAfterRedirects || event.url || '').toString();
-        if (url.startsWith('/messenger')) {
+        const url = (event.urlAfterRedirects || event.url || "").toString();
+        if (url.startsWith("/messenger")) {
           this.clearNewMessagesIndicator();
         }
       }
@@ -267,15 +361,19 @@ export class NavbarComponent implements OnInit, OnDestroy {
   private extractTopCreate(): void {
     try {
       if (!Array.isArray(this.menuItems)) return;
-      const idx = this.menuItems.findIndex(mi => (mi?.label || '').trim().toLowerCase() === 'create');
+      const idx = this.menuItems.findIndex(
+        (mi) => (mi?.label || "").trim().toLowerCase() === "create"
+      );
       if (idx >= 0) {
         this.topCreate = this.menuItems[idx];
         this.menuItems = [
           ...this.menuItems.slice(0, idx),
-          ...this.menuItems.slice(idx + 1)
+          ...this.menuItems.slice(idx + 1),
         ];
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   // Helper to treat an item as special even if menu enrichment missed it
@@ -289,50 +387,86 @@ export class NavbarComponent implements OnInit, OnDestroy {
     const target = ev.target as HTMLElement | null;
     if (!target) return;
     // If click originated inside an element marked as special (data-menu-action), stop it
-    const specialEl = target.closest('[data-menu-action]');
+    const specialEl = target.closest("[data-menu-action]");
     if (specialEl) {
-      try { ev.preventDefault(); ev.stopPropagation(); } catch { /* ignore */ }
+      try {
+        ev.preventDefault();
+        ev.stopPropagation();
+      } catch {
+        /* ignore */
+      }
       return;
     }
   }
 
   private ensureMessengerMenuEntry(): void {
     try {
-      const normalizedTarget = this.normalizePath('/messenger');
-      const hasMessenger = this.menuItems.some((item) => {
-        const direct = this.normalizePath(item.link);
-        if (direct === normalizedTarget) return true;
+      const target = this.normalizePath("/messenger");
+      const matchPath = (raw?: string | null) =>
+        this.normalizePath(raw || "") === target;
+      const matchLabel = (raw?: string | null) =>
+        (raw || "").trim().toLowerCase() === "messenger";
+
+      let found = false;
+      // Detect presence by link/path OR label in top-level or submenus
+      for (const item of this.menuItems) {
+        if (
+          matchPath((item as any).link) ||
+          matchPath((item as any).path) ||
+          matchLabel(item.label)
+        ) {
+          found = true;
+          break;
+        }
         if (Array.isArray(item.subMenus)) {
           for (const group of item.subMenus) {
-            if (!group?.subMenuItems) continue;
+            if (!Array.isArray(group?.subMenuItems)) continue;
             for (const sub of group.subMenuItems) {
-              if (this.normalizePath(sub.link) === normalizedTarget) {
-                return true;
+              if (
+                matchPath((sub as any).link) ||
+                matchPath((sub as any).path) ||
+                matchLabel(sub.label)
+              ) {
+                found = true;
+                break;
               }
             }
+            if (found) break;
           }
         }
-        return false;
-      });
-      this.hasMessengerRoute = hasMessenger;
+        if (found) break;
+      }
+      this.hasMessengerRoute = found;
       // If present in menu items, we remove it from rendering list to avoid duplication;
       // the access remains available via the top-right mail icon only.
-      if (hasMessenger) {
+      if (found) {
         const removeMessenger = (items: MenuItem[]): MenuItem[] => {
-          const target = this.normalizePath('/messenger');
           const filtered: MenuItem[] = [];
           for (const it of items) {
-            const link = this.normalizePath((it as any).link as any);
-            if (link === target) continue; // drop direct messenger item
+            const link = this.normalizePath(
+              ((it as any).link || (it as any).path) as any
+            );
+            const lbl = (it.label || "").trim().toLowerCase();
+            if (link === target || lbl === "messenger") continue; // drop direct messenger item
             let newItem: MenuItem = { ...it };
             if (Array.isArray(it.subMenus) && it.subMenus.length) {
-              const newGroups = it.subMenus.map(g => {
-                const newSubs = (g.subMenuItems || []).filter(si => this.normalizePath((si as any).link as any) !== target);
-                return { ...g, subMenuItems: newSubs };
-              }).filter(g => (g.subMenuItems || []).length > 0);
+              const newGroups = it.subMenus
+                .map((g) => {
+                  const newSubs = (g.subMenuItems || []).filter((si) => {
+                    const sLink = this.normalizePath(
+                      ((si as any).link || (si as any).path) as any
+                    );
+                    const sLbl = (si.label || "").trim().toLowerCase();
+                    return sLink !== target && sLbl !== "messenger";
+                  });
+                  return { ...g, subMenuItems: newSubs };
+                })
+                .filter((g) => (g.subMenuItems || []).length > 0);
               newItem = { ...newItem, subMenus: newGroups };
               // If after removing, the item has no link and no children, drop it
-              const hasChildren = newGroups.some(g => (g.subMenuItems || []).length > 0);
+              const hasChildren = newGroups.some(
+                (g) => (g.subMenuItems || []).length > 0
+              );
               if (!hasChildren && !newItem.link) continue;
             }
             filtered.push(newItem);
@@ -342,7 +476,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
         this.menuItems = removeMessenger(this.menuItems);
       }
     } catch (err) {
-      console.warn('[Navbar] Unable to ensure messenger menu entry', err);
+      console.warn("[Navbar] Unable to ensure messenger menu entry", err);
     }
   }
 
@@ -350,26 +484,30 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.routerSub?.unsubscribe();
     this.notifSub?.unsubscribe();
     // Leave notifications group
-    this.smsSignalR.leaveNotifications().catch(() => { /* ignore */ });
+    this.smsSignalR.leaveNotifications().catch(() => {
+      /* ignore */
+    });
   }
 
   showActiveTheme(theme: string) {
-    const themeSwitcher = document.querySelector('#theme-switcher') as HTMLInputElement;
-    const box = document.querySelector('.box') as HTMLElement;
+    const themeSwitcher = document.querySelector(
+      "#theme-switcher"
+    ) as HTMLInputElement;
+    const box = document.querySelector(".box") as HTMLElement;
 
     if (!themeSwitcher) {
       return;
     }
 
     // Toggle the custom checkbox based on the theme
-    if (theme === 'dark') {
+    if (theme === "dark") {
       themeSwitcher.checked = true;
-      box.classList.remove('light');
-      box.classList.add('dark');
-    } else if (theme === 'light') {
+      box.classList.remove("light");
+      box.classList.add("dark");
+    } else if (theme === "light") {
       themeSwitcher.checked = false;
-      box.classList.remove('dark');
-      box.classList.add('light');
+      box.classList.remove("dark");
+      box.classList.add("light");
     }
   }
 
@@ -384,7 +522,11 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   private clearNewMessagesIndicator(): void {
     this.hasNewMessages = false;
-    try { sessionStorage.removeItem(this.INDICATOR_STORAGE_KEY); } catch { /* ignore */ }
+    try {
+      sessionStorage.removeItem(this.INDICATOR_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
   }
 
   /**
@@ -392,7 +534,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
    */
   onThemeCheckboxChange(e: Event) {
     const checkbox = e.target as HTMLInputElement;
-    const newTheme: string = checkbox.checked ? 'dark' : 'light';
+    const newTheme: string = checkbox.checked ? "dark" : "light";
     this.themeModeService.toggleTheme(newTheme);
     this.showActiveTheme(newTheme);
   }
@@ -404,26 +546,30 @@ export class NavbarComponent implements OnInit, OnDestroy {
     e.preventDefault();
     // Clear session and related cached items
     try {
-      localStorage.removeItem('dw.auth.session');
-      localStorage.removeItem('dw.menu');
-      localStorage.removeItem('dw.routes');
-      localStorage.removeItem('dw.auth.user');
-      localStorage.removeItem('dw.selectedLocationId');
-      localStorage.removeItem('google_picture');
-    } catch { /* ignore */ }
-    this.router.navigate(['/auth/login']);
+      localStorage.removeItem("dw.auth.session");
+      localStorage.removeItem("dw.menu");
+      localStorage.removeItem("dw.routes");
+      localStorage.removeItem("dw.auth.user");
+      localStorage.removeItem("dw.selectedLocationId");
+      localStorage.removeItem("google_picture");
+    } catch {
+      /* ignore */
+    }
+    this.router.navigate(["/auth/login"]);
   }
 
   /**
    * Fixed header menu on scroll
    */
-  @HostListener('window:scroll', ['$event']) getScrollHeight() {    
-    if (window.matchMedia('(min-width: 992px)').matches) {
-      let header: HTMLElement = document.querySelector('.horizontal-menu') as HTMLElement;
-      if(window.pageYOffset >= 60) {
-        header.parentElement!.classList.add('fixed-on-scroll')
+  @HostListener("window:scroll", ["$event"]) getScrollHeight() {
+    if (window.matchMedia("(min-width: 992px)").matches) {
+      let header: HTMLElement = document.querySelector(
+        ".horizontal-menu"
+      ) as HTMLElement;
+      if (window.pageYOffset >= 60) {
+        header.parentElement!.classList.add("fixed-on-scroll");
       } else {
-        header.parentElement!.classList.remove('fixed-on-scroll')
+        header.parentElement!.classList.remove("fixed-on-scroll");
       }
     }
   }
@@ -442,29 +588,37 @@ export class NavbarComponent implements OnInit, OnDestroy {
   toggleHeaderMenu() {
     // document.querySelector('.horizontal-menu .bottom-navbar')!.classList.toggle('header-toggled');
 
-    const horizontalMenuToggleButton = document.querySelector('[data-toggle="horizontal-menu-toggle"]');
-    const bottomNavbar = document.querySelector('.horizontal-menu .bottom-navbar');
-    if (!bottomNavbar?.classList.contains('header-toggled')) {
-      bottomNavbar?.classList.add('header-toggled');
-      horizontalMenuToggleButton?.classList.add('open');
-      document.body.classList.add('header-open'); // Used to create a backdrop"
+    const horizontalMenuToggleButton = document.querySelector(
+      '[data-toggle="horizontal-menu-toggle"]'
+    );
+    const bottomNavbar = document.querySelector(
+      ".horizontal-menu .bottom-navbar"
+    );
+    if (!bottomNavbar?.classList.contains("header-toggled")) {
+      bottomNavbar?.classList.add("header-toggled");
+      horizontalMenuToggleButton?.classList.add("open");
+      document.body.classList.add("header-open"); // Used to create a backdrop"
     } else {
-      bottomNavbar?.classList.remove('header-toggled');
-      horizontalMenuToggleButton?.classList.remove('open');
-      document.body.classList.remove('header-open');
+      bottomNavbar?.classList.remove("header-toggled");
+      horizontalMenuToggleButton?.classList.remove("open");
+      document.body.classList.remove("header-open");
     }
   }
 
   private closeMobileMenuIfOpen() {
-    const bottomNavbar = document.querySelector('.horizontal-menu .bottom-navbar');
-    const toggleButton = document.querySelector('[data-toggle="horizontal-menu-toggle"]');
-    bottomNavbar?.classList.remove('header-toggled');
-    toggleButton?.classList.remove('open');
-    document.body.classList.remove('header-open');
+    const bottomNavbar = document.querySelector(
+      ".horizontal-menu .bottom-navbar"
+    );
+    const toggleButton = document.querySelector(
+      '[data-toggle="horizontal-menu-toggle"]'
+    );
+    bottomNavbar?.classList.remove("header-toggled");
+    toggleButton?.classList.remove("open");
+    document.body.classList.remove("header-open");
   }
 
   // If the viewport is resized to desktop and the backdrop is still present, ensure it's closed
-  @HostListener('window:resize')
+  @HostListener("window:resize")
   onResize() {
     if (window.innerWidth >= 992) {
       this.closeMobileMenuIfOpen();
@@ -473,7 +627,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   // Show or hide the submenu on mobile and tablet devices when a nav-item is clicked
   toggleSubmenuOnSmallDevices(navItem: HTMLElement) {
-    if (window.matchMedia('(max-width: 991px)').matches) {
+    if (window.matchMedia("(max-width: 991px)").matches) {
       if (this.currentlyOpenedNavItem === navItem) {
         this.currentlyOpenedNavItem = undefined;
       } else {
@@ -491,14 +645,16 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   private loadProfileFromStorage(): void {
     try {
-      const encPic = localStorage.getItem('google_picture');
+      const encPic = localStorage.getItem("google_picture");
       if (encPic) {
         const pic = this.crypto.decrypt<string>(encPic);
-        if (pic && typeof pic === 'string') {
+        if (pic && typeof pic === "string") {
           this.profileImageUrl = pic;
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     try {
       const encUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
@@ -509,25 +665,36 @@ export class NavbarComponent implements OnInit, OnDestroy {
           this.profileName = `${user.firstname} ${user.lastname}`.trim();
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   // Hide menu items and submenu links that aren't assigned in dw.routes
-  private filterMenuByAssigned(menu: MenuItem[], assignedPaths: Set<string>): MenuItem[] {
+  private filterMenuByAssigned(
+    menu: MenuItem[],
+    assignedPaths: Set<string>
+  ): MenuItem[] {
     const clone = (obj: any) => JSON.parse(JSON.stringify(obj));
     const menuCopy = clone(menu) as MenuItem[];
-    const isSpecial = (o: any) => !!o && typeof o === 'object' && typeof o.action === 'string' && o.action.trim().length > 0;
+    const isSpecial = (o: any) =>
+      !!o &&
+      typeof o === "object" &&
+      typeof o.action === "string" &&
+      o.action.trim().length > 0;
     const filterItem = (item: MenuItem): MenuItem | null => {
       // If item has subMenus/subMenuItems
       if (item.subMenus && item.subMenus.length) {
-        const newSubMenus = item.subMenus.map(group => {
-          const newItems = (group.subMenuItems || []).filter((si: any) => {
-            // Keep if link is assigned OR it's a special action item (popup/new_tab)
-            if (isSpecial(si)) return true;
-            return assignedPaths.has(si.link || '');
-          });
-          return { ...group, subMenuItems: newItems };
-        }).filter(group => (group.subMenuItems || []).length > 0);
+        const newSubMenus = item.subMenus
+          .map((group) => {
+            const newItems = (group.subMenuItems || []).filter((si: any) => {
+              // Keep if link is assigned OR it's a special action item (popup/new_tab)
+              if (isSpecial(si)) return true;
+              return assignedPaths.has(si.link || "");
+            });
+            return { ...group, subMenuItems: newItems };
+          })
+          .filter((group) => (group.subMenuItems || []).length > 0);
         const withSubs = { ...item, subMenus: newSubMenus };
         // If no submenus remain AND the item's own link isn't assigned, drop it
         if (newSubMenus.length === 0) {
@@ -548,7 +715,11 @@ export class NavbarComponent implements OnInit, OnDestroy {
   }
 
   // Sort menu and submenu items by sort_order from dw.routes
-  private sortMenuByRoutes(menu: MenuItem[], topOrder: Map<string, number>, orderByFullPath: Map<string, number>): MenuItem[] {
+  private sortMenuByRoutes(
+    menu: MenuItem[],
+    topOrder: Map<string, number>,
+    orderByFullPath: Map<string, number>
+  ): MenuItem[] {
     const clone = (obj: any) => JSON.parse(JSON.stringify(obj));
     const copy = clone(menu) as MenuItem[];
     const toNum = (v: any): number => {
@@ -558,15 +729,16 @@ export class NavbarComponent implements OnInit, OnDestroy {
     const childOrder = (si: any): number => {
       const so = toNum(si?.sort_order);
       if (!Number.isNaN(so)) return so;
-      const byLink = orderByFullPath.get((si?.link as string) || '')
-      return typeof byLink === 'number' ? byLink : 999999;
+      const byLink = orderByFullPath.get((si?.link as string) || "");
+      return typeof byLink === "number" ? byLink : 999999;
     };
     const parentOrderFromChildLink = (link: string | undefined): number => {
       if (!link) return 999999;
       // Extract first path segment: '/segment'
       const m = String(link).match(/^\/[^/]+/);
-      const parentPath = m ? m[0] : '';
-      if (parentPath && topOrder.has(parentPath)) return topOrder.get(parentPath)!;
+      const parentPath = m ? m[0] : "";
+      if (parentPath && topOrder.has(parentPath))
+        return topOrder.get(parentPath)!;
       return 999999;
     };
     const getTopOrder = (item: MenuItem): number => {
@@ -576,9 +748,10 @@ export class NavbarComponent implements OnInit, OnDestroy {
       if (item.subMenus && item.subMenus.length) {
         let minOrder = Number.MAX_SAFE_INTEGER;
         for (const group of item.subMenus) {
-          for (const si of (group.subMenuItems || [])) {
+          for (const si of group.subMenuItems || []) {
             // Prefer parent order based on the first segment of the child's link
-            const ord = parentOrderFromChildLink((si as any)?.link) ?? childOrder(si);
+            const ord =
+              parentOrderFromChildLink((si as any)?.link) ?? childOrder(si);
             if (ord < minOrder) minOrder = ord;
           }
         }
@@ -588,14 +761,14 @@ export class NavbarComponent implements OnInit, OnDestroy {
     };
     const sortSubMenus = (item: MenuItem) => {
       if (item.subMenus && item.subMenus.length) {
-        item.subMenus = item.subMenus.map(group => {
+        item.subMenus = item.subMenus.map((group) => {
           const items = (group.subMenuItems || []).slice().sort((a, b) => {
             const ao: any = a as any;
             const bo: any = b as any;
             const oa = childOrder(ao);
             const ob = childOrder(bo);
             if (oa !== ob) return oa - ob;
-            return (a.label || '').localeCompare(b.label || '');
+            return (a.label || "").localeCompare(b.label || "");
           });
           return { ...group, subMenuItems: items };
         });
@@ -606,8 +779,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
       const oa = getTopOrder(a);
       const ob = getTopOrder(b);
       if (oa !== ob) return oa - ob;
-      const la = (a as any).label || '';
-      const lb = (b as any).label || '';
+      const la = (a as any).label || "";
+      const lb = (b as any).label || "";
       return la.localeCompare(lb);
     });
     // Sort children for each item
@@ -617,13 +790,15 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   get profileInitials(): string {
     if (this.profileName) {
-      const parts = this.profileName.split(/\s+/).filter(p=>p);
-      return parts.slice(0,2).map(p=>p[0]?.toUpperCase()).join('');
+      const parts = this.profileName.split(/\s+/).filter((p) => p);
+      return parts
+        .slice(0, 2)
+        .map((p) => p[0]?.toUpperCase())
+        .join("");
     }
     if (this.profileEmail) return this.profileEmail[0].toUpperCase();
-    return 'U';
+    return "U";
   }
-
 }
 
 // ==========================
@@ -633,7 +808,7 @@ export interface SpecialMenuItemLike {
   label?: string;
   link?: string | null;
   code?: string | null; // may contain an <iframe ...>
-  action?: 'popup' | 'new_tab' | string | null;
+  action?: "popup" | "new_tab" | string | null;
 }
 
 // Extend NavbarComponent with special menu handling
@@ -643,7 +818,7 @@ export interface IframeModalState {
   safeHtml: SafeHtml | null;
 }
 
-declare module './navbar.component' {}
+declare module "./navbar.component" {}
 
 // Add fields and methods to the class via declaration merging pattern
 // (The TS compiler will merge these into NavbarComponent at emit time.)
@@ -657,36 +832,54 @@ export interface NavbarComponent {
   toggleIframeModalFullscreen(ev?: Event): void;
 }
 
-NavbarComponent.prototype.onSpecialMenu = function(this: NavbarComponent, item: SpecialMenuItemLike, ev?: Event) {
+NavbarComponent.prototype.onSpecialMenu = function (
+  this: NavbarComponent,
+  item: SpecialMenuItemLike,
+  ev?: Event
+) {
   // Prevent any default link behavior or parent click handlers from routing
-  try { ev?.preventDefault(); ev?.stopPropagation(); } catch { /* ignore */ }
-  const action = (item.action || '').toString().toLowerCase();
+  try {
+    ev?.preventDefault();
+    ev?.stopPropagation();
+  } catch {
+    /* ignore */
+  }
+  const action = (item.action || "").toString().toLowerCase();
   // For special actions, DO NOT use router link/path as a source. Prefer explicit code or url fields.
-  let src = (item.code || (item as any).url || '').toString().trim();
+  let src = (item.code || (item as any).url || "").toString().trim();
   if (!src) {
     // Fallback: fetch code from routePropsByFull using the item's link
     try {
-      const link = this['normalizePath']?.(((item as any).link || '') as string) || '';
-      if (link && this['routePropsByFull'] && this['routePropsByFull'].has(link)) {
-        const p = this['routePropsByFull'].get(link)!;
+      const link =
+        this["normalizePath"]?.(((item as any).link || "") as string) || "";
+      if (
+        link &&
+        this["routePropsByFull"] &&
+        this["routePropsByFull"].has(link)
+      ) {
+        const p = this["routePropsByFull"].get(link)!;
         if (p?.code) src = String(p.code);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
-  if (action === 'new_tab') {
+  if (action === "new_tab") {
     const url = extractUrlFromCode(src);
-    if (url) window.open(url, '_blank');
+    if (url) window.open(url, "_blank");
     return;
   }
   // default to popup
   const html = buildIframeHtml(src);
-  this.iframeModalTitle = item.label || 'Preview';
-  this.iframeModalHtml = this['sanitizer']?.bypassSecurityTrustHtml(html) as SafeHtml;
+  this.iframeModalTitle = item.label || "Preview";
+  this.iframeModalHtml = this["sanitizer"]?.bypassSecurityTrustHtml(
+    html
+  ) as SafeHtml;
   this.iframeModalFullscreen = false;
   this.iframeModalVisible = true;
 };
 
-NavbarComponent.prototype.closeIframeModal = function(this: NavbarComponent) {
+NavbarComponent.prototype.closeIframeModal = function (this: NavbarComponent) {
   this.iframeModalVisible = false;
   this.iframeModalTitle = null;
   this.iframeModalHtml = null;
@@ -698,11 +891,19 @@ Object.defineProperties(NavbarComponent.prototype, {
   iframeModalVisible: { value: false, writable: true, configurable: true },
   iframeModalTitle: { value: null, writable: true, configurable: true },
   iframeModalHtml: { value: null, writable: true, configurable: true },
-  iframeModalFullscreen: { value: false, writable: true, configurable: true }
+  iframeModalFullscreen: { value: false, writable: true, configurable: true },
 });
 
-NavbarComponent.prototype.toggleIframeModalFullscreen = function(this: NavbarComponent, ev?: Event) {
-  try { ev?.preventDefault(); ev?.stopPropagation(); } catch { /* ignore */ }
+NavbarComponent.prototype.toggleIframeModalFullscreen = function (
+  this: NavbarComponent,
+  ev?: Event
+) {
+  try {
+    ev?.preventDefault();
+    ev?.stopPropagation();
+  } catch {
+    /* ignore */
+  }
   this.iframeModalFullscreen = !this.iframeModalFullscreen;
 };
 
@@ -711,12 +912,14 @@ function extractUrlFromCode(codeOrUrl: string): string | null {
   // If looks like full URL
   if (/^https?:\/\//i.test(codeOrUrl)) return codeOrUrl;
   // Try to parse from iframe
-  const m = codeOrUrl.match(/src\s*=\s*"([^"]+)"/i) || codeOrUrl.match(/src\s*=\s*'([^']+)'/i);
+  const m =
+    codeOrUrl.match(/src\s*=\s*"([^"]+)"/i) ||
+    codeOrUrl.match(/src\s*=\s*'([^']+)'/i);
   return m ? m[1] : null;
 }
 
 function buildIframeHtml(codeOrUrl: string): string {
-  if (!codeOrUrl) return '';
+  if (!codeOrUrl) return "";
   if (/^\s*<\/?iframe/i.test(codeOrUrl)) {
     // Already iframe code; ensure responsive wrapper styles are applied via container
     return codeOrUrl;
@@ -725,4 +928,3 @@ function buildIframeHtml(codeOrUrl: string): string {
   // Default size; container scrolls
   return `<iframe src="${url}" frameborder="0" allowfullscreen style="display:block;width:100%;height:100%;"></iframe>`;
 }
-

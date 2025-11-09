@@ -28,7 +28,11 @@
           />
         </div>
 
-  <form class="search-form" *ngIf="hasMessengerRoute" (submit)="onNavbarSearch($event)">
+        <form
+          class="search-form"
+          *ngIf="hasMessengerRoute"
+          (submit)="onNavbarSearch($event)"
+        >
           <div class="input-group">
             <div class="input-group-text">
               <i class="feather icon-search"></i>

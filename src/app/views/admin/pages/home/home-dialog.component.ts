@@ -19,6 +19,7 @@ export interface LocationDialogResult {
   json_form: string | null;
   state_code: string | null;
   country_code: string | null;
+  previous_site_url: string | null;
 }
 
 type StateOption = { code: string; name: string };
@@ -98,6 +99,16 @@ type StateOption = { code: string; name: string };
             </div>
           </div>
 
+          
+          <!-- URL -->
+          <div class="col-12"  >
+            <div class="section-divider"></div>
+            <label class="form-label small fw-semibold">Prevous Site URL</label>
+            <input type="text" class="form-control form-control-sm" name="previous_site_url"
+                     [(ngModel)]="previous_site_url" required />
+            <div class="invalid-feedback d-block" *ngIf="nameError">{{ nameError }}</div>
+          </div>
+
           <div class="d-flex justify-content-end gap-2 mt-3">
             <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancel()" [disabled]="saving">
               Cancel
@@ -138,6 +149,7 @@ export class HomeDialogComponent implements OnInit, OnChanges {
   json_form: string = '';
   state_code: string = '';       // si quieres mandarlo explícito al backend
   country_code: string = 'US';   // por defecto US
+  previous_site_url: string = '';
 
   // valor entrante de estado (antes de cargar catálogo)
   private pendingStateRaw: string | null = null;
@@ -161,6 +173,8 @@ export class HomeDialogComponent implements OnInit, OnChanges {
         // Address / country / state desde el registro
         this.full_address = (this.record as any).full_address ?? (this.record as any).address ?? '';
         this.country_code = ((this.record as any).country_code ?? 'US').toString().toUpperCase();
+        
+        this.previous_site_url   = (this.record as any).previous_site_url ?? (this.record as any).previous_site_url ?? '';
 
         // Puede venir como state_code ('MA') o como nombre ('Massachusetts') o campo genérico
         const rawState =
@@ -185,6 +199,7 @@ export class HomeDialogComponent implements OnInit, OnChanges {
         this.active = true;
         this.full_address = '';
         this.country_code = 'US';
+        this.previous_site_url = '';
         this.state = '';
         this.state_code = '';
         this.json_form = '';
@@ -283,6 +298,7 @@ export class HomeDialogComponent implements OnInit, OnChanges {
       country_code: this.country_code?.trim() || 'US',
       state_code: this.state_code?.trim() || null,
       json_form: this.json_form?.trim() || null,
+      previous_site_url: this.previous_site_url?.trim() || null,
     });
   }
 

@@ -164,6 +164,7 @@ export class HomeConfigComponent implements OnInit, AfterViewInit, OnDestroy {
       state_code: result.state_code?? undefined, // mapea a p_notes,
       full_address: result.full_address?? undefined, // mapea a p_notes,
       json_form: result.json_form?? undefined, // mapea a p_notes
+      previous_site_url: result.previous_site_url?? undefined, // mapea a previous_site_url
     });
   }
 
@@ -221,7 +222,8 @@ export class HomeConfigComponent implements OnInit, AfterViewInit, OnDestroy {
        (rec as any).country_code ?? null, //county
        (rec as any).state_code ?? null, //state
        (rec as any).full_address ?? null, //full
-       null
+       null,
+       (rec as any).previous_site_url ?? null, //full
     ];
 
     const api: IDriveWhipCoreAPI = {

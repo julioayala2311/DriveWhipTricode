@@ -166,6 +166,23 @@ export class DriversPageComponent implements OnInit {
       flex: 1,
       headerComponent: GridHeaderComponent,
       headerComponentParams: { icon: "icon-user-plus" },
+    },    
+    {
+      headerName: "Chargeover Id",
+      field: "chargeover_id",
+      minWidth: 140,
+      flex: 1,
+      headerComponent: GridHeaderComponent,
+      headerComponentParams: { icon: "icon-user-plus" },
+    },
+    
+    {
+      headerName: "Smartsheet ID",
+      field: "smartsheet_row",
+      minWidth: 140,
+      flex: 1,
+      headerComponent: GridHeaderComponent,
+      headerComponentParams: { icon: "icon-user-plus" },
     },
     {
       headerName: "Status",
@@ -227,7 +244,7 @@ export class DriversPageComponent implements OnInit {
         debounceMs: 150,
         trimInput: true,
       },
-    },
+    }
   ];
 
   defaultColDef: ColDef = {
@@ -326,6 +343,8 @@ export class DriversPageComponent implements OnInit {
         const city = row.city ?? row.City ?? null;
         const referralName = row.referral_name ?? row.REFERRAL_NAME ?? row.Referral ?? null;
         const isActive = row.is_active ?? row.IS_ACTIVE ?? row.active ?? row.Active ?? null;
+        const chargeover_id = row.chargeover_id ?? row.chargeover_id ?? row.chargeover_id ?? null;
+        const smartsheet_row = row.smartsheet_row ?? row.smartsheet_row ?? row.smartsheet_row ?? null;
 
         const name =
           row.Name ?? [row.Name ?? "", row.Name ?? ""].join(" ").trim();
@@ -353,7 +372,7 @@ export class DriversPageComponent implements OnInit {
           zipCode: row.zip_code ?? row.ZIP_CODE ?? row.ZipCode ?? "",
           referralName: referralName ?? "",
           status: statusText,
-          statuses,
+          statuses,chargeover_id, smartsheet_row
         };
       });
     } catch (err) {

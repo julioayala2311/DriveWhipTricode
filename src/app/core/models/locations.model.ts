@@ -12,6 +12,7 @@ export interface LocationsRecord {
   full_address: string;
   country_code: string;  
   json_form: string;
+  previous_site_url: string;
 }
 
 export type LocationsAction = 'C' | 'R' | 'U' | 'D';

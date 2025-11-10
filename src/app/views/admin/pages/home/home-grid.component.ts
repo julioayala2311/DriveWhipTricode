@@ -122,8 +122,47 @@ export class HomeGridComponent implements OnChanges {
           </span>
         `;
       }
-    },
+    },    
+    {
+      headerName: 'Previous Site URL',
+      field: 'previous_site_url',
+      minWidth: 180,
+      flex: 1.1,
+      headerComponent: GridHeaderComponent,
+      headerComponentParams: { icon: 'icon-map' },
 
+      cellRenderer: (p: any) => {
+        const raw = (p.value ?? '').toString().trim();
+        if (!raw) return ''; // sin URL, no muestra nada
+
+        // Normaliza esquema
+        const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+
+        // Crea <a> de forma segura (mejor que devolver HTML string)
+        const a = document.createElement('a');
+        a.className = 'grid-link';
+        a.href = normalized;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = raw;
+        a.setAttribute('role', 'link');
+        a.setAttribute('aria-label', 'Open legacy site');
+
+        a.addEventListener('click', (e) => {
+          // Evita que el grid/row maneje el click
+          e.preventDefault();
+          e.stopPropagation();
+          // Por si acaso:
+          // @ts-ignore
+          e.cancelBubble = true;
+
+          window.open(normalized, '_blank', 'noopener');
+          return false;
+        });
+
+        return a;
+      }
+    } ,
     {
       headerName: 'Status',
       field: 'active',

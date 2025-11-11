@@ -172,6 +172,30 @@ body.dark .rules-card .rule-condition-block hr { border-color: rgba(255,255,255,
 .status-card.vertical .stage-delete-btn .feather { font-size: 14px; }
 .status-card.vertical .stage-delete-btn:focus { outline: none; box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb,13,110,253), .12); }
 
+/* Edit button mirrors delete button positioning, offset left to avoid overlap */
+.status-card.vertical .stage-edit-btn {
+	position: absolute;
+	top: 6px;
+	right: 42px; /* leave space for delete */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border-radius: 6px;
+	opacity: 0;
+	transform: translateY(-2px);
+	transition: opacity .18s ease, transform .18s ease;
+	z-index: 4;
+}
+.status-card.vertical:hover .stage-edit-btn { opacity: 1; transform: translateY(0); }
+.status-card.vertical .stage-edit-btn .feather { font-size: 14px; }
+.status-card.vertical .stage-edit-btn:focus { outline: none; box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb,13,110,253), .12); }
+
+/* Inline edit input shrink and typography */
+.status-card.vertical input.form-control.form-control-sm { font-size: .7rem; padding: .15rem .35rem; line-height: 1.1; }
+
 body.dark .status-card.vertical { background:#252b32; box-shadow:0 0 0 1px rgba(255,255,255,.12), 0 1px 2px rgba(0,0,0,.6); }
 body.dark .status-card.vertical:hover { background:#2f3740; }
 body.dark .status-card.vertical.active { background:#2f3740; }

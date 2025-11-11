@@ -8,7 +8,13 @@
           <h1 class="fw-bolder mb-22 mt-2 tx-80 text-secondary">{{type}}</h1>
           <h4 class="mb-2">{{title}}</h4>
           <h6 class="text-secondary mb-3 text-center" [innerHTML]="desc"></h6>
-          <a routerLink="/home">Back to home</a>
+          <div class="d-flex flex-column gap-2 align-items-center mt-2">
+            <a routerLink="/home" class="btn btn-sm btn-outline-primary">Back to home</a>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-5" (click)="onLogout($event)">Log out</button>
+            <p class="text-muted small mb-0 text-center" style="max-width:420px;line-height:1.2">
+              If you keep seeing this page or don't have access to the home, click <strong>Log out</strong>, then sign in again to refresh your session.
+            </p>
+          </div>
         </div>
       </div>
 

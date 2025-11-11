@@ -37,6 +37,7 @@ import {
   RoutePermissionAction,
   RoutePermissionService,
 } from "../../../../../core/services/auth/route-permission.service";
+import { PHONE_COUNTRIES, PhoneCountry } from "../../../../../shared/phone-countries";
 
 @Component({
   selector: "app-applicant-panel",
@@ -60,8 +61,15 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   recollectEditorRef?: ElementRef<HTMLDivElement>;
   @ViewChild("composerInput", { static: false })
   composerInput?: ElementRef<HTMLInputElement>;
+  @ViewChild("countrySearchInput", { static: false })
+  countrySearchInput?: ElementRef<HTMLInputElement>;
+  // SMS textarea for caret-aware variable insertion
+  @ViewChild("smsArea", { static: false })
+  smsArea?: ElementRef<HTMLTextAreaElement>;
   @ViewChild("templateSearchInput", { static: false })
   templateSearchInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('desktopFrame', { static: false }) desktopFrame?: ElementRef<HTMLIFrameElement>;
+  @ViewChild('mobileFrame', { static: false }) mobileFrame?: ElementRef<HTMLIFrameElement>;
   private authSession = inject(AuthSessionService);
   private sanitizer = inject(DomSanitizer);
   private smsRealtime = inject(SmsChatSignalRService);
@@ -117,6 +125,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   applicantDetailsLoading = false;
   applicantDetailsError: string | null = null;
   private lastLoadedApplicantId: string | null = null;
+  private cachedApplicantDetails: any = null;
 
   // Registration answers state
   answersLoading = false;
@@ -215,6 +224,12 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   emailDelay = false;
   emailPreviewMode: "desktop" | "mobile" = "desktop";
   emailSourceMode = false;
+  // Editor UI state
+  emailEditorHeight: number = 480;
+  // Inline templates list state
+  emailTemplatesLoading = false;
+  emailTemplatesError: string | null = null;
+  emailTemplatesData: MessageTemplateSummary[] = [];
 
   // SMS composer sidebar state
   smsSidebarOpen = false;
@@ -223,6 +238,25 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   smsMessage: string = "";
   smsDelay = false;
   smsSending = false;
+  // Inline template pickers state (Email/SMS)
+  emailSelectedTemplateId: string | number | null = null;
+  emailTemplateLoading: boolean = false;
+  emailTemplateError: string | null = null;
+  smsSelectedTemplateId: string | number | null = null;
+  smsTemplateLoading: boolean = false;
+  smsTemplateError: string | null = null;
+  smsTemplatesLoading = false;
+  smsTemplatesError: string | null = null;
+  smsTemplatesData: MessageTemplateSummary[] = [];
+  // Variable insertion (Email/SMS composers)
+  dataKeyTypes: string[] = [];
+  private dataKeysCache: Record<string, string[]> = {};
+  emailDataKeyType: string = "";
+  emailDataKey: string = "";
+  emailDataKeyOptions: string[] = [];
+  smsDataKeyType: string = "";
+  smsDataKey: string = "";
+  smsDataKeyOptions: string[] = [];
 
   // Disapprove / Re-collect sidebar state
   disapproveSidebarOpen = false;
@@ -286,6 +320,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.smsDelay = false;
     this.smsSidebarOpen = true;
     this.updatePhoneSubscription().catch(() => {});
+    // Ensure SMS templates are available for the inline selector
+    this.loadSmsTemplates();
   }
 
   closeSmsSidebar(): void {
@@ -702,6 +738,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   applicantSaving: boolean = false;
   applicantDeleting: boolean = false;
 
+  // Phone editor state (for custom country code input)
+  countryMenuOpen = false;
+  countrySearch = "";
+  phoneLocal = ""; // local number (formatted for display)
+  selectedCountry: PhoneCountry = PHONE_COUNTRIES.find((c: PhoneCountry) => c.iso2 === 'us') || PHONE_COUNTRIES[0];
+  filteredCountries: PhoneCountry[] = PHONE_COUNTRIES.slice();
+
   constructor(private core: DriveWhipCoreService) {}
 
   startEditApplicant(): void {
@@ -715,6 +758,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.isEditingApplicant = true;
     // ensure editableApplicant is a fresh copy
     this.editableApplicant = this.applicant ? { ...this.applicant } : {};
+    // initialize phone editor from current value
+    const initial = this.editableApplicant?.phone || this.applicant?.phone || "";
+    this.initPhoneFromValue(initial);
     // close menu when editing begins
     this.closeMenus();
   }
@@ -722,6 +768,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   cancelEditApplicant(): void {
     this.isEditingApplicant = false;
     this.editableApplicant = this.applicant ? { ...this.applicant } : {};
+    this.countryMenuOpen = false;
   }
 
   saveApplicant(): void {
@@ -943,18 +990,28 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (changes["applicant"] || changes["applicantId"]) {
       this.openSections = new Set<string>(this.defaultSectionIds);
       this.closeMenus();
+      const idFromApplicant = this.resolveApplicantId(this.applicant);
+      const resolvedId = (this.applicantId || idFromApplicant || null) as
+        | string
+        | null;
+      if (resolvedId && this.applicant) {
+        this.hydrateApplicantFromCache(resolvedId);
+      }
       // prepare editable copy for inline editing
       this.editableApplicant = this.applicant ? { ...this.applicant } : {};
       // load notes for this applicant when panel opens / applicant changes
-      const idFromApplicant = this.resolveApplicantId(this.applicant);
-      const id = (this.applicantId || idFromApplicant || null) as string | null;
+      const id = resolvedId;
       if (id) {
         this.loadNotes(id);
       } else {
         this.notes = [];
       }
       this.updateRealtimeSubscription(id);
-      if (id && id !== this.lastLoadedApplicantId) {
+      const needsDetailsReload =
+        !!id &&
+        (id !== this.lastLoadedApplicantId ||
+          !this.hasApplicantIdentity(this.applicant));
+      if (needsDetailsReload) {
         this.loadApplicantDetails(id);
         // If opening with only ID, ensure there is a lightweight stub so header and info placeholders render
         if (!this.applicant) {
@@ -1101,6 +1158,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     });
     // use capture phase to avoid being canceled by stopPropagation on inner handlers
     document.addEventListener("click", this._outsideClickListener, true);
+    void this.loadDataKeyTypes();
   }
 
   ngOnDestroy(): void {
@@ -1182,6 +1240,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.emailSourceMode = false;
     this.emailSidebarOpen = true;
     setTimeout(() => this.syncEmailEditorFromContent(), 0);
+    // Ensure Email templates are available for the inline selector
+    this.loadEmailTemplates();
   }
 
   closeEmailSidebar(): void {
@@ -1417,7 +1477,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   onEmailEditorInput(ev: Event): void {
     const el = ev.target as HTMLElement;
-    this.emailContent = el?.innerHTML || "";
+    const html = el?.innerHTML || "";
+    // Strip style/script/link/iframe from inline editor to avoid bleeding
+    this.emailContent = this.stripDangerousTags(html);
   }
 
   get emailPreviewHtml(): SafeHtml {
@@ -1427,18 +1489,465 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private captureEmailContentFromEditor(): void {
     const editor = this.emailEditorRef?.nativeElement;
     if (!editor) return;
-    this.emailContent = editor.innerHTML || "";
+    this.emailContent = this.stripDangerousTags(editor.innerHTML || "");
+  }
+
+  // --- Template helpers for Email/SMS composers ---
+  get emailTemplates(): MessageTemplateSummary[] { return this.emailTemplatesData; }
+
+  get smsTemplates(): MessageTemplateSummary[] { return this.smsTemplatesData; }
+
+  onEmailTemplateChange(val: any): void {
+    this.emailSelectedTemplateId = val ?? null;
+    // Apply immediately on selection
+    void this.applyEmailSelectedTemplate();
+  }
+
+  onSmsTemplateChange(val: any): void {
+    this.smsSelectedTemplateId = val ?? null;
+    // Apply immediately on selection
+    void this.applySmsSelectedTemplate();
+  }
+
+  async applyEmailSelectedTemplate(): Promise<void> {
+    if (this.emailTemplateLoading) return;
+    const id = this.emailSelectedTemplateId;
+    if (id == null) return;
+    const tpl = (this.emailTemplatesData || []).find(
+      (t) => (t.id ?? t.code ?? null) === id || String(t.id ?? t.code ?? "") === String(id)
+    );
+    if (!tpl) return;
+    const applicantId = this.resolveApplicantId(this.applicant) || this.applicantId;
+    this.emailTemplateLoading = true;
+    this.emailTemplateError = null;
+    try {
+      let html: string | null = null;
+      if (applicantId) {
+        html = await this.loadTemplateEmailHtmlFromServer(tpl, String(applicantId));
+      }
+      if (!html) {
+        html = this.buildLocalEmailHtml(tpl);
+      }
+      if (!html) {
+        Utilities.showToast("Template has no message content", "warning");
+        return;
+      }
+      this.emailContent = html;
+      // If the rich editor is visible, sync DOM
+      this.syncEmailEditorFromContent();
+      // Best-effort subject fill if empty
+      if (!this.emailSubject?.trim() && tpl.subject) {
+        const ctx = this.buildChatTemplateContext();
+        let subj = this.interpolateTemplate(tpl.subject, ctx);
+        subj = this.replaceAtPlaceholders(subj, ctx) ?? subj;
+        subj = this.replaceSquareBracketPlaceholders(subj, ctx);
+        this.emailSubject = subj;
+      }
+    } catch (err) {
+      console.error("[ApplicantPanel] applyEmailSelectedTemplate error", err);
+      this.emailTemplateError = "Failed to apply template";
+      Utilities.showToast("Failed to apply template", "error");
+    } finally {
+      this.emailTemplateLoading = false;
+    }
+  }
+
+  async applySmsSelectedTemplate(): Promise<void> {
+    if (this.smsTemplateLoading) return;
+    const id = this.smsSelectedTemplateId;
+    if (id == null) return;
+    const tpl = (this.smsTemplatesData || []).find(
+      (t) => (t.id ?? t.code ?? null) === id || String(t.id ?? t.code ?? "") === String(id)
+    );
+    if (!tpl) return;
+    const applicantId = this.resolveApplicantId(this.applicant) || this.applicantId;
+    this.smsTemplateLoading = true;
+    this.smsTemplateError = null;
+    try {
+      let text: string | null = null;
+      if (applicantId) {
+        text = await this.loadTemplateMessageFromServer(tpl, String(applicantId));
+      }
+      if (!text) {
+        text = this.buildLocalTemplateMessage(tpl);
+      }
+      if (!text) {
+        Utilities.showToast("Template has no message content", "warning");
+        return;
+      }
+      // Use existing input handler to keep counters in sync
+      this.onSmsInput(text);
+    } catch (err) {
+      console.error("[ApplicantPanel] applySmsSelectedTemplate error", err);
+      this.smsTemplateError = "Failed to apply template";
+      Utilities.showToast("Failed to apply template", "error");
+    } finally {
+      this.smsTemplateLoading = false;
+    }
+  }
+
+  // --- Variable insertion handlers ---
+  async onEmailDataKeyTypeChange(type: string): Promise<void> {
+    this.emailDataKeyType = type;
+    this.emailDataKey = "";
+    this.emailDataKeyOptions = await this.getDataKeysForType(type);
+  }
+
+  async onSmsDataKeyTypeChange(type: string): Promise<void> {
+    this.smsDataKeyType = type;
+    this.smsDataKey = "";
+    this.smsDataKeyOptions = await this.getDataKeysForType(type);
+  }
+
+  onInsertDataKey(channel: 'email' | 'sms', token: string): void {
+    // Insert the token exactly as provided by the SP/dropdown (no transformation)
+    if (!token) return;
+    if (channel === 'email') {
+      const editor = this.emailEditorRef?.nativeElement;
+      if (editor) {
+        this.insertAtContentEditableCaret(editor, token);
+        this.emailContent = editor.innerHTML;
+      } else {
+        this.emailContent = (this.emailContent || '') + token;
+      }
+      this.emailDataKey = '';
+      return;
+    }
+
+    // SMS: insert at current caret position when possible
+    const area = this.smsArea?.nativeElement ?? null;
+    const value = this.smsMessage || '';
+    if (!area || area.selectionStart == null || area.selectionEnd == null) {
+      // Fallback append
+      this.smsMessage = value + token;
+      this.onSmsInput(this.smsMessage);
+      this.smsDataKey = '';
+      return;
+    }
+    const start = area.selectionStart;
+    const end = area.selectionEnd;
+    const before = value.slice(0, start);
+    const after = value.slice(end);
+    const next = before + token + after;
+    this.smsMessage = next;
+    this.onSmsInput(this.smsMessage);
+    // Restore focus and caret after inserted token
+    setTimeout(() => {
+      try {
+        area.focus();
+        const pos = start + token.length;
+        area.setSelectionRange(pos, pos);
+      } catch {}
+    }, 0);
+    this.smsDataKey = '';
+  }
+
+  private async loadDataKeyTypes(): Promise<void> {
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.notifcations_datakey_type_list as any,
+      parameters: [],
+    } as any;
+    try {
+      const res = await firstValueFrom(
+        this.core.executeCommand<DriveWhipCommandResponse<any>>(api)
+      );
+      const data = Array.isArray(res?.data)
+        ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
+        : [];
+      const types = (data || [])
+        .map((row: any) => (row.value ?? row.id ?? row.TYPE ?? row.type ?? '').toString().trim())
+        .filter((v: string) => !!v);
+      this.dataKeyTypes = Array.from(new Set(types));
+      // Default selections and preload options like Templates page
+      if (!this.smsDataKeyType && this.dataKeyTypes.length) this.smsDataKeyType = this.dataKeyTypes[0];
+      if (!this.emailDataKeyType && this.dataKeyTypes.length) this.emailDataKeyType = this.dataKeyTypes[0];
+      if (this.smsDataKeyType) { void this.onSmsDataKeyTypeChange(this.smsDataKeyType); }
+      if (this.emailDataKeyType) { void this.onEmailDataKeyTypeChange(this.emailDataKeyType); }
+    } catch (err) {
+      console.error('[ApplicantPanel] loadDataKeyTypes error', err);
+    }
+  }
+
+  private async getDataKeysForType(type: string): Promise<string[]> {
+    const key = (type || '').toUpperCase();
+    if (!key) return [];
+    if (this.dataKeysCache[key]) return this.dataKeysCache[key];
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.notifcations_datakey_list as any,
+      parameters: [key],
+    } as any;
+    try {
+      const res = await firstValueFrom(
+        this.core.executeCommand<DriveWhipCommandResponse<any>>(api)
+      );
+      const rows = Array.isArray(res?.data)
+        ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
+        : [];
+      const list = (rows || [])
+        .map((row: any) => (row.data_key ?? row.value ?? row.id ?? '').toString().trim())
+        .filter((v: string) => !!v);
+      this.dataKeysCache[key] = list;
+      return list;
+    } catch (err) {
+      console.error('[ApplicantPanel] getDataKeysForType error', err);
+      return [];
+    }
+  }
+
+  private insertAtContentEditableCaret(el: HTMLElement, text: string): void {
+    el.focus();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) {
+      el.append(text);
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const node = document.createTextNode(text);
+    range.insertNode(node);
+    range.setStartAfter(node);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  private async loadTemplateEmailHtmlFromServer(
+    template: MessageTemplateSummary,
+    idApplicant: string
+  ): Promise<string | null> {
+    const code = (template.code ?? template.id ?? "").toString().trim();
+    if (!code) return null;
+    const description = (
+      template.description ||
+      template.subject ||
+      code
+    ).toString();
+    const dataKey = (template.dataKey ?? "").toString();
+    const token = ++this._templateApplyToken;
+    try {
+      const api: IDriveWhipCoreAPI = {
+        commandName: DriveWhipAdminCommand.crm_applicants_recollect_menssage,
+        parameters: [idApplicant, code, description, dataKey, "email"],
+      } as any;
+      const res = await firstValueFrom(
+        this.core.executeCommand<DriveWhipCommandResponse<any>>(api)
+      );
+      if (token !== this._templateApplyToken) return null;
+      if (!res?.ok) return null;
+      let raw: any = res.data;
+      if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+      const row = Array.isArray(raw) && raw.length ? raw[0] : raw;
+      const html = String(
+        row?.message ?? row?.MESSAGE ?? row?.body ?? row?.BODY ?? row?.text ?? ""
+      );
+      return html && html.trim() ? html : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  private buildLocalEmailHtml(template: MessageTemplateSummary): string | null {
+    const raw = (template.rawBody || template.content || template.description || "").toString();
+    let html = raw.trim();
+    if (!html) return null;
+    const ctx = this.buildChatTemplateContext();
+    html = this.interpolateTemplate(html, ctx);
+    html = this.replaceAtPlaceholders(html, ctx);
+    html = this.replaceSquareBracketPlaceholders(html, ctx);
+    return html;
+  }
+
+  // Replace [token] style placeholders e.g., [first_name]
+  private replaceSquareBracketPlaceholders(input: string, context: any): string {
+    if (!input) return input;
+    return input.replace(/\[([A-Za-z0-9_.-]+)\]/g, (_m, token) => {
+      const value = this.resolveAtPlaceholderToken(String(token), context);
+      return value != null ? value : "";
+    });
+  }
+
+  // Loaders for dedicated template lists
+  private loadSmsTemplates(force: boolean = false): void {
+    if (this.smsTemplatesLoading) return;
+    if (!force && this.smsTemplatesData.length) return;
+    this.smsTemplatesLoading = true;
+    this.smsTemplatesError = null;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_notifications_templates_chat_list,
+      parameters: [],
+    } as any;
+    this.core
+      .executeCommand<DriveWhipCommandResponse>(api)
+      .pipe(finalize(() => (this.smsTemplatesLoading = false)))
+      .subscribe({
+        next: (res) => {
+          if (!res || res.ok === false) {
+            const msg = ((res as any)?.error || "Failed to load SMS templates").toString();
+            this.smsTemplatesError = msg;
+            return;
+          }
+          let rows: any[] = [];
+          const data = (res as any).data;
+          if (Array.isArray(data)) rows = Array.isArray(data[0]) ? data[0] : data;
+          const normalized = Array.isArray(rows)
+            ? rows
+                .map((row: any) => this.normalizeTemplateRow(row))
+                .filter((row): row is MessageTemplateSummary => !!row)
+            : [];
+          this.smsTemplatesData = normalized;
+        },
+        error: (err) => {
+          this.smsTemplatesError = ((err as any)?.message || "Failed to load SMS templates").toString();
+        },
+      });
+  }
+
+  private loadEmailTemplates(force: boolean = false): void {
+    if (this.emailTemplatesLoading) return;
+    if (!force && this.emailTemplatesData.length) return;
+    this.emailTemplatesLoading = true;
+    this.emailTemplatesError = null;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_notifications_templates_email_list,
+      parameters: [],
+    } as any;
+    this.core
+      .executeCommand<DriveWhipCommandResponse>(api)
+      .pipe(finalize(() => (this.emailTemplatesLoading = false)))
+      .subscribe({
+        next: (res) => {
+          if (!res || res.ok === false) {
+            const msg = ((res as any)?.error || "Failed to load Email templates").toString();
+            this.emailTemplatesError = msg;
+            return;
+          }
+          let rows: any[] = [];
+          const data = (res as any).data;
+          if (Array.isArray(data)) rows = Array.isArray(data[0]) ? data[0] : data;
+          const normalized = Array.isArray(rows)
+            ? rows
+                .map((row: any) => this.normalizeTemplateRow(row))
+                .filter((row): row is MessageTemplateSummary => !!row)
+            : [];
+          this.emailTemplatesData = normalized;
+        },
+        error: (err) => {
+          this.emailTemplatesError = ((err as any)?.message || "Failed to load Email templates").toString();
+        },
+      });
   }
 
   private syncEmailEditorFromContent(): void {
     if (this.emailSourceMode) return;
     const editor = this.emailEditorRef?.nativeElement;
     if (!editor) return;
-    editor.innerHTML = this.emailContent || "";
+    // Sanitize for inline editor to prevent global CSS/JS side-effects
+    editor.innerHTML = this.stripDangerousTags(this.emailContent || "");
   }
 
   setEmailPreviewMode(mode: "desktop" | "mobile"): void {
     this.emailPreviewMode = mode;
+    // Refit after mode change
+    setTimeout(() => {
+      if (mode === 'desktop') this.fitPreviewToFrame('desktop');
+      else this.fitPreviewToFrame('mobile');
+    }, 0);
+  }
+
+  // Build an iframe HTML to sandbox template CSS/JS from affecting the app while keeping
+  // the existing Desktop/Mobile viewer chrome intact.
+  get emailSandboxHtml(): string {
+    const subject = (this.emailSubject || "[Email subject]").toString();
+    const body = this.stripMergeTagsForPreview((this.emailContent || "[Message]").toString());
+    const baseCss = `
+      :root { color-scheme: light; }
+      html, body { margin:0; padding:0; background:#ffffff !important; }
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+      img { max-width: 100%; height: auto; }
+      .dw-preview-body { padding: 0; }
+    `;
+    const doc = `<!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>${baseCss}</style>
+        </head>
+        <body>
+          <div class=\"dw-preview-body\">${body}</div>
+        </body>
+      </html>`;
+    return doc;
+  }
+
+  // Hide typical ESP merge tags (e.g., Mailchimp *|...|*) in preview only, without mutating content
+  private stripMergeTagsForPreview(html: string): string {
+    if (!html) return html;
+    try {
+      // Remove patterns like *|MC:SUBJECT|*, *|MC_PREVIEW_TEXT|*, *|ANY_TAG|*
+      return html.replace(/\*\|[^|]*\|\*/g, "");
+    } catch {
+      return html;
+    }
+  }
+  // (Iframe sandbox removed per request to keep original desktop/mobile viewers)
+
+  // Utility: remove tags that can leak into host app when editing inline
+  private stripDangerousTags(html: string): string {
+    if (!html) return html;
+    try {
+      return html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+        .replace(/<link\b[^>]*>/gi, "")
+        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "");
+    } catch {
+      return html;
+    }
+  }
+
+  // Alias to existing escapeHtml (defined later for timeline/events); avoid duplicate definitions
+  private escapeHtml(text: string): string {
+    if (text === null || text === undefined) return '';
+    const s = text.toString();
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // Scale preview content inside iframe to fit available WIDTH (shrink-only) and allow vertical scroll
+  fitPreviewToFrame(mode: 'desktop' | 'mobile', frameEl?: HTMLIFrameElement | ElementRef<HTMLIFrameElement> | null): void {
+    const iframe: HTMLIFrameElement | null = (frameEl instanceof ElementRef)
+      ? frameEl.nativeElement
+      : (frameEl as HTMLIFrameElement) || (mode === 'desktop' ? this.desktopFrame?.nativeElement ?? null : this.mobileFrame?.nativeElement ?? null);
+    if (!iframe) return;
+    try {
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!doc) return;
+      const html = doc.documentElement as HTMLElement;
+      const body = (doc.body as HTMLElement) || html;
+      html.style.overflowX = 'hidden';
+      html.style.overflowY = 'auto';
+      body.style.overflowX = 'hidden';
+      body.style.overflowY = 'auto';
+      body.style.transformOrigin = 'top left';
+      body.style.margin = '0';
+      // Reset transform to measure natural size
+      body.style.transform = 'scale(1)';
+      // Use scrollWidth/Height to get full content size
+      const naturalW = Math.max(body.scrollWidth, body.offsetWidth);
+      const naturalH = Math.max(body.scrollHeight, body.offsetHeight);
+      const frameW = iframe.clientWidth || (iframe.parentElement?.clientWidth ?? 0);
+      if (!naturalW || !naturalH || !frameW) return;
+      const scale = Math.min(frameW / naturalW, 1);
+      // Fix body box to its natural width so scaling by width works consistently
+      body.style.width = naturalW + 'px';
+      body.style.height = 'auto';
+      body.style.transform = `scale(${scale})`;
+    } catch {}
   }
 
   // Placeholder send handler (wire to backend when available)
@@ -2940,17 +3449,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     finish();
   }
 
-  // Simple HTML escaper for modal content
-  private escapeHtml(input: any): string {
-    if (input === null || input === undefined) return "";
-    const s = input.toString();
-    return s
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
+  // (Removed duplicate escapeHtml; single implementation located earlier in file)
 
   /** Map event type to a FontAwesome / marker classes */
   /** Map event type to a Feather icon class (project uses Feather icons) */
@@ -3084,6 +3583,32 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
             applicant.guid
         )
       : null;
+  }
+
+  private hasApplicantIdentity(applicant: any): boolean {
+    if (!applicant) return false;
+    const props = [
+      "first_name",
+      "last_name",
+      "FIRST_NAME",
+      "LAST_NAME",
+      "firstName",
+      "lastName",
+    ];
+    return props.some((prop) => Object.prototype.hasOwnProperty.call(applicant, prop));
+  }
+
+  private hydrateApplicantFromCache(id: string): void {
+    if (!this.cachedApplicantDetails) return;
+    const cachedId = this.resolveApplicantId(this.cachedApplicantDetails);
+    if (!cachedId || cachedId !== id) return;
+    if (this.hasApplicantIdentity(this.applicant)) return;
+    const merged = {
+      ...this.cachedApplicantDetails,
+      ...this.applicant,
+    };
+    this.applicant = merged;
+    this.editableApplicant = { ...merged };
   }
 
   private loadApplicantDetails(applicantId: string): void {
@@ -4913,22 +5438,39 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private applyApplicantRecord(record: any): void {
     if (!record) return;
     const normalized = this.normalizeApplicantRecord(record);
-    this.applicant = { ...this.applicant, ...normalized };
-    this.editableApplicant = { ...this.applicant };
+    console.log(normalized);
+    // Merge cautiously: do not overwrite existing non-empty names with empty strings
+    const merged = { ...this.applicant, ...normalized } as any;
+    if (this.applicant?.first_name && !normalized.first_name) {
+      merged.first_name = this.applicant.first_name;
+    }
+    if (this.applicant?.last_name && !normalized.last_name) {
+      merged.last_name = this.applicant.last_name;
+    }
+    // Recompute combined name to ensure header consistency
+    const fn = (merged.first_name || '').toString().trim();
+    const ln = (merged.last_name || '').toString().trim();
+    merged.name = [fn, ln].filter(Boolean).join(' ').trim() || merged.name || '';
+    this.cachedApplicantDetails = { ...merged };
+    this.applicant = merged;
+    this.editableApplicant = { ...merged };
     this.updatePhoneSubscription().catch(() => {});
   }
 
   private normalizeApplicantRecord(record: any): any {
+    // Preserve existing first/last name if the read payload happens to omit them
     const firstName = this.coalesce(
       record.first_name,
       record.FIRST_NAME,
       record.firstName,
+      this.applicant?.first_name,
       ""
     );
     const lastName = this.coalesce(
       record.last_name,
       record.LAST_NAME,
       record.lastName,
+      this.applicant?.last_name,
       ""
     );
     const email = this.coalesce(record.email, record.EMAIL, "");
@@ -5105,6 +5647,95 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
       })
       .join(" ");
+  }
+
+  // ===== Phone editor helpers =====
+  toggleCountryMenu(e?: Event): void {
+    if (e) e.stopPropagation();
+    this.countryMenuOpen = !this.countryMenuOpen;
+    if (this.countryMenuOpen) {
+      this.filteredCountries = PHONE_COUNTRIES.slice();
+      this.countrySearch = "";
+      setTimeout(() => this.countrySearchInput?.nativeElement?.focus(), 0);
+    }
+  }
+  closeCountryMenu(): void {
+    this.countryMenuOpen = false;
+  }
+  onCountrySearch(term: string): void {
+    this.countrySearch = term;
+    const t = term.trim().toLowerCase();
+    if (!t) {
+      this.filteredCountries = PHONE_COUNTRIES.slice();
+      return;
+    }
+  this.filteredCountries = PHONE_COUNTRIES.filter((c: PhoneCountry) =>
+      c.name.toLowerCase().includes(t) || c.iso2.includes(t) || c.dial.startsWith(t.replace(/^\+/, ""))
+    );
+  }
+  selectCountry(c: PhoneCountry): void {
+    this.selectedCountry = c;
+    this.closeCountryMenu();
+    // recompute E.164 value on country change
+    this.composeE164FromEditor();
+  }
+  onPhoneLocalChange(val: string): void {
+    // format for display for US/CA, else keep digits/space
+    const onlyDigits = val.replace(/\D+/g, "");
+    if (this.selectedCountry.dial === "1") {
+      this.phoneLocal = this.formatNanp(onlyDigits);
+    } else {
+      this.phoneLocal = onlyDigits;
+    }
+    this.composeE164FromEditor();
+  }
+  private composeE164FromEditor(): void {
+    const digits = this.phoneLocal.replace(/\D+/g, "");
+    const code = this.selectedCountry?.dial ?? "";
+    const e164 = digits ? `+${code}${digits}` : code ? `+${code}` : "";
+    if (!this.editableApplicant) this.editableApplicant = {};
+    this.editableApplicant.phone = e164;
+  }
+  private initPhoneFromValue(value: string): void {
+    const input = String(value || "").trim();
+    if (input.startsWith("+")) {
+      const digits = input.replace(/\D+/g, "");
+      // find country by longest matching dial
+      let match: PhoneCountry | null = null;
+      for (const c of PHONE_COUNTRIES.slice().sort((a: PhoneCountry, b: PhoneCountry)=> b.dial.length - a.dial.length)) {
+        if (digits.startsWith(c.dial)) { match = c; break; }
+      }
+      this.selectedCountry = match || this.selectedCountry;
+      const localDigits = match ? digits.slice(match.dial.length) : digits;
+      this.phoneLocal = this.selectedCountry.dial === "1" ? this.formatNanp(localDigits) : localDigits;
+    } else {
+      // default to US and use raw digits
+      this.selectedCountry = PHONE_COUNTRIES.find((c: PhoneCountry)=>c.iso2==='us') || this.selectedCountry;
+      const digits = input.replace(/\D+/g, "");
+      this.phoneLocal = this.formatNanp(digits);
+      this.composeE164FromEditor();
+    }
+  }
+  private formatNanp(d: string): string {
+    const s = (d || "").slice(0, 10);
+    if (!s) return "";
+    const a = s.slice(0, 3);
+    const b = s.slice(3, 6);
+    const c = s.slice(6, 10);
+    if (s.length <= 3) return a;
+    if (s.length <= 6) return `${a} ${b}`;
+    return `${a} ${b} ${c}`;
+  }
+  flagUrl(iso?: string | null): string {
+    if (!iso) return "https://flagcdn.com/24x18/un.png";
+    return `https://flagcdn.com/24x18/${iso.toLowerCase()}.png`;
+  }
+
+  @HostListener('document:click')
+  onDocClick(): void {
+    if (this.countryMenuOpen) {
+      this.closeCountryMenu();
+    }
   }
 
   // Normalize currentStageId to a number when possible for safe comparisons in template

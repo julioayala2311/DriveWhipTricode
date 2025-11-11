@@ -185,6 +185,7 @@
             title="Delete stage"
             (click)="onDeleteClick($event, s.id_stage)"
             [attr.aria-label]="'Delete stage ' + (s.name || '')"
+            *ngIf="editingStageId() !== s.id_stage"
           >
             <ng-container *ngIf="deletingStageId() !== s.id_stage; else deletingTpl">
               <i class="feather icon-trash"></i>
@@ -192,6 +193,18 @@
             <ng-template #deletingTpl>
               <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
             </ng-template>
+          </button>
+          <!-- Edit name button shown on hover (separate from delete) -->
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary stage-edit-btn"
+            title="Edit name"
+            (click)="$event.stopPropagation(); beginEditStageName(s.id_stage)"
+            [disabled]="editingStageSaving()"
+            [attr.aria-label]="'Edit stage ' + (s.name || '')"
+            *ngIf="editingStageId() !== s.id_stage"
+          >
+            <i class="feather icon-edit"></i>
           </button>
           <div class="d-flex align-items-start gap-2">
             <div class="move-icon text-secondary" title="Drag to reorder">
@@ -205,9 +218,49 @@
               ></i>
             </div>
             <div class="status-block flex-grow-1">
-              <div class="status-text fw-semibold text-truncate">
-                {{ s.name }}
+              <!-- Inline edit: show input when current card is in edit mode -->
+              <div *ngIf="editingStageId() === s.id_stage; else nameView" class="d-flex align-items-center gap-1">
+                <input
+                  type="text"
+                  class="form-control form-control-sm"
+                  style="max-width: 220px"
+                  [ngModel]="editingStageNameValue()"
+                  (ngModelChange)="editingStageNameValue.set($event)"
+                  (click)="$event.stopPropagation()"
+                  (keydown.enter)="$event.stopPropagation(); saveEditStageName(s.id_stage)"
+                  (keydown.escape)="$event.stopPropagation(); cancelEditStageName()"
+                  [disabled]="editingStageSaving()"
+                  autofocus
+                />
+                <button
+                  type="button"
+                  class="btn btn-xs btn-primary"
+                  title="Save"
+                  (click)="$event.stopPropagation(); saveEditStageName(s.id_stage)"
+                  [disabled]="editingStageSaving() || !editingStageNameValue().trim()"
+                >
+                  <ng-container *ngIf="!editingStageSaving(); else savingNameTpl">
+                    <i class="feather icon-check"></i>
+                  </ng-container>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-xs btn-outline-secondary"
+                  title="Cancel"
+                  (click)="$event.stopPropagation(); cancelEditStageName()"
+                  [disabled]="editingStageSaving()"
+                >
+                  <i class="feather icon-x"></i>
+                </button>
+                <ng-template #savingNameTpl>
+                  <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                </ng-template>
               </div>
+              <ng-template #nameView>
+                <div class="status-text fw-semibold text-truncate">
+                  {{ s.name }}
+                </div>
+              </ng-template>
               <div class="sub-status small">{{ s.type }}</div>
               <div class="sub-status small" *ngIf="s.form_name">
                 {{ s.form_name }}

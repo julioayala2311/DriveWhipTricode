@@ -107,7 +107,10 @@
                     {{ applicantDetailsError }}
                   </li>
                   <!-- Editable applicant fields -->
-                  <li *ngIf="isEditingApplicant && !readOnly" class="edit-applicant-block">
+                  <li
+                    *ngIf="isEditingApplicant && !readOnly"
+                    class="edit-applicant-block"
+                  >
                     <div class="edit-card">
                       <div class="edit-card-header">
                         <div>
@@ -144,7 +147,93 @@
                               placeholder="Last name"
                             />
                           </div>
-                          <div class="col-12 col-sm-6">
+                          <div class="col-12 col-sm-12">
+                            <label class="form-label small" for="editPhone">
+                              Phone Number
+                            </label>
+                            <div
+                              class="phone-field"
+                              (click)="$event.stopPropagation()"
+                            >
+                              <div
+                                class="phone-combobox"
+                                [class.open]="countryMenuOpen"
+                              >
+                                <button
+                                  type="button"
+                                  class="phone-trigger"
+                                  (click)="toggleCountryMenu($event)"
+                                  [attr.aria-expanded]="countryMenuOpen"
+                                >
+                                  <img
+                                    [src]="flagUrl(selectedCountry.iso2)"
+                                    alt=""
+                                    class="flag"
+                                  />
+                                  <span class="iso">{{
+                                    selectedCountry.iso2.toUpperCase()
+                                  }}</span>
+                                  <i class="feather icon-chevron-down"></i>
+                                </button>
+                                <input
+                                  id="editPhone"
+                                  name="editPhone"
+                                  class="phone-input"
+                                  [placeholder]="
+                                    selectedCountry.dial === '1'
+                                      ? '201 555 0123'
+                                      : '+'.concat(selectedCountry.dial || '')
+                                  "
+                                  inputmode="tel"
+                                  autocomplete="tel"
+                                  [ngModel]="phoneLocal"
+                                  (focus)="countryMenuOpen = false"
+                                  (ngModelChange)="onPhoneLocalChange($event)"
+                                />
+                              </div>
+                              <div
+                                class="phone-menu"
+                                *ngIf="countryMenuOpen"
+                                (click)="$event.stopPropagation()"
+                              >
+                                <div class="phone-menu-search">
+                                  <i class="feather icon-search"></i>
+                                  <input
+                                    type="text"
+                                    class="form-control form-control-sm"
+                                    placeholder="Search country or code"
+                                    #countrySearchInput
+                                    [ngModel]="countrySearch"
+                                    (ngModelChange)="onCountrySearch($event)"
+                                  />
+                                </div>
+                                <div class="phone-menu-list">
+                                  <button
+                                    type="button"
+                                    class="phone-menu-item"
+                                    *ngFor="let c of filteredCountries"
+                                    (click)="selectCountry(c)"
+                                    [class.active]="
+                                      c.iso2 === selectedCountry.iso2
+                                    "
+                                  >
+                                    <img
+                                      [src]="flagUrl(c.iso2)"
+                                      alt=""
+                                      class="flag"
+                                    />
+                                    <span class="name"
+                                      >{{ c.name }} ({{
+                                        c.iso2.toUpperCase()
+                                      }})</span
+                                    >
+                                    <span class="dial">+{{ c.dial }}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="col-12 col-sm-12">
                             <label class="form-label small" for="editEmail"
                               >Email</label
                             >
@@ -154,20 +243,6 @@
                               [(ngModel)]="editableApplicant.email"
                               name="editEmail"
                               placeholder="Email"
-                            />
-                          </div>
-                          <div class="col-12 col-sm-6">
-                            <label class="form-label small" for="editPhone"
-                              >Phone</label
-                            >
-                            <input
-                              id="editPhone"
-                              class="form-control form-control-sm"
-                              [(ngModel)]="editableApplicant.phone"
-                              name="editPhone"
-                              placeholder="+11234567890"
-                              inputmode="tel"
-                              autocomplete="tel"
                             />
                           </div>
                         </div>
@@ -295,9 +370,7 @@
                       [ngClass]="statusBadgeClass(st)"
                     >
                       <i class="feather" [ngClass]="statusBadgeIcon(st)"></i>
-                      <span
-                        >{{ statusBadgeText(st) }}</span
-                      >
+                      <span>{{ statusBadgeText(st) }}</span>
                     </span>
                   </div>
                 </ng-container>
@@ -310,7 +383,7 @@
                       class="feather"
                       [ngClass]="statusBadgeIcon(resolvedStatus)"
                     ></i>
-                      <span>{{ statusBadgeText(resolvedStatus) }}</span>
+                    <span>{{ statusBadgeText(resolvedStatus) }}</span>
                   </span>
                 </ng-template>
                 <div class="text-secondary small mt-2">Stage completion</div>
@@ -364,7 +437,10 @@
                               n.created_at | date : "MM/dd/yyyy h:mm a"
                             }}</span>
                           </div>
-                          <div class="note-actions" *ngIf="!isEditingNote(n) && !readOnly">
+                          <div
+                            class="note-actions"
+                            *ngIf="!isEditingNote(n) && !readOnly"
+                          >
                             <button
                               type="button"
                               class="btn btn-link btn-xxs text-secondary"
@@ -388,7 +464,10 @@
                           {{ n.note }}
                         </div>
 
-                        <div *ngIf="isEditingNote(n) && !readOnly" class="note-edit mt-2">
+                        <div
+                          *ngIf="isEditingNote(n) && !readOnly"
+                          class="note-edit mt-2"
+                        >
                           <textarea
                             class="form-control form-control-sm"
                             [(ngModel)]="editingNoteText"
@@ -425,7 +504,11 @@
                 </div>
 
                 <!-- Add note form -->
-                <form class="add-note-form" (submit)="onAddNote($event)" *ngIf="!readOnly">
+                <form
+                  class="add-note-form"
+                  (submit)="onAddNote($event)"
+                  *ngIf="!readOnly"
+                >
                   <div class="input-group">
                     <input
                       type="text"
@@ -528,7 +611,7 @@
             </div>
           </div>
         </div>
-  <div class="panel-actions" *ngIf="!readOnly">
+        <div class="panel-actions" *ngIf="!readOnly">
           <button
             type="button"
             class="btn btn-primary btn-sm"
@@ -665,7 +748,11 @@
                   ></span>
                   <span>Move to Next Stage</span>
                 </button>
-                <button type="button" class="menu-item" (click)="openMoveToModal()">
+                <button
+                  type="button"
+                  class="menu-item"
+                  (click)="openMoveToModal()"
+                >
                   <span class="icon"><i class="feather icon-share-2"></i></span>
                   <span>Move to...</span>
                 </button>
@@ -685,13 +772,19 @@
               <div class="menu-divider"></div>
               <!-- Approve as Driver (only when backend signals go_to_driver) -->
               <div class="menu-section" *ngIf="showApproveDriver">
-                <button type="button" class="menu-item" (click)="approveAsDriver(); $event.stopPropagation()">
-                  <span class="icon"><i class="feather icon-user-check"></i></span>
+                <button
+                  type="button"
+                  class="menu-item"
+                  (click)="approveAsDriver(); $event.stopPropagation()"
+                >
+                  <span class="icon"
+                    ><i class="feather icon-user-check"></i
+                  ></span>
                   <span>Approve as Driver</span>
                 </button>
               </div>
               <div class="menu-divider" *ngIf="showApproveDriver"></div>
-              
+
               <!-- <div class="menu-section">
                 <button type="button" class="menu-item">
                   <span class="icon"><i class="feather icon-upload"></i></span>
@@ -752,7 +845,10 @@
             >
               {{ message.dayLabel }}
             </div>
-            <div class="chat-message" [ngClass]="[message.direction, message.__isNew ? 'is-new' : '']">
+            <div
+              class="chat-message"
+              [ngClass]="[message.direction, message.__isNew ? 'is-new' : '']"
+            >
               <!-- <div class="chat-avatar" *ngIf="message.avatar">
                 <span>{{ message.avatar }}</span>
               </div> -->
@@ -956,12 +1052,18 @@
                   > -->
                 </div>
                 <div class="card-body">
-                  <ng-container *ngIf="group.items && group.items.length; else emptyGroup">
-                    <ng-container *ngFor="let doc of group.items; let i = index">
+                  <ng-container
+                    *ngIf="group.items && group.items.length; else emptyGroup"
+                  >
+                    <ng-container
+                      *ngFor="let doc of group.items; let i = index"
+                    >
                       <div class="file-preview" [class.mt-3]="i > 0">
                         <div
                           class="file-preview__thumb"
-                          [class.file-preview__thumb--image]="isImageDocument(doc)"
+                          [class.file-preview__thumb--image]="
+                            isImageDocument(doc)
+                          "
                         >
                           <img
                             *ngIf="doc.url && isImageDocument(doc)"
@@ -969,9 +1071,18 @@
                             [alt]="doc.document_name"
                             (error)="refreshDocUrl(doc)"
                           />
-                          <div *ngIf="!isImageDocument(doc)" class="file-preview__fallback">
-                            <i class="feather" [ngClass]="documentIcon(doc)"></i>
-                            <span class="file-preview__ext" *ngIf="documentExtension(doc)">
+                          <div
+                            *ngIf="!isImageDocument(doc)"
+                            class="file-preview__fallback"
+                          >
+                            <i
+                              class="feather"
+                              [ngClass]="documentIcon(doc)"
+                            ></i>
+                            <span
+                              class="file-preview__ext"
+                              *ngIf="documentExtension(doc)"
+                            >
                               {{ documentExtension(doc) | uppercase }}
                             </span>
                           </div>
@@ -988,11 +1099,17 @@
                             </span>
                           </div>
                           <div class="file-preview__status" *ngIf="doc.status">
-                            <span class="badge rounded-pill" [ngClass]="docStatusClass(doc)">
+                            <span
+                              class="badge rounded-pill"
+                              [ngClass]="docStatusClass(doc)"
+                            >
                               {{ docStatusLabel(doc.status) }}
                             </span>
                           </div>
-                          <div class="file-preview__actions d-flex flex-wrap gap-2" *ngIf="!readOnly">
+                          <div
+                            class="file-preview__actions d-flex flex-wrap gap-2"
+                            *ngIf="!readOnly"
+                          >
                             <button
                               type="button"
                               class="btn btn-soft-primary btn-sm"
@@ -1001,15 +1118,12 @@
                               <i class="feather icon-external-link me-1"></i>
                               View
                             </button>
-                            <!-- <button
-                              type="button"
-                              class="btn btn-soft-secondary btn-sm"
-                              (click)="downloadDocument(doc)"
+                            <ng-container
+                              *ngIf="
+                                isDocRecollecting(doc);
+                                else normalDocActions
+                              "
                             >
-                              <i class="feather icon-download me-1"></i>
-                              Download
-                            </button> -->
-                            <ng-container *ngIf="isDocRecollecting(doc); else normalDocActions">
                               <button
                                 type="button"
                                 class="btn btn-ghost btn-sm"
@@ -1018,7 +1132,8 @@
                                 *ngIf="uploadFiles"
                                 aria-label="Cancel Re-collection"
                               >
-                                <i class="feather icon-x me-1"></i>Cancel Re-collection
+                                <i class="feather icon-x me-1"></i>Cancel
+                                Re-collection
                               </button>
                             </ng-container>
                             <ng-template #normalDocActions>
@@ -1046,20 +1161,36 @@
                       </div>
                       <!-- Inline previews for the first document only to avoid heavy embedding -->
                       <ng-container *ngIf="i === 0">
-                        <div class="pdf-embed mt-3" *ngIf="isPdfDocument(doc) && doc.url">
+                        <div
+                          class="pdf-embed mt-3"
+                          *ngIf="isPdfDocument(doc) && doc.url"
+                        >
                           <div class="pdf-embed__frame-wrapper">
-                            <iframe title="PDF preview" [src]="pdfViewerSrc(doc)" loading="lazy"></iframe>
+                            <iframe
+                              title="PDF preview"
+                              [src]="pdfViewerSrc(doc)"
+                              loading="lazy"
+                            ></iframe>
                           </div>
                           <div class="text-secondary small mt-1">
-                            If the preview doesn’t load, use View to open in a new tab.
+                            If the preview doesn’t load, use View to open in a
+                            new tab.
                           </div>
                         </div>
-                        <div class="pdf-embed mt-3" *ngIf="isWordDocument(doc) && doc.url">
+                        <div
+                          class="pdf-embed mt-3"
+                          *ngIf="isWordDocument(doc) && doc.url"
+                        >
                           <div class="pdf-embed__frame-wrapper">
-                            <iframe title="Document preview" [src]="officeViewerSrc(doc)" loading="lazy"></iframe>
+                            <iframe
+                              title="Document preview"
+                              [src]="officeViewerSrc(doc)"
+                              loading="lazy"
+                            ></iframe>
                           </div>
                           <div class="text-secondary small mt-1">
-                            Preview uses Microsoft Office viewer. If it doesn’t load, use View.
+                            Preview uses Microsoft Office viewer. If it doesn’t
+                            load, use View.
                           </div>
                         </div>
                       </ng-container>
@@ -1207,19 +1338,19 @@
               (click)="openTemplatesModal()"
             >
               <!-- <span class="attach-label">Templates</span> -->
-              
+
               <i class="feather icon-plus"></i>
             </button>
-            <input
+            <textarea
               #composerInput
-              type="text"
               class="composer-control"
-              placeholder="Enter your messages"
+              placeholder="Enter your message"
               [(ngModel)]="draftMessage"
               (ngModelChange)="onDraftMessageChange($event)"
               name="messageInput"
+              rows="3"
               autocomplete="off"
-            />
+            ></textarea>
             <button
               type="submit"
               class="btn btn-primary send-btn"
@@ -1876,6 +2007,77 @@
       <div class="event-sidebar-body">
         <div class="row g-3 align-items-start">
           <div class="col-12 col-lg-7">
+            <!-- Template picker for Email -->
+            <div class="mb-2">
+              <label class="form-label small">Template</label>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <select
+                  class="form-select form-select-sm"
+                  [ngModel]="emailSelectedTemplateId"
+                  (ngModelChange)="onEmailTemplateChange($event)"
+                  [disabled]="emailTemplateLoading || emailTemplatesLoading"
+                >
+                  <option [ngValue]="null">Select template…</option>
+                  <option
+                    *ngFor="let tpl of emailTemplates"
+                    [ngValue]="tpl.id ?? tpl.code"
+                  >
+                    {{ tpl.description }}
+                  </option>
+                </select>
+                <span
+                  class="small text-secondary"
+                  *ngIf="emailTemplatesLoading && !emailTemplateLoading"
+                >
+                  <span
+                    class="spinner-border spinner-border-sm me-1"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Loading…
+                </span>
+                <small
+                  class="text-danger"
+                  *ngIf="emailTemplatesError && !emailTemplatesLoading"
+                  >{{ emailTemplatesError }}</small
+                >
+                <small class="text-danger" *ngIf="emailTemplateError">{{
+                  emailTemplateError
+                }}</small>
+              </div>
+            </div>
+            <!-- Variable insertion (Email) -->
+            <div class="mb-2">
+              <label class="form-label small">Insert variable</label>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <select
+                  class="form-select form-select-sm"
+                  [ngModel]="emailDataKeyType"
+                  (ngModelChange)="onEmailDataKeyTypeChange($event)"
+                >
+                  <option value="" disabled selected>Select type</option>
+                  <option *ngFor="let t of dataKeyTypes" [value]="t">
+                    {{ t }}
+                  </option>
+                </select>
+                <select
+                  class="form-select form-select-sm"
+                  [disabled]="!emailDataKeyType"
+                  [ngModel]="emailDataKey"
+                  (ngModelChange)="onInsertDataKey('email', $event)"
+                >
+                  <option value="" disabled selected>Select variable</option>
+                  <option *ngFor="let k of emailDataKeyOptions" [value]="k">
+                    {{ k }}
+                  </option>
+                </select>
+                <small
+                  class="text-secondary"
+                  *ngIf="emailDataKeyType && !emailDataKeyOptions?.length"
+                  >No variables for this type.</small
+                >
+              </div>
+            </div>
             <!-- <div class="mb-2">
               <label class="form-label small">Send From</label>
               <ng-container *ngIf="emailFromOptions?.length; else fromInput">
@@ -2014,22 +2216,22 @@
                   <i class="feather icon-code"></i>
                 </button>
               </div>
-              <ng-container *ngIf="!emailSourceMode; else sourceMode">
-                <div
-                  #emailEditorRef
-                  class="form-control"
-                  style="min-height: 220px"
-                  contenteditable="true"
-                  (input)="onEmailEditorInput($event)"
-                ></div>
-              </ng-container>
-              <ng-template #sourceMode>
-                <textarea
-                  class="form-control"
-                  style="min-height: 220px"
-                  [(ngModel)]="emailContent"
-                ></textarea>
-              </ng-template>
+              <div class="email-editor-container">
+                <ng-container *ngIf="!emailSourceMode; else sourceMode">
+                  <div
+                    #emailEditorRef
+                    class="email-rich-editor"
+                    contenteditable="true"
+                    (input)="onEmailEditorInput($event)"
+                  ></div>
+                </ng-container>
+                <ng-template #sourceMode>
+                  <textarea
+                    class="email-source-editor"
+                    [(ngModel)]="emailContent"
+                  ></textarea>
+                </ng-template>
+              </div>
             </div>
             <!-- <div class="form-check mt-2">
               <input
@@ -2046,6 +2248,7 @@
           </div>
           <div class="col-12 col-lg-5">
             <!-- Vista Desktop (Mac) -->
+            <!-- Vista Desktop (Mac) -->
             <div
               *ngIf="emailPreviewMode === 'desktop'"
               class="device device-mac"
@@ -2055,12 +2258,6 @@
                   <div class="small text-secondary">
                     {{ emailSubject || "[Email subject]" }}
                   </div>
-                  <!-- <div class="small">
-                    From:
-                    <span class="text-primary">{{
-                      emailFrom || "you@example.com"
-                    }}</span>
-                  </div> -->
                   <div class="small">
                     To:
                     <span class="text-primary">{{
@@ -2068,9 +2265,24 @@
                     }}</span>
                   </div>
                   <hr />
-                  <div
-                    [innerHTML]="emailContent ? emailPreviewHtml : '[Message]'"
-                  ></div>
+                  <!-- Sandboxed preview iframe to prevent template CSS bleed -->
+                  <iframe
+                    *ngIf="emailContent; else desktopEmpty"
+                    #desktopFrame
+                    class="preview-iframe"
+                    title="Email desktop preview"
+                    [srcdoc]="emailSandboxHtml"
+                    (load)="fitPreviewToFrame('desktop', desktopFrame)"
+                    style="
+                      width: 100%;
+                      height: 48vh;
+                      border: 0;
+                      background: #fff;
+                    "
+                  ></iframe>
+                  <ng-template #desktopEmpty>
+                    <div class="text-secondary">[Message]</div>
+                  </ng-template>
                 </div>
               </div>
             </div>
@@ -2086,12 +2298,6 @@
                   <div class="small text-secondary">
                     {{ emailSubject || "[Subject]" }}
                   </div>
-                  <!-- <div class="small">
-                    From:
-                    <span class="text-primary">{{
-                      emailFrom || "you@example.com"
-                    }}</span>
-                  </div> -->
                   <div class="small">
                     To:
                     <span class="text-primary">{{
@@ -2099,10 +2305,26 @@
                     }}</span>
                   </div>
                   <hr />
-                  <div
-                    [innerHTML]="emailContent ? emailPreviewHtml : '[Message]'"
-                    style="font-size: 0.95rem"
-                  ></div>
+                  <iframe
+                    *ngIf="emailContent; else mobileEmpty"
+                    #mobileFrame
+                    class="preview-iframe"
+                    title="Email mobile preview"
+                    [srcdoc]="emailSandboxHtml"
+                    (load)="fitPreviewToFrame('mobile', mobileFrame)"
+                    style="
+                      width: 100%;
+                      height: 52vh;
+                      border: 0;
+                      background: #fff;
+                      font-size: 0.95rem;
+                    "
+                  ></iframe>
+                  <ng-template #mobileEmpty>
+                    <div class="text-secondary" style="font-size: 0.95rem">
+                      [Message]
+                    </div>
+                  </ng-template>
                 </div>
               </div>
             </div>
@@ -2175,11 +2397,83 @@
                 >
               </div>
             </div>
+            <!-- Template picker for SMS -->
+            <div class="mb-2">
+              <label class="form-label small">Template</label>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <select
+                  class="form-select form-select-sm"
+                  [ngModel]="smsSelectedTemplateId"
+                  (ngModelChange)="onSmsTemplateChange($event)"
+                  [disabled]="smsTemplateLoading || smsTemplatesLoading"
+                >
+                  <option [ngValue]="null">Select template…</option>
+                  <option
+                    *ngFor="let tpl of smsTemplates"
+                    [ngValue]="tpl.id ?? tpl.code"
+                  >
+                    {{ tpl.description }}
+                  </option>
+                </select>
+                <span
+                  class="small text-secondary"
+                  *ngIf="smsTemplatesLoading && !smsTemplateLoading"
+                >
+                  <span
+                    class="spinner-border spinner-border-sm me-1"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Loading…
+                </span>
+                <small
+                  class="text-danger"
+                  *ngIf="smsTemplatesError && !smsTemplatesLoading"
+                  >{{ smsTemplatesError }}</small
+                >
+                <small class="text-danger" *ngIf="smsTemplateError">{{
+                  smsTemplateError
+                }}</small>
+              </div>
+            </div>
+            <!-- Variable insertion (SMS) -->
+            <div class="mb-2">
+              <label class="form-label small">Insert variable</label>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <select
+                  class="form-select form-select-sm"
+                  [ngModel]="smsDataKeyType"
+                  (ngModelChange)="onSmsDataKeyTypeChange($event)"
+                >
+                  <option value="" disabled selected>Select type</option>
+                  <option *ngFor="let t of dataKeyTypes" [value]="t">
+                    {{ t }}
+                  </option>
+                </select>
+                <select
+                  class="form-select form-select-sm"
+                  [disabled]="!smsDataKeyType"
+                  [ngModel]="smsDataKey"
+                  (ngModelChange)="onInsertDataKey('sms', $event)"
+                >
+                  <option value="" disabled selected>Select variable</option>
+                  <option *ngFor="let k of smsDataKeyOptions" [value]="k">
+                    {{ k }}
+                  </option>
+                </select>
+                <small
+                  class="text-secondary"
+                  *ngIf="smsDataKeyType && !smsDataKeyOptions?.length"
+                  >No variables for this type.</small
+                >
+              </div>
+            </div>
             <div class="mb-2">
               <label class="form-label small">Message</label>
               <textarea
                 class="form-control"
                 style="min-height: 160px"
+                #smsArea
                 [ngModel]="smsMessage"
                 (ngModelChange)="onSmsInput($event)"
                 placeholder="Enter your message"
@@ -2220,7 +2514,7 @@
                     {{ "+" + smsFrom }}
                   </div>
                   <div class="d-flex justify-content-end p-2">
-                    <span class="badge bg-primary">{{
+                    <span class="sms-preview-bubble badge bg-primary">{{
                       smsMessage || "[Message]"
                     }}</span>
                   </div>
@@ -2295,7 +2589,9 @@
           </div>
           <div
             class="templates-content"
-            *ngIf="!templatesLoading && !templatesError && filteredTemplates.length"
+            *ngIf="
+              !templatesLoading && !templatesError && filteredTemplates.length
+            "
           >
             <button
               type="button"
@@ -2305,7 +2601,9 @@
             >
               <div class="template-row-header">
                 <span class="template-name">{{ tpl.description }}</span>
-                <span class="template-type" *ngIf="tpl.type">{{ tpl.type }}</span>
+                <span class="template-type" *ngIf="tpl.type">{{
+                  tpl.type
+                }}</span>
               </div>
               <div class="template-subject" *ngIf="tpl.subject">
                 {{ tpl.subject }}
@@ -2325,7 +2623,9 @@
           </div>
           <div
             class="templates-state text-secondary"
-            *ngIf="!templatesLoading && !templatesError && !filteredTemplates.length"
+            *ngIf="
+              !templatesLoading && !templatesError && !filteredTemplates.length
+            "
           >
             No templates found.
           </div>
@@ -2347,11 +2647,11 @@
           <small class="text-secondary"
             >Select a template to populate the chat composer.</small
           >
-            <a
-              class="manage-templates-link d-inline-flex align-items-center gap-1"
-              href=""
-              (click)="navigateToTemplates(); $event.preventDefault()"
-            >
+          <a
+            class="manage-templates-link d-inline-flex align-items-center gap-1"
+            href=""
+            (click)="navigateToTemplates(); $event.preventDefault()"
+          >
             <span>Manage templates</span>
             <i class="feather icon-external-link"></i>
           </a>
@@ -2360,45 +2660,100 @@
     </div>
 
     <!-- Move To Modal -->
-    <div class="modal-backdrop" *ngIf="moveToOpen" (click)="closeMoveToModal()"></div>
-    <div class="modal-centered" *ngIf="moveToOpen" (click)="$event.stopPropagation()">
+    <div
+      class="modal-backdrop"
+      *ngIf="moveToOpen"
+      (click)="closeMoveToModal()"
+    ></div>
+    <div
+      class="modal-centered"
+      *ngIf="moveToOpen"
+      (click)="$event.stopPropagation()"
+    >
       <div class="modal-card shadow-lg">
-        <div class="modal-header d-flex align-items-center justify-content-between">
+        <div
+          class="modal-header d-flex align-items-center justify-content-between"
+        >
           <h5 class="m-0">Move Applicant</h5>
-          <button type="button" class="btn btn-link btn-sm text-secondary px-2" (click)="closeMoveToModal()" aria-label="Close">
+          <button
+            type="button"
+            class="btn btn-link btn-sm text-secondary px-2"
+            (click)="closeMoveToModal()"
+            aria-label="Close"
+          >
             <i class="feather icon-x"></i>
           </button>
         </div>
         <div class="modal-body">
           <div class="mb-2 small">
-            You are moving <strong>{{ applicant?.first_name }} {{ applicant?.last_name }}</strong>
+            You are moving
+            <strong
+              >{{ applicant?.first_name }} {{ applicant?.last_name }}</strong
+            >
             <ng-container *ngIf="moveToStageOptions && moveToStageId as sid">
               to <strong>{{ displayStageName(sid) }}</strong>
             </ng-container>
           </div>
           <div class="mb-2">
             <label class="form-label small">Location</label>
-            <select class="form-select" [disabled]="moveToLocationsLoading" [ngModel]="moveToLocationId" (ngModelChange)="onMoveToLocationChange($event)">
+            <select
+              class="form-select"
+              [disabled]="moveToLocationsLoading"
+              [ngModel]="moveToLocationId"
+              (ngModelChange)="onMoveToLocationChange($event)"
+            >
               <option [ngValue]="null">Select a location…</option>
-              <option *ngFor="let loc of moveToLocationOptions" [ngValue]="loc.id">{{ loc.name }}</option>
+              <option
+                *ngFor="let loc of moveToLocationOptions"
+                [ngValue]="loc.id"
+              >
+                {{ loc.name }}
+              </option>
             </select>
           </div>
           <div class="mb-2">
             <label class="form-label small">Stage</label>
-            <select class="form-select" [disabled]="moveToStagesLoading || !moveToWorkflowId" [ngModel]="moveToStageId" (ngModelChange)="onMoveToStageChange($event)">
+            <select
+              class="form-select"
+              [disabled]="moveToStagesLoading || !moveToWorkflowId"
+              [ngModel]="moveToStageId"
+              (ngModelChange)="onMoveToStageChange($event)"
+            >
               <option [ngValue]="null">Select a stage…</option>
-              <option *ngFor="let st of moveToStageOptions" [ngValue]="st.id">{{ st.name }}</option>
+              <option *ngFor="let st of moveToStageOptions" [ngValue]="st.id">
+                {{ st.name }}
+              </option>
             </select>
           </div>
           <div class="text-secondary small mt-2">
-            <ng-template #noStageSelected>Pick a stage to continue.</ng-template>
+            <ng-template #noStageSelected
+              >Pick a stage to continue.</ng-template
+            >
           </div>
-          <div class="text-warning small mt-2" *ngIf="moveToError">{{ moveToError }}</div>
+          <div class="text-warning small mt-2" *ngIf="moveToError">
+            {{ moveToError }}
+          </div>
         </div>
         <div class="modal-footer d-flex justify-content-end gap-2">
-          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeMoveToModal()">Cancel</button>
-          <button type="button" class="btn btn-primary btn-sm" (click)="submitMoveTo()" [disabled]="moveToSaving || !moveToLocationId || !moveToStageId">
-            <span *ngIf="moveToSaving" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            (click)="closeMoveToModal()"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="submitMoveTo()"
+            [disabled]="moveToSaving || !moveToLocationId || !moveToStageId"
+          >
+            <span
+              *ngIf="moveToSaving"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+              aria-hidden="true"
+            ></span>
             Submit
           </button>
         </div>

@@ -21,7 +21,6 @@
         class="btn btn-sm btn-primary d-flex align-items-center gap-1"
         (click)="openCreateTemplate()"
       >
-       
         <span>Add Template</span>
       </button>
     </div>
@@ -90,22 +89,41 @@
   <div class="modal-backdrop" *ngIf="showEditorModal"></div>
   <div class="modal-centered" *ngIf="showEditorModal">
     <div class="modal-card editor-modal">
-      <div class="modal-header d-flex align-items-center justify-content-between">
-        <h5 class="mb-0">{{ editorMode === 'add' ? 'Add Template' : 'Edit Message Template' }}</h5>
-        <button type="button" class="btn btn-sm btn-ghost" (click)="showEditorModal=false" aria-label="Close">
+      <div
+        class="modal-header d-flex align-items-center justify-content-between"
+      >
+        <h5 class="mb-0">
+          {{ editorMode === "add" ? "Add Template" : "Edit Message Template" }}
+        </h5>
+        <button
+          type="button"
+          class="btn btn-sm btn-ghost"
+          (click)="showEditorModal = false"
+          aria-label="Close"
+        >
           <i class="feather icon-x"></i>
         </button>
       </div>
       <div class="modal-body">
         <div class="row g-3">
           <div class="col-12 col-md-6">
-            <label class="form-label">Template Name <span class="text-danger">*</span></label>
-            <input class="form-control" [(ngModel)]="templateForm.name" placeholder="Enter template name" />
+            <label class="form-label"
+              >Template Name <span class="text-danger">*</span></label
+            >
+            <input
+              class="form-control"
+              [(ngModel)]="templateForm.name"
+              placeholder="Enter template name"
+            />
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label">Template Type <i class="feather icon-help-circle text-muted"></i></label>
+            <label class="form-label"
+              >Template Type <i class="feather icon-help-circle text-muted"></i
+            ></label>
             <select class="form-select" [(ngModel)]="templateForm.type">
-              <option *ngFor="let t of templateTypes" [value]="t.value">{{ t.label }}</option>
+              <option *ngFor="let t of templateTypes" [value]="t.value">
+                {{ t.label }}
+              </option>
             </select>
           </div>
         </div>
@@ -113,43 +131,86 @@
           <div class="col-12 col-md-6">
             <label class="form-label d-block">Status</label>
             <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="tplActiveSwitch" [(ngModel)]="templateForm.isActive">
-              <label class="form-check-label" for="tplActiveSwitch">{{ templateForm.isActive ? 'Active' : 'Inactive' }}</label>
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="tplActiveSwitch"
+                [(ngModel)]="templateForm.isActive"
+              />
+              <label class="form-check-label" for="tplActiveSwitch">{{
+                templateForm.isActive ? "Active" : "Inactive"
+              }}</label>
             </div>
           </div>
         </div>
 
         <div class="mt-4">
-          <label class="form-label">What do you want to say? <span class="text-danger">At least one required</span></label>
+          <label class="form-label"
+            >What do you want to say?
+            <span class="text-danger">At least one required</span></label
+          >
           <div class="message-editors">
-            <button type="button" class="btn btn-light d-flex align-items-center justify-content-between w-100 editor-tile" (click)="openEmailEditor()">
+            <button
+              type="button"
+              class="btn btn-light d-flex align-items-center justify-content-between w-100 editor-tile"
+              (click)="openEmailEditor()"
+            >
               <span class="d-flex align-items-center gap-2 text-primary">
                 <i class="feather icon-mail"></i>
                 <strong>Edit Email</strong>
               </span>
-              <span class="editor-snippet text-truncate small text-secondary" [title]="templateForm.emailSubject || 'Set subject'">
-                {{ templateForm.emailBody || 'Set Body' }}
+              <span
+                class="editor-snippet text-truncate small text-secondary"
+                [title]="templateForm.emailSubject || 'Set subject'"
+              >
+                {{ templateForm.emailBody || "Set Body" }}
               </span>
             </button>
-            <button type="button" class="btn btn-light d-flex align-items-center justify-content-between w-100 editor-tile" (click)="openSmsEditor()">
+            <button
+              type="button"
+              class="btn btn-light d-flex align-items-center justify-content-between w-100 editor-tile"
+              (click)="openSmsEditor()"
+            >
               <span class="d-flex align-items-center gap-2 text-primary">
                 <i class="feather icon-message-square"></i>
                 <strong>Edit SMS</strong>
               </span>
-              <span class="editor-snippet text-truncate small text-secondary" [title]="templateForm.smsBody || 'Set SMS message'">
-                {{ templateForm.smsBody || 'Set SMS message' }}
+              <span
+                class="editor-snippet text-truncate small text-secondary"
+                [title]="templateForm.smsBody || 'Set SMS message'"
+              >
+                {{ templateForm.smsBody || "Set SMS message" }}
               </span>
             </button>
           </div>
         </div>
       </div>
-      <div class="modal-footer d-flex justify-content-between align-items-center gap-2">
-        <button *ngIf="editorMode==='edit'" type="button" class="btn btn-link text-danger p-0" (click)="deleteCurrentTemplate()">
+      <div
+        class="modal-footer d-flex justify-content-between align-items-center gap-2"
+      >
+        <button
+          *ngIf="editorMode === 'edit'"
+          type="button"
+          class="btn btn-link text-danger p-0"
+          (click)="deleteCurrentTemplate()"
+        >
           Delete Template
         </button>
         <div class="ms-auto d-flex gap-2">
-          <button type="button" class="btn btn-outline-secondary" (click)="showEditorModal=false">Cancel</button>
-          <button type="button" class="btn btn-primary" (click)="saveTemplate()">Save Template</button>
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            (click)="showEditorModal = false"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            (click)="saveTemplate()"
+          >
+            Save Template
+          </button>
         </div>
       </div>
     </div>
@@ -159,11 +220,23 @@
   <div class="modal-backdrop" *ngIf="showSmsEditor"></div>
   <div class="modal-centered" *ngIf="showSmsEditor">
     <div class="modal-card editor-modal wide">
-      <div class="modal-header d-flex align-items-center justify-content-between">
+      <div
+        class="modal-header d-flex align-items-center justify-content-between"
+      >
         <h5 class="mb-0">SMS Message</h5>
         <div class="d-flex align-items-center gap-3">
-          <a class="link-secondary small" href="#" (click)="$event.preventDefault(); openPreview('sms')">Preview</a>
-          <button type="button" class="btn btn-sm btn-ghost" (click)="showSmsEditor=false" aria-label="Close">
+          <a
+            class="link-secondary small"
+            href="#"
+            (click)="$event.preventDefault(); openPreview('sms')"
+            >Preview</a
+          >
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost"
+            (click)="showSmsEditor = false"
+            aria-label="Close"
+          >
             <i class="feather icon-x"></i>
           </button>
         </div>
@@ -172,25 +245,61 @@
         <div class="row g-2 align-items-end mb-2">
           <div class="col-12 col-md-4">
             <label class="form-label small mb-1">Insert variable - Type</label>
-            <select class="form-select form-select-sm" [(ngModel)]="smsDataKeyType" (change)="onSmsDataKeyTypeChange()">
+            <select
+              class="form-select form-select-sm"
+              [(ngModel)]="smsDataKeyType"
+              (change)="onSmsDataKeyTypeChange()"
+            >
               <option value="" disabled>Select type</option>
-              <option *ngFor="let t of dataKeyTypes" [value]="t">{{ t }}</option>
+              <option *ngFor="let t of dataKeyTypes" [value]="t">
+                {{ t }}
+              </option>
             </select>
           </div>
           <div class="col-12 col-md-8">
             <label class="form-label small mb-1">Variable</label>
-            <select class="form-select form-select-sm" [disabled]="!smsDataKeyType" [(ngModel)]="smsDataKey" (change)="onInsertDataKey('sms', smsDataKey)">
+            <select
+              class="form-select form-select-sm"
+              [disabled]="!smsDataKeyType"
+              [(ngModel)]="smsDataKey"
+              (change)="onInsertDataKey('sms', smsDataKey)"
+            >
               <option value="" disabled>Select variable</option>
-              <option *ngFor="let k of smsDataKeyOptions" [value]="k">{{ k }}</option>
+              <option *ngFor="let k of smsDataKeyOptions" [value]="k">
+                {{ k }}
+              </option>
             </select>
           </div>
         </div>
-  <textarea rows="6" class="form-control" placeholder="Enter SMS text" [(ngModel)]="templateForm.smsBody" (ngModelChange)="templateForm.smsBody = (templateForm.smsBody || '').slice(0, 1000)" maxlength="1000" #smsArea></textarea>
-        <div class="text-secondary small mt-2">Estimated Characters Per Message: {{ (templateForm.smsBody || '').length }}/1000</div>
+        <textarea
+          rows="6"
+          class="form-control"
+          placeholder="Enter SMS text"
+          [(ngModel)]="templateForm.smsBody"
+          (ngModelChange)="
+            templateForm.smsBody = (templateForm.smsBody || '').slice(0, 1000)
+          "
+          maxlength="1000"
+          #smsArea
+        ></textarea>
+        <div class="text-secondary small mt-2">
+          Estimated Characters Per Message:
+          {{ (templateForm.smsBody || "").length }}/1000
+        </div>
       </div>
-      <div class="modal-footer d-flex justify-content-between align-items-center">
-        <button type="button" class="btn btn-outline-secondary" (click)="showSmsEditor=false">Back</button>
-        <button type="button" class="btn btn-primary" (click)="saveSmsEditor()">Save Message</button>
+      <div
+        class="modal-footer d-flex justify-content-between align-items-center"
+      >
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          (click)="showSmsEditor = false"
+        >
+          Back
+        </button>
+        <button type="button" class="btn btn-primary" (click)="saveSmsEditor()">
+          Save Message
+        </button>
       </div>
     </div>
   </div>
@@ -199,11 +308,23 @@
   <div class="modal-backdrop" *ngIf="showEmailEditor"></div>
   <div class="modal-centered" *ngIf="showEmailEditor">
     <div class="modal-card editor-modal wide">
-      <div class="modal-header d-flex align-items-center justify-content-between">
+      <div
+        class="modal-header d-flex align-items-center justify-content-between"
+      >
         <h5 class="mb-0">Email Message</h5>
         <div class="d-flex align-items-center gap-3">
-          <a class="link-secondary small" href="#" (click)="$event.preventDefault(); openPreview('email')">Preview</a>
-          <button type="button" class="btn btn-sm btn-ghost" (click)="showEmailEditor=false" aria-label="Close">
+          <a
+            class="link-secondary small"
+            href="#"
+            (click)="$event.preventDefault(); openPreview('email')"
+            >Preview</a
+          >
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost"
+            (click)="showEmailEditor = false"
+            aria-label="Close"
+          >
             <i class="feather icon-x"></i>
           </button>
         </div>
@@ -212,33 +333,72 @@
         <div class="row g-2 align-items-end mb-2">
           <div class="col-12 col-md-4">
             <label class="form-label small mb-1">Insert variable - Type</label>
-            <select class="form-select form-select-sm" [(ngModel)]="emailDataKeyType" (change)="onEmailDataKeyTypeChange()">
+            <select
+              class="form-select form-select-sm"
+              [(ngModel)]="emailDataKeyType"
+              (change)="onEmailDataKeyTypeChange()"
+            >
               <option value="" disabled>Select type</option>
-              <option *ngFor="let t of dataKeyTypes" [value]="t">{{ t }}</option>
+              <option *ngFor="let t of dataKeyTypes" [value]="t">
+                {{ t }}
+              </option>
             </select>
           </div>
           <div class="col-12 col-md-8">
             <label class="form-label small mb-1">Variable</label>
-            <select class="form-select form-select-sm" [disabled]="!emailDataKeyType" [(ngModel)]="emailDataKey" (change)="onInsertDataKey('email', emailDataKey)">
+            <select
+              class="form-select form-select-sm"
+              [disabled]="!emailDataKeyType"
+              [(ngModel)]="emailDataKey"
+              (change)="onInsertDataKey('email', emailDataKey)"
+            >
               <option value="" disabled>Select variable</option>
-              <option *ngFor="let k of emailDataKeyOptions" [value]="k">{{ k }}</option>
+              <option *ngFor="let k of emailDataKeyOptions" [value]="k">
+                {{ k }}
+              </option>
             </select>
           </div>
         </div>
         <div class="mb-2">
-          <label class="form-label">Email Subject <span class="text-danger">*</span></label>
-          <input class="form-control" [(ngModel)]="templateForm.emailSubject" placeholder="Subject" />
+          <label class="form-label"
+            >Email Subject <span class="text-danger">*</span></label
+          >
+          <input
+            class="form-control"
+            [(ngModel)]="templateForm.emailSubject"
+            placeholder="Subject"
+          />
         </div>
         <div>
           <label class="form-label">Email Body</label>
-          <textarea rows="12" class="form-control code-area" [(ngModel)]="templateForm.emailBody" placeholder="HTML or text body..." #emailArea></textarea>
+          <textarea
+            rows="12"
+            class="form-control code-area"
+            [(ngModel)]="templateForm.emailBody"
+            placeholder="HTML or text body..."
+            #emailArea
+          ></textarea>
         </div>
         <!-- <div class="small text-secondary mt-2">Attachments</div>
         <div class="small text-secondary">No Attachments</div> -->
       </div>
-      <div class="modal-footer d-flex justify-content-between align-items-center">
-        <button type="button" class="btn btn-outline-secondary" (click)="showEmailEditor=false">Back</button>
-        <button type="button" class="btn btn-primary" (click)="saveEmailEditor()">Save Message</button>
+      <div
+        class="modal-footer d-flex justify-content-between align-items-center"
+      >
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          (click)="showEmailEditor = false"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          (click)="saveEmailEditor()"
+        >
+          Save Message
+        </button>
       </div>
     </div>
   </div>
@@ -247,30 +407,59 @@
   <div class="modal-backdrop" *ngIf="showPreviewModal"></div>
   <div class="modal-centered" *ngIf="showPreviewModal">
     <div class="modal-card preview-modal">
-      <div class="modal-header d-flex align-items-center justify-content-between">
+      <div
+        class="modal-header d-flex align-items-center justify-content-between"
+      >
         <div class="tabs d-flex gap-3">
-          <button class="btn btn-link p-0" [class.active]="previewTab==='email'" (click)="previewTab='email'">View Email</button>
-          <button class="btn btn-link p-0" [class.active]="previewTab==='sms'" (click)="previewTab='sms'">View SMS</button>
+          <button
+            class="btn btn-link p-0"
+            [class.active]="previewTab === 'email'"
+            (click)="previewTab = 'email'"
+          >
+            View Email
+          </button>
+          <button
+            class="btn btn-link p-0"
+            [class.active]="previewTab === 'sms'"
+            (click)="previewTab = 'sms'"
+          >
+            View SMS
+          </button>
         </div>
-        <button type="button" class="btn btn-sm btn-ghost" (click)="closePreview()" aria-label="Close">
+        <button
+          type="button"
+          class="btn btn-sm btn-ghost"
+          (click)="closePreview()"
+          aria-label="Close"
+        >
           <i class="feather icon-x"></i>
         </button>
       </div>
       <div class="modal-body">
-        <ng-container *ngIf="previewTab==='email'; else smsPreview">
+        <ng-container *ngIf="previewTab === 'email'; else smsPreview">
           <div class="email-preview">
-            <div class="email-subject fw-semibold mb-2">{{ templateForm.emailSubject || 'Not configured yet...' }}</div>
-            <iframe class="html-preview-frame" [srcdoc]="emailPreviewDoc" sandbox=""></iframe>
+            <div class="email-subject fw-semibold mb-2">
+              {{ templateForm.emailSubject || "Not configured yet..." }}
+            </div>
+            <iframe
+              class="html-preview-frame"
+              [srcdoc]="emailPreviewDoc"
+              sandbox=""
+            ></iframe>
           </div>
         </ng-container>
         <ng-template #smsPreview>
           <div class="sms-preview">
-            <div class="sms-bubble">{{ templateForm.smsBody || 'Not configured yet...' }}</div>
+            <div class="sms-bubble">
+              {{ templateForm.smsBody || "Not configured yet..." }}
+            </div>
           </div>
         </ng-template>
       </div>
       <div class="modal-footer d-flex justify-content-end">
-        <button type="button" class="btn btn-primary" (click)="closePreview()">Close</button>
+        <button type="button" class="btn btn-primary" (click)="closePreview()">
+          Close
+        </button>
       </div>
     </div>
   </div>
@@ -285,5 +474,4 @@
 <!-- Reference GridHeaderComponent in template to satisfy Angular template usage analysis for standalone imports -->
 <div style="display: none" aria-hidden="true">
   <app-grid-header></app-grid-header>
-  
 </div>

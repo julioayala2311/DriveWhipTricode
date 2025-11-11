@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-error',
@@ -15,7 +15,7 @@ export class ErrorComponent implements OnInit {
   title: string;
   desc: string;
 
-  constructor(private route: ActivatedRoute) {}
+  constructor(private route: ActivatedRoute, private router: Router) {}
 
   ngOnInit(): void {
     this.type = this.route.snapshot.paramMap.get('type');
@@ -34,6 +34,27 @@ export class ErrorComponent implements OnInit {
         this.title = 'Something went wrong';
         this.desc = 'Looks like something went wrong.<br>' + 'We\'re working on it';
     }
+  }
+
+  // Allow the user to recover from routing loops by logging out (clear session data and navigate to login)
+  onLogout(e?: Event): void {
+    try {
+      e?.preventDefault();
+      e?.stopPropagation();
+    } catch {
+      /* ignore */
+    }
+    try {
+      localStorage.removeItem('dw.auth.session');
+      localStorage.removeItem('dw.menu');
+      localStorage.removeItem('dw.routes');
+      localStorage.removeItem('dw.auth.user');
+      localStorage.removeItem('dw.selectedLocationId');
+      localStorage.removeItem('google_picture');
+    } catch {
+      /* ignore */
+    }
+    this.router.navigate(['/auth/login']);
   }
 
 }

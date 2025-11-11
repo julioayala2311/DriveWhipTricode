@@ -1,3 +1,154 @@
+/* Phone field (country selector + input) */
+.phone-field {
+  position: relative;
+}
+
+.phone-combobox {
+  display: flex;
+  align-items: stretch;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: .3rem;
+  background: var(--bs-body-bg);
+  overflow: hidden;
+  transition: border-color .15s ease, box-shadow .15s ease;
+  width: 100%;
+}
+
+.phone-combobox.open,
+.phone-combobox:focus-within {
+  border-color: #4c8df6;
+  box-shadow: 0 0 0 2px rgba(76, 141, 246, .15);
+}
+
+.phone-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: 0 .85rem;
+  border: 0;
+  border-right: var(--bs-border-width) solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+  font-weight: 600;
+  font-size: .75rem;
+  color: var(--bs-bg-color);
+  cursor: pointer;
+  min-height: 35px;
+}
+
+.phone-trigger .flag {
+  width: 20px;
+  height: 14px;
+  border-radius: .2rem;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.12);
+}
+
+.phone-trigger .iso {
+  letter-spacing: .05em;
+}
+
+.phone-trigger i {
+  font-size: .9rem;
+  color: var(--bs-bg-color);
+}
+
+.phone-input {
+  flex: 1 1 auto;
+  border: 0;
+  padding: 0 .85rem;
+  font-size: .75rem;
+  outline: none;
+  background: transparent;
+  min-height: 35px;
+}
+
+.phone-input::placeholder {
+  color: #9ca3af;
+}
+
+.phone-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + .35rem);
+  left: 0;
+  right: 0;
+  height: 26vh;
+  border-radius: .75rem;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, .14);
+  overflow: hidden;
+  min-width: 320px;
+}
+
+.phone-menu-search {
+  position: relative;
+  padding: .75rem .75rem .5rem;
+  border-bottom: var(--bs-border-width) solid var(--bs-border-color);
+}
+
+.phone-menu-search i {
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  font-size: .9rem;
+}
+
+.phone-menu-search .form-control {
+  padding-left: 2.25rem;
+  border-radius: .5rem;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+}
+
+.phone-menu-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.phone-menu-item {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: .6rem 1rem;
+  text-align: left;
+  font-size: .92rem;
+  color: var(--bs-bg-color);
+  cursor: pointer;
+  transition: background-color .12s ease;
+}
+
+.phone-menu-item .flag {
+  width: 20px;
+  height: 14px;
+  border-radius: .2rem;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.12);
+}
+
+.phone-menu-item .name {
+  flex: 1 1 auto;
+  font-weight: 500;
+}
+
+.phone-menu-item .dial {
+  color: var(--bs-body-color);
+  font-weight: 500;
+}
+
+.phone-menu-item:hover,
+.phone-menu-item:focus-visible {
+  background: var(--bs-secondary);;
+}
+
+.phone-menu-item.active {
+  background: var(--bs-secondary);;
+  color: var(--bs-primary);
+}
 :host {
   position: fixed;
   inset: 0;
@@ -26,6 +177,11 @@
 }
 .panel-header {
   display: flex;
+  .device .device-screen { overflow: hidden; }
+  .device .device-screen .preview-iframe { display:block; width:100%; height:100%; border:0; background:#fff; }
+  .device.device-mac .device-screen, .device.device-iphone .device-screen { position: relative; }
+  .device.device-mac .device-screen .preview-iframe,
+  .device.device-iphone .device-screen .preview-iframe { height:100%; }
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1.25rem 0.5rem;
@@ -115,7 +271,7 @@
 }
 .edit-card {
   background: var(--bs-body-bg);
-  border: 1px solid var(--bs-card-border-color);
+  border: var(--bs-border-width) solid var(--bs-border-color);
   border-radius: 14px;
   padding: 1rem 1.1rem;
   box-shadow: 0 14px 32px -24px rgba(15, 23, 42, 0.45);
@@ -135,7 +291,7 @@
 }
 .edit-card-subtitle {
   font-size: 0.75rem;
-  color: rgba(15, 23, 42, 0.55);
+  color: var(--bs-secondary-color);
   margin-top: 0.15rem;
 }
 .edit-card-body {
@@ -145,7 +301,7 @@
 }
 .edit-card-body .form-label {
   font-weight: 600;
-  color: rgba(15, 23, 42, 0.58);
+  color: var(--bs-secondary-color);
   letter-spacing: 0.2px;
 }
 .edit-actions {
@@ -482,7 +638,7 @@
   gap: 0.5rem;
   border-radius: 12px;
   background: var(--bs-body-bg);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: var(--bs-border-width) solid var(--bs-border-color);
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
   padding: 0.4rem 0.45rem 0.4rem 0.7rem;
 }
@@ -494,6 +650,11 @@
   width: 100%;
   font-size: 0.95rem;
   color: var(--bs-body-color);
+  line-height: 1.35;
+  /* Textarea-friendly defaults (harmless for inputs) */
+  padding: .15rem .25rem;
+  resize: vertical;
+  max-height: 30vh;
 }
 .chat-input .composer-control::placeholder {
   color: rgba(15, 23, 42, 0.45);
@@ -653,7 +814,7 @@ body.dark .chat-input .composer:focus-within {
 }
 .dropdown-wrapper {
   position: relative;
-  z-index: 2500; /* keep menus above any sidebars/backdrops */
+  z-index: 0; 
 }
 .actions-menu {
   position: absolute;
@@ -1815,6 +1976,65 @@ body.dark .templates-footer .manage-templates-link {
 .btn-secondary.btn-xs.active { background: rgba(var(--bs-primary-rgb,13,110,253),.12); color: var(--bs-primary,#0d6efd); border-color: rgba(var(--bs-primary-rgb,13,110,253),.25); }
 .event-sidebar-body .card .card-body hr { margin: .5rem 0; }
 .event-sidebar-body .form-control[contenteditable="true"] { background: var(--bs-body-bg); }
+
+/* Email editor sizing and isolation */
+.email-editor-container { 
+  --editor-height: 480; /* default, can be overridden inline */
+  border: 1px solid var(--bs-border-color, rgba(0,0,0,.08));
+  border-radius: .375rem;
+  overflow: hidden;
+  color: var(--bs-body-color)!important;
+  background: var(--bs-body-bg);
+
+}
+.email-rich-editor { 
+  min-height: calc(var(--editor-height) * 1px);
+  max-height: calc(var(--editor-height) * 1px);
+  /* Force editor to adopt app theme colors regardless of inline template styles */
+  color: var(--bs-body-color)!important;
+  background: var(--bs-body-bg);
+  /* Ensure all descendants also inherit themed text color while editing */
+  &,
+  * { color: var(--bs-body-color)!important; }
+  /* Links: use themed link color for readability while editing */
+  a { color: var(--bs-link-color, var(--bs-primary, #0d6efd))!important; }
+  overflow: auto;
+  padding: .5rem .75rem;
+}
+.email-source-editor { 
+  min-height: calc(var(--editor-height) * 1px);
+  max-height: calc(var(--editor-height) * 1px);
+  width: 100%;
+  border: 0;
+  padding: .5rem .75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: .875rem;
+  color: var(--bs-body-color)!important;
+  background: var(--bs-body-bg);
+}
+
+.email-preview-wrapper { display: block; }
+.email-preview-tabs .btn.active { background: var(--bs-primary-bg-subtle, rgba(13,110,253,.12)); color: var(--bs-primary, #0d6efd); }
+.email-preview-frame { border: 1px solid var(--bs-border-color, rgba(0,0,0,.08)); border-radius: .375rem; background: var(--bs-body-bg); overflow: hidden; }
+.email-preview-frame.mobile { max-width: 420px; margin-inline: auto; }
+.email-preview-frame .preview-iframe { display: block; width: 100%; height: 640px; border: 0; background: #fff; }
+
+/* SMS mobile preview bubble: allow wrapping and preserve newlines */
+.sms-preview-bubble {
+  /* Bootstrap .badge sets white-space: nowrap; override for preview */
+  white-space: pre-wrap; /* keep \n and wrap long lines */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: inline-block;
+  max-width: 85%;
+  text-align: left;
+  line-height: 1.35;
+}
+
+/* Ensure the simulated phone screen can scroll if message is long */
+.device-iphone .device-screen {
+  overflow-y: auto;
+}
 
 :host ::ng-deep .employment-profile-popup {
   text-align: left;

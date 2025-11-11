@@ -1906,6 +1906,87 @@ export class WorkflowEditorComponent implements OnInit {
     });
   }
 
+  // =============================
+  // Inline Stage Name Editing
+  // =============================
+  readonly editingStageId = signal<number | null>(null);
+  readonly editingStageNameValue = signal<string>('');
+  readonly editingStageSaving = signal<boolean>(false);
+
+  beginEditStageName(stageId: number): void {
+    if (this.editingStageSaving()) return; // avoid starting while saving
+    const st = this.stages().find(s => s.id_stage === stageId);
+    if (!st) { Utilities.showToast('Stage not found', 'error'); return; }
+    this.editingStageId.set(stageId);
+    this.editingStageNameValue.set(st.name || '');
+    // Stop selection click from triggering other actions
+  }
+
+  cancelEditStageName(): void {
+    if (this.editingStageSaving()) return; // don't cancel mid-save
+    this.editingStageId.set(null);
+    this.editingStageNameValue.set('');
+  }
+
+  saveEditStageName(stageId: number): void {
+    if (this.editingStageSaving()) return;
+    const st = this.stages().find(s => s.id_stage === stageId);
+    if (!st) { Utilities.showToast('Stage not found', 'error'); return; }
+    const nextName = this.editingStageNameValue().trim();
+    if (!nextName) { Utilities.showToast('Name is required', 'warning'); return; }
+    if (nextName === st.name) {
+      Utilities.showToast('No changes', 'info');
+      this.cancelEditStageName();
+      return;
+    }
+    // Blur input to avoid lingering focus outline and ensure hover buttons hide
+    try { (document.activeElement as HTMLElement)?.blur(); } catch {}
+    // Optimistic UI: update immediately and close edit form
+    const prevName = st.name;
+    const updatedImmediate = this.stages().map(s => s.id_stage === st.id_stage ? { ...s, name: nextName } : s);
+    this.stages.set(updatedImmediate);
+    // Close the inline editor right away
+    this.cancelEditStageName();
+    // Lock edit triggers while saving
+    this.editingStageSaving.set(true);
+    const currentUser = this.authSession.user?.user || 'system';
+    const params: any[] = [
+      'U',                 // p_action
+      st.id_stage,         // p_id_stage
+      this.workflowId,     // p_id_workflow
+      st.id_stage_type,    // p_id_stage_type
+      nextName,            // p_name (updated)
+      st.sort_order,       // p_sort_order (unchanged)
+      st.is_active ?? 1,   // p_is_active
+      null,                // p_created_by ignored on update
+      currentUser,         // p_updated_by
+      (st.form_code ?? (st as any).formCode ?? (st as any).form?.code) ?? null, // p_form_code
+      st.code_custom_type ?? null, // p_code_custom_type
+      st.url_custom_type ?? null,  // p_url_custom_type
+      st.rule_type ?? null         // p_rule_type
+    ];
+    const api: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_crud, parameters: params };
+    this.editingStageSaving.set(true);
+    this.core.executeCommand<DriveWhipCommandResponse>(api).pipe(finalize(()=> this.editingStageSaving.set(false))).subscribe({
+      next: res => {
+        if (!res.ok) {
+          // Revert optimistic change
+          const reverted = this.stages().map(s => s.id_stage === st.id_stage ? { ...s, name: prevName } : s);
+          this.stages.set(reverted);
+          Utilities.showToast('Failed to update name', 'error');
+          return;
+        }
+        // Success: keep optimistic value
+        Utilities.showToast('Stage name updated', 'success');
+      },
+      error: () => {
+        const reverted = this.stages().map(s => s.id_stage === st.id_stage ? { ...s, name: prevName } : s);
+        this.stages.set(reverted);
+        Utilities.showToast('Failed to update name', 'error');
+      }
+    });
+  }
+
   selectStage(id: number): void {
     this.selectedStageId.set(id);
     // Limpiar inmediatamente el estado del Initial Message para evitar valores residuales de otro stage

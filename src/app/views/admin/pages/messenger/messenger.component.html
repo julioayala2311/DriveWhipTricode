@@ -120,13 +120,13 @@
             </div>
           </div>
           <div class="panel-tabs detail-tabs">
-            <button type="button" class="panel-tab" [class.active]="activeTab === 'general'" (click)="onTabChange('general')">
-              <i class="feather icon-user"></i>
-              General
-            </button>
             <button type="button" class="panel-tab" [class.active]="activeTab === 'messages'" (click)="onTabChange('messages')">
               <i class="feather icon-message-circle"></i>
               Messages
+            </button>
+            <button type="button" class="panel-tab" [class.active]="activeTab === 'general'" (click)="onTabChange('general')">
+              <i class="feather icon-user"></i>
+              General
             </button>
             <button type="button" class="panel-tab" [class.active]="activeTab === 'history'" (click)="onTabChange('history')">
               <i class="feather icon-clock"></i>

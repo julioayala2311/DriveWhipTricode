@@ -333,7 +333,7 @@ export class MessengerComponent implements OnInit, OnDestroy {
   // Reset composer state so messaging starts fresh per applicant
   this.draftMessage = '';
   // Always land on General first
-  this.activeTab = 'general';
+  this.activeTab = 'messages';
     // Clear unread flag for this applicant as user is opening it
     this.clearUnread(thread.id_applicant);
     // Load cloned panel data

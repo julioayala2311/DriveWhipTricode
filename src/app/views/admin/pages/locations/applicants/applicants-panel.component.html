@@ -245,6 +245,62 @@
                               placeholder="Email"
                             />
                           </div>
+                          <!-- Address block -->
+                          <div class="col-12">
+                            <div class="row g-3">
+                              <div class="col-12 col-md-6">
+                                <label class="form-label small" for="editState">State</label>
+                                <select
+                                  id="editState"
+                                  class="form-select form-select-sm"
+                                  [(ngModel)]="editableApplicant.state_code"
+                                  name="editState"
+                                  [disabled]="statesLoading"
+                                >
+                                  <option value="">Select an option</option>
+                                  <option *ngFor="let s of stateOptions" [value]="s.code">
+                                    {{ s.name }} ({{ s.code }})
+                                  </option>
+                                </select>
+                                <div class="form-text text-secondary" *ngIf="statesLoading">
+                                  Loading states...
+                                </div>
+                                <div class="form-text text-warning" *ngIf="!statesLoading && statesError">
+                                  {{ statesError }}
+                                </div>
+                              </div>
+                              <div class="col-12 col-md-6">
+                                <label class="form-label small" for="editStreet">Street Address</label>
+                                <input
+                                  id="editStreet"
+                                  class="form-control form-control-sm"
+                                  [(ngModel)]="editableApplicant.street"
+                                  name="editStreet"
+                                  placeholder="123 Main St"
+                                />
+                              </div>
+                              <div class="col-12 col-md-6">
+                                <label class="form-label small" for="editCity">City</label>
+                                <input
+                                  id="editCity"
+                                  class="form-control form-control-sm"
+                                  [(ngModel)]="editableApplicant.city"
+                                  name="editCity"
+                                  placeholder="City"
+                                />
+                              </div>
+                              <div class="col-12 col-md-6">
+                                <label class="form-label small" for="editZip">Zip Code</label>
+                                <input
+                                  id="editZip"
+                                  class="form-control form-control-sm"
+                                  [(ngModel)]="editableApplicant.zip_code"
+                                  name="editZip"
+                                  placeholder="Zip"
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <div class="edit-actions">
@@ -318,6 +374,25 @@
                       >Copied!</span
                     >
                   </li>
+                  <!-- Read-only address display (individual items with icons) -->
+                  <ng-container *ngIf="!isEditingApplicant">
+                    <li *ngIf="applicant.street" class="small">
+                      <i class="feather icon-home me-2 text-primary"></i>
+                      {{ applicant.street }}
+                    </li>
+                    <li *ngIf="applicant.city" class="small">
+                      <i class="feather icon-map-pin me-2 text-primary"></i>
+                      {{ applicant.city }}
+                    </li>
+                    <li *ngIf="applicant.state_code" class="small">
+                      <i class="feather icon-flag me-2 text-primary"></i>
+                      {{ applicant.state_code }}
+                    </li>
+                    <li *ngIf="applicant.zip_code" class="small">
+                      <i class="feather icon-hash me-2 text-primary"></i>
+                      {{ applicant.zip_code }}
+                    </li>
+                  </ng-container>
                   <li *ngIf="displayLocation">
                     <i class="feather icon-map-pin me-2 text-primary"></i
                     >{{ displayLocation }}
@@ -1910,7 +1985,19 @@
                   <div class="small text-secondary">To: {{ disapproveTo }}</div>
                   <div class="small">Subject: {{ disapproveSubject }}</div>
                   <hr />
-                  <div [innerHTML]="recollectPreviewHtml"></div>
+                  <!-- Isolated preview (iframe) to avoid leaking template styles -->
+                  <iframe
+                    #recollectDesktopFrame
+                    *ngIf="recollectPreviewHtml"
+                    class="preview-iframe"
+                    title="Re-collect desktop preview"
+                    [srcdoc]="recollectSandboxHtml"
+                    (load)="fitPreviewToFrame('desktop', recollectDesktopFrame)"
+                    style="width:100%;height:40vh;border:0;"
+                  ></iframe>
+                  <ng-container *ngIf="!recollectPreviewHtml">
+                    <div class="text-secondary">[Message]</div>
+                  </ng-container>
                 </div>
               </div>
             </div>
@@ -1925,7 +2012,18 @@
                   <div class="small text-secondary">To: {{ disapproveTo }}</div>
                   <div class="small">Subject: {{ disapproveSubject }}</div>
                   <hr />
-                  <div class="small" [innerHTML]="recollectPreviewHtml"></div>
+                  <iframe
+                    #recollectMobileFrame
+                    *ngIf="recollectPreviewHtml"
+                    class="preview-iframe"
+                    title="Re-collect mobile preview"
+                    [srcdoc]="recollectSandboxHtml"
+                    (load)="fitPreviewToFrame('mobile', recollectMobileFrame)"
+                    style="width:100%;height:42vh;border:0;font-size:0.95rem;"
+                  ></iframe>
+                  <ng-container *ngIf="!recollectPreviewHtml">
+                    <div class="text-secondary" style="font-size:0.95rem">[Message]</div>
+                  </ng-container>
                 </div>
               </div>
             </div>
@@ -2277,7 +2375,6 @@
                       width: 100%;
                       height: 48vh;
                       border: 0;
-                      background: #fff;
                     "
                   ></iframe>
                   <ng-template #desktopEmpty>
@@ -2316,7 +2413,6 @@
                       width: 100%;
                       height: 52vh;
                       border: 0;
-                      background: #fff;
                       font-size: 0.95rem;
                     "
                   ></iframe>

@@ -83,6 +83,7 @@ export enum DriveWhipAdminCommand {
     // Chat templates list for applicant panel modal
     crm_notifications_templates_chat_list = "crm_notifications_templates_chat_list",
     crm_notifications_templates_email_list = "crm_notifications_templates_email_list",
+    crm_notifications_templates_replace_data = "crm_notifications_templates_replace_data",
     // Clone a notification template
     notifcations_template_clone = "notifcations_template_clone",
     crm_notifications_template_body = "crm_notifications_template_body",

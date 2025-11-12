@@ -11,6 +11,7 @@ import { Utilities } from '../../../../../Utilities/Utilities';
 import { FormsModule } from '@angular/forms';
 import { AccountDialogComponent, AccountDialogResult } from './account-dialog.component';
 import { RoutePermissionAction, RoutePermissionService } from '../../../../../core/services/auth/route-permission.service';
+import { switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'dw-user-accounts',
@@ -287,15 +288,26 @@ export class UserAccountsComponent implements OnInit {
           const templateId = this.core.accountCreatedTemplateId || '';
           const title = 'Your DriveWhip account is ready';
           const message = `<p>Hello,</p><p>We have created your DriveWhip account. You can now sign in and get started.</p><p><br><a href="${siteUrl}" style="display:inline-block;padding:10px 16px;background:#1a73e8;color:#fff;text-decoration:none;border-radius:6px;font-weight:600" target="_blank" rel="noopener noreferrer">Go to DriveWhip</a><br></p><p>If the button doesn’t work, copy and paste this link into your browser:<br><span style="color:#1a73e8">${siteUrl}</span></p><p>Welcome aboard!</p>`;
-          this.core.sendTemplateEmail({
-            title,
-            message,
-            templateId,
-            to: [rec.user]
-          }).subscribe({
-            next: () => Utilities.showToast('Welcome email sent', 'success'),
-            error: () => Utilities.showToast('Failed to send welcome email', 'error')
-          });
+          this.core
+            .prepareNotificationMessage('email', null, message)
+            .pipe(
+              switchMap((prepared) => {
+                const finalMessage = (prepared && prepared.trim()) ? prepared : message;
+                return this.core.sendTemplateEmail({
+                  title,
+                  message: finalMessage,
+                  templateId,
+                  to: [rec.user]
+                });
+              })
+            )
+            .subscribe({
+              next: () => Utilities.showToast('Welcome email sent', 'success'),
+              error: (err) => {
+                console.error('[UserAccountsComponent] welcome email error', err);
+                Utilities.showToast('Failed to send welcome email', 'error');
+              }
+            });
         }
       },
       error: err => {

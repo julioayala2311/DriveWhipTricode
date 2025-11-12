@@ -1626,7 +1626,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         Utilities.showToast("Template has no message content", "warning");
         return;
       }
-      this.emailContent = html;
+      // Sanitize template so its global CSS (e.g., body/#bodyTable selectors) doesn't bleed into the app.
+      // We convert the raw HTML into a fragment, scope inline <style> rules, and strip risky tags.
+      this.emailContent = this.sanitizeAndScopeEmailHtml(html);
       // If the rich editor is visible, sync DOM
       this.syncEmailEditorFromContent();
       // Best-effort subject fill if empty
@@ -2026,13 +2028,85 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private stripDangerousTags(html: string): string {
     if (!html) return html;
     try {
-      return html
+      // Remove scripts, iframes and external stylesheets entirely
+      let out = html
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
         .replace(/<link\b[^>]*>/gi, "")
         .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "");
+
+      // Keep <style> tags only if they are already safely scoped to .dw-email-scope
+      // to avoid leaking rules like body/html/#bodyTable to the host app.
+      out = out.replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (_m, css: string) => {
+        const text = String(css || "");
+        // If any selector targets html/body/#bodyTable without the .dw-email-scope prefix, drop the block
+        const unsafe = /(\bhtml\b|\bbody\b|#bodyTable)/i.test(text) && !/\.dw-email-scope/i.test(text);
+        return unsafe ? "" : `<style>${text}</style>`;
+      });
+      return out;
     } catch {
       return html;
+    }
+  }
+
+  /**
+   * Sanitize and scope template HTML so global selectors like body, html, #bodyTable
+   * only apply inside the preview/editor and do NOT modify the host application.
+   * Approach:
+   * 1. Parse into a temporary DOM element.
+   * 2. Extract <style> tags; rewrite selectors to prefix with .dw-email-scope.
+   *    - body, html -> .dw-email-scope
+   *    - #bodyTable -> .dw-email-scope #bodyTable
+   * 3. Remove external <link> stylesheet tags.
+   * 4. Return wrapped HTML: <div class="dw-email-scope">...</div><style scoped>...</style>
+   * NOTE: This is a lightweight client-side transform; it won't be perfect for every
+   * complex CSS, but prevents the common bleed issues for background/body styles.
+   */
+  private sanitizeAndScopeEmailHtml(raw: string): string {
+    if (!raw) return raw;
+    let working = raw;
+    try {
+      // Remove script/iframe immediately.
+      working = working
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "");
+      const container = document.createElement('div');
+      container.innerHTML = working;
+      const styleEls = Array.from(container.querySelectorAll('style')) as HTMLStyleElement[];
+      const scopedRules: string[] = [];
+      styleEls.forEach(se => {
+        const css = se.textContent || '';
+        // Basic selector scoping: split by } keeping braces.
+        const transformed = css.replace(/([^{}]+){/g, (match, selector) => {
+          // Skip @ rules (@media, @font-face) but still allow inside to be processed recursively.
+          if (/^\s*@/i.test(selector)) return match; // leave @media { etc.
+          const scopedSelectors = selector
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length)
+            .map((s: string) => {
+              // Replace "body" or "html" selectors (possibly with qualifiers) with .dw-email-scope
+              if (/^(html|body)([\s>:.#]|$)/i.test(s)) {
+                return '.dw-email-scope' + s.replace(/^(html|body)/i, '');
+              }
+              // Prefix everything else unless it already targets .dw-email-scope
+              if (s.startsWith('.dw-email-scope')) return s;
+              return '.dw-email-scope ' + s;
+            })
+            .join(', ');
+          return scopedSelectors + '{';
+        });
+        scopedRules.push(transformed);
+        se.remove();
+      });
+      // Remove <link rel="stylesheet"> tags to prevent global leakage
+      Array.from(container.querySelectorAll('link[rel="stylesheet"]')).forEach(l => l.remove());
+      // Wrap remaining HTML inside scope div
+      const inner = container.innerHTML;
+      const styleBlock = scopedRules.length ? `<style>${scopedRules.join('\n')}</style>` : '';
+      return `<div class="dw-email-scope">${inner}</div>${styleBlock}`;
+    } catch (e) {
+      console.warn('[ApplicantPanel] sanitizeAndScopeEmailHtml failed', e);
+      return raw; // fallback to raw if parsing fails
     }
   }
 
@@ -5068,7 +5142,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private captureRecollectContentFromEditor(): void {
     const el = this.recollectEditorRef?.nativeElement;
     if (!el) return;
-    this.recollectContent = el.innerHTML;
+    // Drop unsafe tags and keep only safely scoped styles to avoid leaking to host app
+    this.recollectContent = this.stripDangerousTags(el.innerHTML || "");
     // keep a plain-text version for SMS counters and fallback (preserve links)
     this.disapproveMessage = this.htmlToSmsText(this.recollectContent).slice(
       0,
@@ -5083,7 +5158,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   onRecollectSourceChange(val: string): void {
-    this.recollectContent = val || "";
+    // When editing source, sanitize as-you-type to prevent global leakage
+    this.recollectContent = this.stripDangerousTags(val || "");
     // derive SMS-friendly text preserving anchor hrefs
     this.disapproveMessage = this.htmlToSmsText(this.recollectContent).slice(
       0,
@@ -5186,10 +5262,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   private applyRecollectTemplate(emailHtml: string, smsPlain?: string): void {
     const normalizedEmail = emailHtml || "";
-    this.recollectContent = normalizedEmail;
+    // Scope styles (body/html/#bodyTable → .dw-email-scope …) and strip dangerous tags
+    this.recollectContent = this.sanitizeAndScopeEmailHtml(normalizedEmail);
     const smsSource = (smsPlain && smsPlain.trim())
       ? smsPlain.trim()
-      : this.htmlToSmsText(normalizedEmail);
+      : this.htmlToSmsText(this.recollectContent);
     this.disapproveMessage = smsSource.slice(0, 1000);
     if (this.recollectSourceMode) {
       // textarea binding updates automatically in source mode

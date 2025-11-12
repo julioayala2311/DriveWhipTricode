@@ -7,6 +7,7 @@ import {
   TemplateRef,
   ViewChild,
   ViewContainerRef,
+  ViewEncapsulation,
   inject,
 } from "@angular/core";
 import { ICellRendererAngularComp } from "ag-grid-angular";
@@ -56,6 +57,7 @@ interface StageMenuViewOption {
   selector: "app-applicant-actions-cell",
   standalone: true,
   imports: [CommonModule, OverlayModule, PortalModule],
+  encapsulation: ViewEncapsulation.None,
   template: `
     <div class="actions-cell" (click)="$event.stopPropagation()">
       <button
@@ -227,7 +229,8 @@ interface StageMenuViewOption {
       .btn-link:hover {
         color: var(--bs-primary, #0d6efd);
       }
-      .actions-menu {
+      /* Overlay panel content styling (scoped via panelClass) */
+      .applicant-actions-panel .actions-menu {
         position: relative;
         min-width: 240px;
         background: var(--bs-body-bg);
@@ -240,10 +243,44 @@ interface StageMenuViewOption {
         padding: 0.5rem;
         z-index: 2500;
       }
-      .menu-item:disabled {
-        cursor: default;
+      /* Base menu-item look (buttons inside overlay menu) */
+      .applicant-actions-panel .menu-item {
+        border: none;
+        background: transparent;
+        color: var(--bs-body-color, #1f2937);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.6rem;
+        border-radius: 10px;
+        font-size: 0.86rem;
+        font-weight: 500;
+        text-align: left;
+        cursor: pointer;
+        width: 100%;
+        transition: background 0.18s ease, color 0.18s ease;
       }
-      .submenu {
+      .applicant-actions-panel .menu-item .icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        color: var(--bs-secondary-color, rgba(0, 0, 0, 0.55));
+      }
+      .applicant-actions-panel .menu-item:not(:disabled):hover {
+        background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.07);
+        color: var(--bs-primary, #0d6efd);
+      }
+      .applicant-actions-panel .menu-item.text-danger:not(:disabled):hover {
+        color: var(--bs-danger, #dc3545);
+        background: rgba(var(--bs-danger-rgb, 220, 53, 69), 0.06);
+      }
+      .applicant-actions-panel .menu-item:disabled {
+        cursor: default;
+        opacity: 0.65;
+      }
+
+      .applicant-actions-panel .submenu {
         position: absolute;
         top: 0;
         left: calc(100% + 12px);
@@ -260,7 +297,7 @@ interface StageMenuViewOption {
         max-height: calc(100vh - 120px);
         overflow: hidden;
       }
-      .submenu::before {
+      .applicant-actions-panel .submenu::before {
         content: "";
         position: absolute;
         top: 14px;
@@ -272,21 +309,21 @@ interface StageMenuViewOption {
         border-top: 1px solid rgba(15, 23, 42, 0.1);
         transform: rotate(45deg);
       }
-      .submenu.flip {
+      .applicant-actions-panel .submenu.flip {
         left: auto;
         right: calc(100% + 12px);
       }
-      .submenu.flip::before {
+      .applicant-actions-panel .submenu.flip::before {
         display: none;
       }
-      .submenu-title {
+      .applicant-actions-panel .submenu-title {
         font-size: 0.74rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.32px;
         color: var(--bs-secondary-color, rgba(0, 0, 0, 0.62));
       }
-      .submenu-list {
+      .applicant-actions-panel .submenu-list {
         display: flex;
         flex-direction: column;
         gap: 0.2rem;
@@ -295,7 +332,7 @@ interface StageMenuViewOption {
         -webkit-overflow-scrolling: touch;
         padding-right: 0.25rem;
       }
-      .submenu-item {
+      .applicant-actions-panel .submenu-item {
         border: none;
         background: transparent;
         color: var(--bs-body-color, #1f2937);
@@ -310,35 +347,35 @@ interface StageMenuViewOption {
         cursor: pointer;
         transition: background 0.18s ease, color 0.18s ease;
       }
-      .submenu-item-name {
+      .applicant-actions-panel .submenu-item-name {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .submenu-item:not(:disabled):hover {
+      .applicant-actions-panel .submenu-item:not(:disabled):hover {
         background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.07);
         color: var(--bs-primary, #0d6efd);
       }
-      .submenu-item.current {
+      .applicant-actions-panel .submenu-item.current {
         background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.12);
         color: var(--bs-primary, #0d6efd);
         font-weight: 600;
       }
-      .submenu-item:disabled {
+      .applicant-actions-panel .submenu-item:disabled {
         cursor: default;
         opacity: 0.6;
         color: var(--bs-secondary-color, rgba(0, 0, 0, 0.55));
         background: transparent;
       }
-      .submenu-item-type {
+      .applicant-actions-panel .submenu-item-type {
         font-size: 0.74rem;
         font-weight: 500;
         color: var(--bs-secondary-color, rgba(0, 0, 0, 0.55));
         margin-left: 1rem;
         white-space: nowrap;
       }
-      .submenu-item:not(:disabled):hover .submenu-item-type,
-      .submenu-item.current .submenu-item-type {
+      .applicant-actions-panel .submenu-item:not(:disabled):hover .submenu-item-type,
+      .applicant-actions-panel .submenu-item.current .submenu-item-type {
         color: inherit;
       }
       :host ::ng-deep .applicant-actions-panel {

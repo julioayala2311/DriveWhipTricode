@@ -555,6 +555,54 @@ export class WorkflowEditorComponent implements OnInit {
         }
         return this.core.executeCommand<DriveWhipCommandResponse>(createApi);
       }),
+      switchMap(createRes => {
+        if (!createRes || !createRes.ok) {
+          return of(createRes); // propagate failure
+        }
+        // Extract new stage id to optionally create data section with auto-advance enabled when Data Collection
+        let newStageId: number | null = null;
+        try {
+          const rawTop = Array.isArray(createRes.data) ? (Array.isArray(createRes.data[0]) ? createRes.data[0] : createRes.data) : null;
+          if (rawTop && rawTop.length) {
+            const first = rawTop[0];
+            const idCandidate = first.id_stage ?? first.new_id_stage ?? first.insert_id ?? first.last_insert_id;
+            if (idCandidate != null) newStageId = Number(idCandidate);
+          }
+        } catch { /* ignore */ }
+        // Only run auto section creation for Data Collection stage type selected
+        const selectedTypeId = this.newStageTypeId();
+        const selectedType = this.stageTypeOptions().find(t => t.id === selectedTypeId);
+        const selLabel = (selectedType?.label || '').toLowerCase().trim();
+        const isNonRules = selLabel !== 'rules';
+  // Requirement update: Custom stages should also start with auto_advance_stage=1 (same as Data Collection)
+  const autoAdvance = (selLabel === 'data collection' || selLabel === 'custom') ? 1 : 0;
+        if (!isNonRules) {
+          return of(createRes);
+        }
+        const ensureSectionFor = (stageId: number) => {
+          const currentUser2 = this.authSession.user?.user || 'system';
+          const sectionParams: any[] = ['C', null, stageId, 1, '[]', 0, autoAdvance, 0, 0, 1, currentUser2, null];
+          const sectionApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_sections_crud, parameters: sectionParams };
+          return this.core.executeCommand<DriveWhipCommandResponse>(sectionApi).pipe(switchMap(() => of(createRes)));
+        };
+        if (!newStageId) {
+          const listApi: IDriveWhipCoreAPI = { commandName: DriveWhipAdminCommand.crm_stages_list, parameters: [this.workflowId] } as any;
+          return this.core.executeCommand<DriveWhipCommandResponse>(listApi).pipe(
+            switchMap(listRes => {
+              if (listRes && listRes.ok) {
+                let rows: any[] = [];
+                if (Array.isArray(listRes.data)) rows = Array.isArray(listRes.data[0]) ? listRes.data[0] : (listRes.data as any[]);
+                const candidate = rows.find(r => (r.name || '').trim() === this.newStageName().trim() && Number(r.sort_order) === newSortOrder && Number(r.id_stage_type) === selectedTypeId);
+                if (candidate && candidate.id_stage) {
+                  return ensureSectionFor(Number(candidate.id_stage));
+                }
+              }
+              return of(createRes);
+            })
+          );
+        }
+        return ensureSectionFor(newStageId);
+      }),
       finalize(()=> this.newStageSaving.set(false))
     ).subscribe({
       next: res => {
@@ -564,7 +612,7 @@ export class WorkflowEditorComponent implements OnInit {
         }
         Utilities.showToast('Stage created','success');
         this.closeAddStageModal();
-        this.loadStages(); // refresh list to reflect new ordering
+        this.loadStages(); // refresh list to reflect new ordering (and new section if created)
       },
       error: err => {
         console.error('[WorkflowEditor] create stage error', err);
@@ -2006,12 +2054,10 @@ export class WorkflowEditorComponent implements OnInit {
       this.loadRulesCatalogs();
       this.loadRulesSection(id); // will chain load of rule rows
     } else {
-      // Para cualquier tipo distinto de Rules (incluye Custom y otros), mostrar secciones generales
-      // Evitar reutilizar un id de sección anterior (propio de Data Collection)
-      this.dataSectionId.set(null);
+      // Para cualquier tipo distinto de Rules (incluye Custom y otros), mostrar la tarjeta de Data Collection
+      // (sólo con Auto-advance) y cargar/crear sección si aplica
+      this.loadDataCollectionSection(id, true);
       this.ensureInitialMessageCatalogs();
-      this.loadIdleMove(id, null);
-      this.loadFollowUps(id, null);
     }
   }
 
@@ -2040,8 +2086,9 @@ export class WorkflowEditorComponent implements OnInit {
   private sectionTypeIdForStage(stageId: number): number | null {
     const st = this.stages().find(s => s.id_stage === stageId);
     if (!st) return null;
-    const id = this.sectionTypeMap[st.type];
-    return (typeof id === 'number') ? id : null;
+    // Treat any non-Rules stage as Data Collection section type (1) so common settings (like auto-advance) are available
+    if (st.type === 'Rules') return 2;
+    return 1;
   }
 
   stageIcon(type?: number | string | null): string {

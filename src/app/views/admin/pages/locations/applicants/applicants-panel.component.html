@@ -1926,23 +1926,23 @@
                   <i class="feather icon-code"></i>
                 </button>
               </div>
-              <ng-container *ngIf="!recollectSourceMode; else recollectSource">
-                <div
-                  #recollectEditorRef
-                  class="form-control"
-                  style="min-height: 160px"
-                  contenteditable="true"
-                  (input)="onRecollectEditorInput($event)"
-                ></div>
-              </ng-container>
-              <ng-template #recollectSource>
-                <textarea
-                  class="form-control"
-                  style="min-height: 160px"
-                  [ngModel]="recollectContent"
-                  (ngModelChange)="onRecollectSourceChange($event)"
-                ></textarea>
-              </ng-template>
+              <div class="email-editor-container">
+                <ng-container *ngIf="!recollectSourceMode; else recollectSource">
+                  <div
+                    #recollectEditorRef
+                    class="email-rich-editor"
+                    contenteditable="true"
+                    (input)="onRecollectEditorInput($event)"
+                  ></div>
+                </ng-container>
+                <ng-template #recollectSource>
+                  <textarea
+                    class="email-rich-editor"
+                    [ngModel]="recollectContent"
+                    (ngModelChange)="onRecollectSourceChange($event)"
+                  ></textarea>
+                </ng-template>
+              </div>
               <div
                 class="d-flex justify-content-between small mt-1 text-secondary"
                 *ngIf="disapproveSendSms"

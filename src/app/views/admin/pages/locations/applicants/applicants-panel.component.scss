@@ -655,6 +655,12 @@
   padding: .15rem .25rem;
   resize: vertical;
   max-height: 30vh;
+  /* Keep long content inside the box instead of overflowing */
+  overflow: auto;             /* show scrollbars when needed */
+  overflow-x: hidden;         /* avoid horizontal bleed */
+  white-space: pre-wrap;      /* respect new lines and wrap */
+  word-break: break-word;     /* break very long tokens */
+  overflow-wrap: anywhere;    /* final safeguard for long URLs */
 }
 .chat-input .composer-control::placeholder {
   color: rgba(15, 23, 42, 0.45);
@@ -2247,7 +2253,6 @@ body.dark :host ::ng-deep .employment-profile .accordion-stack details.acc:not(:
   }
 }
 
-#bodyTable body {
-  background-color: var(--bs-body-bg)!important;
-  color: var(--bs-body-color)!important;
+.input-group .btn {
+ z-index: 0!important;
 }

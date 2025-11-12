@@ -70,6 +70,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   templateSearchInput?: ElementRef<HTMLInputElement>;
   @ViewChild('desktopFrame', { static: false }) desktopFrame?: ElementRef<HTMLIFrameElement>;
   @ViewChild('mobileFrame', { static: false }) mobileFrame?: ElementRef<HTMLIFrameElement>;
+  @ViewChild('recollectDesktopFrame', { static: false }) recollectDesktopFrame?: ElementRef<HTMLIFrameElement>;
+  @ViewChild('recollectMobileFrame', { static: false }) recollectMobileFrame?: ElementRef<HTMLIFrameElement>;
   private authSession = inject(AuthSessionService);
   private sanitizer = inject(DomSanitizer);
   private smsRealtime = inject(SmsChatSignalRService);
@@ -278,9 +280,6 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   recollectTemplateLoading = false;
   recollectTemplateError: string | null = null;
   private _recollectTemplateToken = 0;
-
-  employmentProfileSnapshot: string =
-    '{"id":"61192fe2-c13d-3e6b-b28e-1155147845a2","account":"019a0b0b-62a0-25bd-5102-11b4d292a7e8","address":{"city":null,"line1":null,"line2":null,"state":null,"country":"SV","postal_code":null},"first_name":"Juan","last_name":"Zamora","full_name":"Juan Zamora","birth_date":null,"email":"zamora125@hotmail.com","phone_number":"+50377461468","picture_url":"https://api.argyle.com/v2/payroll-documents/019a0b0e-9a2c-eca8-a5b6-a2d9c921e31c/file","employment_status":null,"employment_type":"contractor","job_title":"Driver","ssn":null,"marital_status":null,"gender":null,"hire_date":"2020-04-04","original_hire_date":"2020-04-04","termination_date":null,"termination_reason":null,"employer":"uber","base_pay":{"amount":null,"period":null,"currency":null},"pay_cycle":null,"platform_ids":{"employee_id":null,"position_id":null,"platform_user_id":null},"created_at":"2025-10-22T08:34:57.708Z","updated_at":"2025-10-22T08:34:57.708Z","metadata":{"driverStatus":"scanner_common.data.MissingT","raw_employment_type":"Contractor"},"employment":"8675e413-ef4f-3ea0-8f4f-008128c81d47"}';
 
   // --- Move To Modal state ---
   moveToOpen = false;
@@ -560,19 +559,37 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     return Math.ceil(len / 160);
   }
 
-  sendSms(): void {
+  async sendSms(): Promise<void> {
     const text = (this.smsMessage || "").trim();
     const id = this.resolveApplicantId(this.applicant) || this.applicantId;
     const to = (this.smsTo || "").trim();
     const from = (this.smsFrom || "").trim();
     if (!text || !id || !to || !from || this.smsSending) return;
 
-    // Optimistic add to chat stream if visible
+    this.smsSending = true;
+    let finalMessage = text;
+    try {
+      const prepared = await firstValueFrom(
+        this.core.prepareNotificationMessage("sms", String(id), text)
+      );
+      if ((prepared || "").trim()) {
+        finalMessage = prepared;
+      }
+    } catch (err) {
+      console.error("[ApplicantPanel] prepare SMS error", err);
+      Utilities.showToast(
+        this.notificationErrorMessage(err, "Failed to prepare SMS message"),
+        "error"
+      );
+      this.smsSending = false;
+      return;
+    }
+
     const optimistic: ApplicantMessage = {
       id: "temp-sms-" + Date.now(),
       direction: "outbound",
       sender: "You",
-      body: text,
+      body: finalMessage,
       timestamp: new Intl.DateTimeFormat("en-US", {
         hour: "numeric",
         minute: "2-digit",
@@ -590,28 +607,28 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.refreshResolvedMessages();
     this.scrollMessagesToBottomSoon();
 
-    this.smsSending = true;
-    this.core
-      .sendChatSms({ from, to, message: text, id_applicant: String(id) })
-      .subscribe({
-        next: (_res) => {
-          // Mark optimistic as delivered and close sidebar
-          try {
-            this.markOptimisticDelivered(optimistic.id || "");
-          } catch {}
-          this.closeSmsSidebar();
-        },
-        error: (_err) => {
-          // Remove optimistic and show guidance about phone format and country code
-          try {
-            this.removeOptimistic(optimistic.id || "");
-          } catch {}
-          this.smsSendFailureToast();
-        },
-        complete: () => {
-          this.smsSending = false;
-        },
-      });
+    try {
+      await firstValueFrom(
+        this.core.sendChatSms({
+          from,
+          to,
+          message: finalMessage,
+          id_applicant: String(id),
+        })
+      );
+      try {
+        this.markOptimisticDelivered(optimistic.id || "");
+      } catch {}
+      this.closeSmsSidebar();
+    } catch (err) {
+      console.error("[ApplicantPanel] sendChatSms error", err);
+      try {
+        this.removeOptimistic(optimistic.id || "");
+      } catch {}
+      this.smsSendFailureToast();
+    } finally {
+      this.smsSending = false;
+    }
   }
 
   /** Whether there's an outbound SMS we can resend */
@@ -631,7 +648,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   /** Resend the most recent outbound SMS to the applicant */
-  resendLastMessage(): void {
+  async resendLastMessage(): Promise<void> {
     if (!this.canResendMessage()) return;
     this.closeMenus();
 
@@ -660,9 +677,26 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         break;
       }
     }
-    const text = (last?.body || "").toString().trim();
-    if (!text) {
+    const originalText = (last?.body || "").toString().trim();
+    if (!originalText) {
       Utilities.showToast("No outbound SMS found to resend", "info");
+      return;
+    }
+
+    let finalText = originalText;
+    try {
+      const prepared = await firstValueFrom(
+        this.core.prepareNotificationMessage("sms", String(id), originalText)
+      );
+      if ((prepared || "").trim()) {
+        finalText = prepared;
+      }
+    } catch (err) {
+      console.error("[ApplicantPanel] prepare resend SMS error", err);
+      Utilities.showToast(
+        this.notificationErrorMessage(err, "Failed to prepare SMS message"),
+        "error"
+      );
       return;
     }
 
@@ -671,7 +705,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       id: "temp-resend-" + Date.now(),
       direction: "outbound",
       sender: "You",
-      body: text,
+      body: finalText,
       timestamp: new Intl.DateTimeFormat("en-US", {
         hour: "numeric",
         minute: "2-digit",
@@ -689,22 +723,26 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.refreshResolvedMessages();
     this.scrollMessagesToBottomSoon();
 
-    this.core
-      .sendChatSms({ from, to, message: text, id_applicant: String(id) })
-      .subscribe({
-        next: () => {
-          try {
-            this.markOptimisticDelivered(optimistic.id || "");
-          } catch {}
-          Utilities.showToast("Message resent", "success");
-        },
-        error: () => {
-          try {
-            this.removeOptimistic(optimistic.id || "");
-          } catch {}
-          this.smsSendFailureToast();
-        },
-      });
+    try {
+      await firstValueFrom(
+        this.core.sendChatSms({
+          from,
+          to,
+          message: finalText,
+          id_applicant: String(id),
+        })
+      );
+      try {
+        this.markOptimisticDelivered(optimistic.id || "");
+      } catch {}
+      Utilities.showToast("Message resent", "success");
+    } catch (err) {
+      console.error("[ApplicantPanel] resend SMS error", err);
+      try {
+        this.removeOptimistic(optimistic.id || "");
+      } catch {}
+      this.smsSendFailureToast();
+    }
   }
   private hasPermission(action: RoutePermissionAction): boolean {
     try {
@@ -745,6 +783,60 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   selectedCountry: PhoneCountry = PHONE_COUNTRIES.find((c: PhoneCountry) => c.iso2 === 'us') || PHONE_COUNTRIES[0];
   filteredCountries: PhoneCountry[] = PHONE_COUNTRIES.slice();
 
+  // --- States (country subdivisions) dropdown data ---
+  stateOptions: Array<{ code: string; name: string; country?: string }> = [];
+  statesLoading: boolean = false;
+  statesError: string | null = null;
+
+  private ensureStatesLoaded(): void {
+    if (this.stateOptions.length || this.statesLoading) return;
+    this.loadCountryStates();
+  }
+
+  private loadCountryStates(): void {
+    this.statesLoading = true;
+    this.statesError = null;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.commun_country_states,
+      parameters: [],
+    } as any;
+    this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
+      next: (res) => {
+        try {
+          if (!res.ok) {
+            this.statesError = String(res.error || 'Failed to load states');
+            return;
+          }
+          let raw: any = res.data;
+          // Flatten potential [[rows]] shape
+          if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+          const rows: any[] = Array.isArray(raw) ? raw : [];
+          const mapped = rows
+            .map(r => {
+              const code = (r.state_code ?? r.STATE_CODE ?? r.code ?? r.CODE ?? '').toString().trim();
+              const name = (r.state_name ?? r.STATE_NAME ?? r.name ?? r.NAME ?? r.description ?? r.DESCRIPTION ?? code).toString().trim();
+              const country = (r.country_code ?? r.COUNTRY_CODE ?? r.country ?? r.COUNTRY ?? '').toString().trim();
+              return { code, name, country };
+            })
+            .filter(x => x.code && x.name);
+          // Sort by name for UX
+          mapped.sort((a,b) => a.name.localeCompare(b.name));
+          this.stateOptions = mapped;
+        } catch (e) {
+          console.error('[ApplicantPanel] loadCountryStates parse error', e);
+          this.statesError = 'Failed to parse states list';
+        }
+      },
+      error: (err) => {
+        console.error('[ApplicantPanel] loadCountryStates error', err);
+        this.statesError = 'Failed to load states';
+      },
+      complete: () => {
+        this.statesLoading = false;
+      }
+    });
+  }
+
   constructor(private core: DriveWhipCoreService) {}
 
   startEditApplicant(): void {
@@ -758,6 +850,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.isEditingApplicant = true;
     // ensure editableApplicant is a fresh copy
     this.editableApplicant = this.applicant ? { ...this.applicant } : {};
+    // Load states list (one-time) for the address block
+    this.ensureStatesLoaded();
     // initialize phone editor from current value
     const initial = this.editableApplicant?.phone || this.applicant?.phone || "";
     this.initPhoneFromValue(initial);
@@ -1738,9 +1832,17 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
       const row = Array.isArray(raw) && raw.length ? raw[0] : raw;
       const html = String(
-        row?.message ?? row?.MESSAGE ?? row?.body ?? row?.BODY ?? row?.text ?? ""
+        row?.message_email ??
+          row?.MESSAGE_EMAIL ??
+          row?.message ??
+          row?.MESSAGE ??
+          row?.body ??
+          row?.BODY ??
+          row?.text ??
+          ""
       );
-      return html && html.trim() ? html : null;
+      const normalized = this.normalizeEmailBody(html);
+      return normalized && normalized.trim() ? normalized : null;
     } catch (err) {
       return null;
     }
@@ -1861,7 +1963,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const body = this.stripMergeTagsForPreview((this.emailContent || "[Message]").toString());
     const baseCss = `
       :root { color-scheme: light; }
-      html, body { margin:0; padding:0; background:#ffffff !important; }
+      html, body { margin:0; padding:0; }
       body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
       img { max-width: 100%; height: auto; }
       .dw-preview-body { padding: 0; }
@@ -1889,6 +1991,34 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     } catch {
       return html;
     }
+  }
+
+  // Sandboxed HTML for the Re-collect (disapprove) preview. Keep it isolated without forcing background.
+  get recollectSandboxHtml(): string {
+    const reason = this.currentRecollectDescription();
+    const reasonHtml = reason ? `<div><strong>Reason:</strong> ${this.escapeHtml(reason)}</div>` : "";
+    const bodyHtml = this.recollectContent
+      ? this.recollectContent
+      : `<div>${this.escapeHtml(this.disapproveMessage || "")}</div>`;
+    const content = `${reasonHtml}${bodyHtml}`;
+    const baseCss = `
+      :root { color-scheme: light; }
+      html, body { margin:0; padding:0; }
+      img { max-width: 100%; height: auto; }
+      .dw-preview-body { padding: 0; }
+    `;
+    const doc = `<!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>${baseCss}</style>
+        </head>
+        <body>
+          <div class="dw-preview-body">${content}</div>
+        </body>
+      </html>`;
+    return doc;
   }
   // (Iframe sandbox removed per request to keep original desktop/mobile viewers)
 
@@ -1951,7 +2081,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   // Placeholder send handler (wire to backend when available)
-  sendEmail(): void {
+  async sendEmail(): Promise<void> {
     const to = (this.emailTo || "").trim();
     if (!to) {
       Utilities.showToast("Recipient (To) is required", "warning");
@@ -1967,21 +2097,39 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const title = (this.emailSubject || "").trim() || "Message from DriveWhip";
     // Use the editor HTML (or source HTML if source mode). Ensure non-empty HTML string
     const message = (this.emailContent || "").trim() || "<p></p>";
+    const applicantKey = this.resolveApplicantId(this.applicant) || this.applicantId;
 
     this.emailSending = true;
-    this.core
-      .sendTemplateEmail({ title, message, templateId, to: [to] })
-      .subscribe({
-        next: () => {
-          this.emailSending = false;
-          this.closeEmailSidebar();
-          Utilities.showToast("Email sent", "success");
-        },
-        error: () => {
-          this.emailSending = false;
-          Utilities.showToast("Failed to send email", "error");
-        },
-      });
+    let finalMessage = message;
+    try {
+      const prepared = await firstValueFrom(
+        this.core.prepareNotificationMessage("email", applicantKey ? String(applicantKey) : null, message)
+      );
+      if ((prepared || "").trim()) {
+        finalMessage = prepared;
+      }
+    } catch (err) {
+      console.error("[ApplicantPanel] prepare Email error", err);
+      Utilities.showToast(
+        this.notificationErrorMessage(err, "Failed to prepare email message"),
+        "error"
+      );
+      this.emailSending = false;
+      return;
+    }
+
+    try {
+      await firstValueFrom(
+        this.core.sendTemplateEmail({ title, message: finalMessage, templateId, to: [to] })
+      );
+      this.closeEmailSidebar();
+      Utilities.showToast("Email sent", "success");
+    } catch (err) {
+      console.error("[ApplicantPanel] sendTemplateEmail error", err);
+      Utilities.showToast("Failed to send email", "error");
+    } finally {
+      this.emailSending = false;
+    }
   }
 
   private currentUserEmail(): string | null {
@@ -2285,16 +2433,33 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         let raw: any = res.data;
         if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
         const row = Array.isArray(raw) && raw.length ? raw[0] : raw;
-        html = String(
-          row?.message ??
-            row?.MESSAGE ??
-            row?.sms ??
-            row?.SMS ??
-            row?.body ??
-            row?.BODY ??
-            row?.text ??
-            ""
-        );
+        if (channel === "email") {
+          html = this.normalizeEmailBody(
+            String(
+              row?.message_email ??
+                row?.MESSAGE_EMAIL ??
+                row?.message ??
+                row?.MESSAGE ??
+                row?.body ??
+                row?.BODY ??
+                row?.text ??
+                ""
+            )
+          );
+        } else {
+          html = String(
+            row?.message_sms ??
+              row?.MESSAGE_SMS ??
+              row?.message ??
+              row?.MESSAGE ??
+              row?.sms ??
+              row?.SMS ??
+              row?.body ??
+              row?.BODY ??
+              row?.text ??
+              ""
+          );
+        }
       } else {
         const errMsg = ((res as any)?.error || "").toString().trim();
         if (errMsg) {
@@ -2302,17 +2467,12 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           Utilities.showToast(errMsg, "warning");
         }
       }
-      if (!html.trim()) {
-        this.templateApplyError = "Template message not available";
-        Utilities.showToast("Template message not available", "warning");
-        return null;
-      }
-      const normalized = this.htmlToSmsText(html).trim();
-      if (!normalized) {
-        this.templateApplyError = "Template message not available";
-        Utilities.showToast("Template message not available", "warning");
-        return null;
-      }
+   
+      const normalized =
+        channel === "email"
+          ? this.htmlToSmsText(html).trim()
+          : String(html || "").trim();
+
       return normalized.length > 1000
         ? normalized.slice(0, 1000).trimEnd()
         : normalized;
@@ -2548,7 +2708,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   /** Submit and send an SMS chat message via API without flicker (optimistic + realtime) */
-  onSendMessage(ev: Event): void {
+  async onSendMessage(ev: Event): Promise<void> {
     ev.preventDefault();
     const text = (this.draftMessage || "").trim();
     const id = this.resolveApplicantId(this.applicant) || this.applicantId;
@@ -2565,13 +2725,32 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       return;
     }
     if (this.chatSending) return;
+
+    let finalMessage = text;
+    this.chatSending = true;
+    try {
+      const prepared = await firstValueFrom(
+        this.core.prepareNotificationMessage("sms", String(id), text)
+      );
+      if ((prepared || "").trim()) {
+        finalMessage = prepared;
+      }
+    } catch (err) {
+      console.error("[ApplicantPanel] prepare inline SMS error", err);
+      Utilities.showToast(
+        this.notificationErrorMessage(err, "Failed to prepare SMS message"),
+        "error"
+      );
+      this.chatSending = false;
+      return;
+    }
     // Optimistic message so user sees it immediately
     const nowIso = new Date().toISOString();
     const optimistic: ApplicantMessage = {
       id: "temp-" + Date.now(),
       direction: "outbound",
       sender: "You",
-      body: text,
+      body: finalMessage,
       timestamp: new Intl.DateTimeFormat("en-US", {
         hour: "numeric",
         minute: "2-digit",
@@ -2593,32 +2772,26 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.refreshResolvedMessages();
     // Force-stick on local send to keep view anchored
     this.scrollMessagesToBottomSoon(0, true);
-
-    this.chatSending = true;
     const fromNumber = this.defaultSmsFromNumber();
-    this.core
-      .sendChatSms({
-        from: fromNumber,
-        to,
-        message: text,
-        id_applicant: String(id),
-      })
-      .subscribe({
-        next: (_res) => {
-          // Clear composer, mark optimistic as delivered; avoid full reload to prevent flicker
-          this.draftMessage = "";
-          this.markOptimisticDelivered(optimistic.id!);
-          this.scrollMessagesToBottomSoon(0, true);
-        },
-        error: (err) => {
-          console.error("[ApplicantPanel] sendChatSms error", err);
-          this.smsSendFailureToast();
-          this.removeOptimistic(optimistic.id!);
-        },
-        complete: () => {
-          this.chatSending = false;
-        },
-      });
+    try {
+      await firstValueFrom(
+        this.core.sendChatSms({
+          from: fromNumber,
+          to,
+          message: finalMessage,
+          id_applicant: String(id),
+        })
+      );
+      this.draftMessage = "";
+      this.markOptimisticDelivered(optimistic.id!);
+      this.scrollMessagesToBottomSoon(0, true);
+    } catch (err) {
+      console.error("[ApplicantPanel] sendChatSms error", err);
+      this.smsSendFailureToast();
+      this.removeOptimistic(optimistic.id!);
+    } finally {
+      this.chatSending = false;
+    }
   }
 
   private updateRealtimeSubscription(applicantId: string | null): void {
@@ -2880,6 +3053,17 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (!applicant) return null;
     const phone = applicant.phone_number || applicant.phone || null;
     return phone ? String(phone) : null;
+  }
+
+  private notificationErrorMessage(error: unknown, fallback: string): string {
+    if (!error) return fallback;
+    if (typeof error === "string") return error;
+    if (error instanceof Error && error.message) return error.message;
+    const maybeMessage = (error as any)?.message;
+    if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+      return maybeMessage;
+    }
+    return fallback;
   }
 
   /** Show a clear guidance toast when an SMS cannot be sent due to likely phone formatting issues */
@@ -4933,7 +5117,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     const idApplicant =
       this.resolveApplicantId(this.applicant) || this.applicantId;
     if (!doc || !code || code === "RECOLLECT_CUSTOM" || !idApplicant) {
-      this.applyRecollectTemplate("");
+      this.applyRecollectTemplate("", undefined);
       return;
     }
 
@@ -4957,24 +5141,31 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         return;
       }
 
-      let html = "";
+      let emailBody = "";
+      let smsBody = "";
       if (res?.ok) {
         let raw: any = res.data;
         if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
         const row = Array.isArray(raw) && raw.length ? raw[0] : raw;
-        html = String(row?.message ?? row?.MESSAGE ?? "") || "";
+        emailBody = String(
+          row?.message_email ??
+            row?.MESSAGE_EMAIL ??
+            row?.message ??
+            row?.MESSAGE ??
+            ""
+        );
+        smsBody = String(
+          row?.message_sms ??
+            row?.MESSAGE_SMS ??
+            row?.sms ??
+            row?.SMS ??
+            ""
+        );
       }
 
-      if (!html) {
-        this.applyRecollectTemplate("");
-        this.recollectTemplateError = "Template message not available";
-        Utilities.showToast(
-          "No template message configured for this option.",
-          "warning"
-        );
-      } else {
-        this.applyRecollectTemplate(html);
-      }
+      const normalizedEmail = this.normalizeEmailBody(emailBody);
+      const normalizedSms = smsBody.trim();
+      this.applyRecollectTemplate(normalizedEmail, normalizedSms);
     } catch (err) {
       if (token !== this._recollectTemplateToken) {
         return;
@@ -4984,7 +5175,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         err
       );
       this.recollectTemplateError = "Failed to load re-collect message";
-      this.applyRecollectTemplate("");
+      this.applyRecollectTemplate("", undefined);
       Utilities.showToast("Unable to load the re-collect message.", "error");
     } finally {
       if (token === this._recollectTemplateToken) {
@@ -4993,16 +5184,31 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
   }
 
-  private applyRecollectTemplate(html: string): void {
-    const normalized = html || "";
-    this.recollectContent = normalized;
-    const plain = this.htmlToSmsText(normalized).slice(0, 1000);
-    this.disapproveMessage = plain;
+  private applyRecollectTemplate(emailHtml: string, smsPlain?: string): void {
+    const normalizedEmail = emailHtml || "";
+    this.recollectContent = normalizedEmail;
+    const smsSource = (smsPlain && smsPlain.trim())
+      ? smsPlain.trim()
+      : this.htmlToSmsText(normalizedEmail);
+    this.disapproveMessage = smsSource.slice(0, 1000);
     if (this.recollectSourceMode) {
       // textarea binding updates automatically in source mode
       return;
     }
     this.syncRecollectEditorFromContent();
+  }
+
+  private normalizeEmailBody(body: string): string {
+    const raw = (body ?? "").toString();
+    if (!raw.trim()) return "";
+    if (/[<][a-zA-Z]+/.test(raw)) {
+      return raw;
+    }
+    // Treat as plain text -> convert newlines to paragraphs for editor display
+    const lines = raw.split(/\r?\n/).map((line) => line.trim());
+    return lines
+      .map((line) => (line ? `<p>${this.escapeHtml(line)}</p>` : '<p><br></p>'))
+      .join("");
   }
 
   private plainTextFromHtml(html: string): string {
@@ -5117,11 +5323,32 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         if (!templateId) {
           Utilities.showToast("Email template is not configured", "warning");
         } else {
+          let finalEmailHtml = emailHtml;
+          try {
+            const preparedEmail = await firstValueFrom(
+              this.core.prepareNotificationMessage(
+                "email",
+                String(idApplicant),
+                emailHtml
+              )
+            );
+            if ((preparedEmail || "").trim()) {
+              finalEmailHtml = preparedEmail;
+            }
+          } catch (err) {
+            console.error("[ApplicantPanel] Re-collect email preparation error", err);
+            Utilities.showToast(
+              this.notificationErrorMessage(err, "Failed to prepare email message"),
+              "error"
+            );
+            this.disapproveSending = false;
+            return;
+          }
           try {
             await firstValueFrom(
               this.core.sendTemplateEmail({
                 title: subject,
-                message: emailHtml,
+                message: finalEmailHtml,
                 templateId,
                 to: [emailTo],
               })
@@ -5140,6 +5367,31 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         }
         if (!smsText) {
           smsText = this.currentRecollectDescription();
+        }
+        if (!smsText) {
+          Utilities.showToast("No SMS message available", "warning");
+          this.disapproveSending = false;
+          return;
+        }
+        try {
+          const preparedSms = await firstValueFrom(
+            this.core.prepareNotificationMessage(
+              "sms",
+              String(idApplicant),
+              smsText
+            )
+          );
+          if ((preparedSms || "").trim()) {
+            smsText = preparedSms;
+          }
+        } catch (err) {
+          console.error("[ApplicantPanel] Re-collect SMS preparation error", err);
+          Utilities.showToast(
+            this.notificationErrorMessage(err, "Failed to prepare SMS message"),
+            "error"
+          );
+          this.disapproveSending = false;
+          return;
         }
         smsText = (smsText || "").trim().slice(0, 1000);
         const from = this.defaultSmsFromNumber();

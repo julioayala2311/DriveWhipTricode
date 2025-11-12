@@ -1,11 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { AppConfigService } from '../app-config/app-config.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { Utilities } from '../../../Utilities/Utilities';
+import { DriveWhipAdminCommand } from '../../db/procedures';
+import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../models/entities.model';
 
 export const AUTH_TOKEN_STORAGE_KEY = 'dw.auth.session';
 export const AUTH_USER_STORAGE_KEY = 'dw.auth.user';
@@ -177,6 +179,39 @@ export class DriveWhipCoreService {
   }
 
   /**
+   * Resolve notification template placeholders before sending via SMS or Email APIs.
+   * Falls back to the original message when applicant id or text is missing, or when the
+   * stored procedure fails to return a replacement.
+   */
+  prepareNotificationMessage(
+    templateType: 'sms' | 'email',
+    applicantId: string | null | undefined,
+    templateText: string | null | undefined
+  ): Observable<string> {
+    const normalizedId = (applicantId ?? '').toString().trim();
+    const original = (templateText ?? '').toString();
+    if (!original.trim() || !normalizedId) {
+      return of(original);
+    }
+
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_notifications_templates_replace_data,
+      parameters: [templateType, normalizedId, original]
+    };
+
+    return this.executeCommand<DriveWhipCommandResponse<any>>(api).pipe(
+      map((res) => {
+        if (!res || res.ok !== true) {
+          const msg = String((res && res.error) || 'Failed to prepare notification message');
+          throw new Error(msg);
+        }
+        const resolved = this.extractNotificationMessage(res.data);
+        return resolved?.trim() ? resolved : original;
+      })
+    );
+  }
+
+  /**
    * Approve applicant as Driver via DriverOnboarding endpoint
    * POST {baseUrl}DriverOnboarding?id_applicant={uuid}
    * Body: empty
@@ -250,6 +285,34 @@ export class DriveWhipCoreService {
       }
     }
     return null;
+  }
+
+  private extractNotificationMessage(payload: any): string | null {
+    const record = this.unwrapFirstRecord(payload);
+    if (!record || typeof record !== 'object') {
+      return null;
+    }
+    const candidates = ['message', 'MESSAGE', 'result', 'RESULT', 'text', 'TEXT'];
+    for (const key of candidates) {
+      const value = (record as any)[key];
+      if (value !== null && value !== undefined) {
+        const str = value.toString();
+        if (str.trim()) {
+          return str;
+        }
+      }
+    }
+    return null;
+  }
+
+  private unwrapFirstRecord(value: any): any {
+    let current = value;
+    const guard = new Set<any>();
+    while (Array.isArray(current) && current.length > 0 && !guard.has(current)) {
+      guard.add(current);
+      current = current[0];
+    }
+    return current;
   }
 
   /** Show error toast with basic throttling to prevent spam of the same message */

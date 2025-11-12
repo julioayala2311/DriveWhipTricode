@@ -2246,3 +2246,8 @@ body.dark :host ::ng-deep .employment-profile .accordion-stack details.acc:not(:
     font-size: 0.8rem;
   }
 }
+
+#bodyTable body {
+  background-color: var(--bs-body-bg)!important;
+  color: var(--bs-body-color)!important;
+}

@@ -168,8 +168,8 @@ export class LoginComponent implements OnInit, AfterViewInit {
                   const rows = Array.isArray(routesRes.data) ? (Array.isArray(routesRes.data[0]) ? routesRes.data[0] : routesRes.data) : [];
                   try {
                     const menu = this.buildMenuFromRoutes(rows);
-                    localStorage.setItem('dw.menu', JSON.stringify(menu));
-                    localStorage.setItem('dw.routes', JSON.stringify(rows));
+                    localStorage.setItem('dw.menu', this.crypto.encrypt(JSON.stringify(menu)));
+                    localStorage.setItem('dw.routes', this.crypto.encrypt(JSON.stringify(rows)));
                   } catch (e) {
                     console.warn('[Login] Failed to serialize menu/routes', e);
                   }

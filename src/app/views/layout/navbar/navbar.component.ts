@@ -126,8 +126,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
     // Prefer dynamic menu from storage (dw.menu) but filter by dw.routes is_assigned; fallback to static MENU
     try {
-      const storedMenu = localStorage.getItem("dw.menu");
-      const storedRoutes = localStorage.getItem("dw.routes");
+      let storedMenu = this.crypto.decrypt(localStorage.getItem("dw.menu") || '');
+      let rows = this.crypto.decrypt(localStorage.getItem("dw.routes") || '');
       let assigned: Set<string> | null = null;
       // Maps for ordering by sort_order from dw.routes
       let topOrder: Map<string, number> | null = null; // parent_id NULL -> path -> sort_order
@@ -136,9 +136,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
         string,
         { sort_order: number; action?: string | null; code?: string | null }
       > | null = null;
-      if (storedRoutes) {
+      if (rows) {
         try {
-          const rows = JSON.parse(storedRoutes);
+
+          if (typeof rows === 'string') {
+              rows = JSON.parse(rows);
+          }
           if (Array.isArray(rows)) {
             const all = rows.map((r: any) => ({
               path: String(r.path || ""),
@@ -230,9 +233,11 @@ export class NavbarComponent implements OnInit, OnDestroy {
         }
       }
       if (storedMenu) {
-        const parsed = JSON.parse(storedMenu);
-        if (Array.isArray(parsed)) {
-          let menu = parsed as MenuItem[];
+        if (typeof storedMenu === 'string') {
+              storedMenu = JSON.parse(storedMenu);
+        }
+        if (Array.isArray(storedMenu)) {
+          let menu = storedMenu as MenuItem[];
           // Enrich menu items with action, code, and sort_order from dw.routes if available
           if (routePropsByFull) {
             const enrich = (items: any[]) => {

@@ -1,14 +1,26 @@
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
+import { CryptoService } from '../crypto/crypto.service';
 
 export type RoutePermissionAction = 'Create' | 'Read' | 'Update' | 'Delete';
 
 export interface StoredRoutePermission {
+  role: string;
+  id_route: number;
+  parent_id: string | null;
   path: string;
-  Create?: number | boolean;
-  Read?: number | boolean;
-  Update?: number | boolean;
-  Delete?: number | boolean;
+  label: string;
+  icon: string;
+  sort_order: number;
+  is_menu: boolean;
+  is_active: boolean;
+  is_assigned: number;
+  code: any;
+  action: any;
+  Create: number,
+  Read: number,
+  Update: number,
+  Delete: number,
   [key: string]: unknown;
 }
 
@@ -16,19 +28,33 @@ const STORAGE_KEY = 'dw.routes';
 
 @Injectable({ providedIn: 'root' })
 export class RoutePermissionService {
-  constructor(private router: Router) {}
+  constructor(private router: Router,
+              private crypto: CryptoService
+  ) {}
 
   /** Snapshot of permissions parsed from localStorage */
   private get permissions(): StoredRoutePermission[] {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
+      let parsed = this.crypto.decrypt<StoredRoutePermission[]>(localStorage.getItem(STORAGE_KEY) || '');
+
+      if (!parsed) return [];
+
+      if (typeof parsed === 'string') {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch {
+          console.warn('Decrypted value is not valid JSON');
+          return [];
+        }
+      }
+
       if (!Array.isArray(parsed)) return [];
+
       return parsed
-        .filter((item) => item && typeof item === 'object')
-        .map((item) => ({ ...item })) as StoredRoutePermission[];
-    } catch (err) {
+        .filter((item): item is StoredRoutePermission => !!item && typeof item === 'object')
+        .map((item) => ({ ...item }));
+    }
+    catch (err) {
       console.warn('[RoutePermissionService] Failed to parse dw.routes', err);
       return [];
     }

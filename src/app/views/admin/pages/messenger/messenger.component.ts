@@ -3,7 +3,7 @@ import { Component, OnDestroy, OnInit, ViewChild, ElementRef } from '@angular/co
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Subject, Subscription } from 'rxjs';
+import { Subject, Subscription, firstValueFrom } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/models/entities.model';
 import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
@@ -1892,7 +1892,7 @@ export class MessengerComponent implements OnInit, OnDestroy {
   }
 
   // --- Chat send + realtime migration ---
-  onSendMessage(ev: Event): void {
+  async onSendMessage(ev: Event): Promise<void> {
     ev.preventDefault();
     const text = (this.draftMessage || '').trim();
     const id = this.selectedApplicantId;
@@ -1902,10 +1902,26 @@ export class MessengerComponent implements OnInit, OnDestroy {
     if (!to) { Utilities.showToast('Applicant phone not found', 'warning'); return; }
     if (this.chatSending) return;
 
+    this.chatSending = true;
+    let finalMessage = text;
+    try {
+      const prepared = await firstValueFrom(
+        this.core.prepareNotificationMessage('sms', String(id), text)
+      );
+      if ((prepared || '').trim()) {
+        finalMessage = prepared;
+      }
+    } catch (err) {
+      console.error('[Messenger] prepare SMS error', err);
+      Utilities.showToast(this.notificationErrorMessage(err, 'Failed to prepare SMS message'), 'error');
+      this.chatSending = false;
+      return;
+    }
+
     const optimistic = {
       id: 'temp-' + Date.now(),
       direction: 'outbound',
-      body: text,
+      body: finalMessage,
       timestamp: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date()),
       channel: 'SMS',
       status: 'sending',
@@ -1915,25 +1931,21 @@ export class MessengerComponent implements OnInit, OnDestroy {
   // Force-stick on local send to keep the composer anchored
   this.scrollMessagesToBottomSoon(0, true);
 
-    this.chatSending = true;
     const fromNumber = this.defaultSmsFromNumber();
-    this.core
-      .sendChatSms({ from: fromNumber, to, message: text, id_applicant: String(id) })
-      .subscribe({
-        next: () => {
-          this.draftMessage = '';
-          this.markOptimisticDelivered(optimistic.id);
-          this.scrollMessagesToBottomSoon(0, true);
-        },
-        error: (err) => {
-          console.error('[Messenger] sendChatSms error', err);
-          Utilities.showToast('Failed to send message', 'error');
-          this.removeOptimistic(optimistic.id);
-        },
-        complete: () => {
-          this.chatSending = false;
-        }
-      });
+    try {
+      await firstValueFrom(
+        this.core.sendChatSms({ from: fromNumber, to, message: finalMessage, id_applicant: String(id) })
+      );
+      this.draftMessage = '';
+      this.markOptimisticDelivered(optimistic.id);
+      this.scrollMessagesToBottomSoon(0, true);
+    } catch (err) {
+      console.error('[Messenger] sendChatSms error', err);
+      Utilities.showToast('Failed to send message', 'error');
+      this.removeOptimistic(optimistic.id);
+    } finally {
+      this.chatSending = false;
+    }
   }
 
   private markOptimisticDelivered(tempId: string): void {
@@ -1960,6 +1972,17 @@ export class MessengerComponent implements OnInit, OnDestroy {
   private removeOptimistic(tempId: string): void {
     if (!this.panelMessages || !tempId) return;
     this.panelMessages = this.panelMessages.filter((m: any) => m.id !== tempId);
+  }
+
+  private notificationErrorMessage(error: unknown, fallback: string): string {
+    if (!error) return fallback;
+    if (typeof error === 'string') return error;
+    if (error instanceof Error && error.message) return error.message;
+    const candidate = (error as any)?.message;
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate;
+    }
+    return fallback;
   }
 
   private bindRealtime(): void {

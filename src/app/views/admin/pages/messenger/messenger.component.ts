@@ -1,14 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, firstValueFrom } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntil, finalize } from 'rxjs/operators';
 import { DriveWhipCommandResponse, IDriveWhipCoreAPI } from '../../../../core/models/entities.model';
 import { DriveWhipCoreService } from '../../../../core/services/drivewhip-core/drivewhip-core.service';
 import { DriveWhipAdminCommand } from '../../../../core/db/procedures';
 import { AppConfigService } from '../../../../core/services/app-config/app-config.service';
+import { CryptoService } from '../../../../core/services/crypto/crypto.service';
 import { SmsChatSignalRService, ApplicantChatRealtimeMessage } from '../../../../core/services/signalr/sms-chat-signalr.service';
 import { Utilities } from '../../../../Utilities/Utilities';
 
@@ -74,6 +75,7 @@ export class MessengerComponent implements OnInit, OnDestroy {
   @ViewChild('messagesScroll') messagesScroll?: ElementRef<HTMLDivElement>;
   @ViewChild('historyDetailRef') historyDetailRef?: ElementRef<HTMLElement>;
   @ViewChild('historyDetailBody') historyDetailBody?: ElementRef<HTMLDivElement>;
+  @ViewChild('templateSearchInput') templateSearchInput?: ElementRef<HTMLInputElement>;
 
   locations: MessengerLocation[] = [];
   locationsLoading = false;
@@ -157,13 +159,340 @@ export class MessengerComponent implements OnInit, OnDestroy {
   // Handle incoming navbar search (?q=...)
   private pendingThreadQuery: string | null = null;
 
+  // Templates modal state (inline chat composer)
+  templatesModalOpen = false;
+  templatesLoading = false;
+  templatesError: string | null = null;
+  templateSearchTerm = '';
+  messageTemplates: Array<{
+    id: any;
+    description: string;
+    subject: string | null;
+    type: string | null;
+    content: string;
+    rawBody?: string;
+    code?: string | null;
+    dataKey?: string | null;
+    channel?: string | null;
+    preview?: string | null;
+  }> = [];
+  templateApplyingId: string | number | null = null;
+  templateApplyLoading = false;
+  templateApplyError: string | null = null;
+  private templatesRequestSub: Subscription | null = null;
+
+  // Copy-to-clipboard feedback
+  copyFeedbackKey: string | null = null;
+  private _copyFeedbackTimer: any;
+
   constructor(
     private core: DriveWhipCoreService,
     private appConfig: AppConfigService,
+    private crypto: CryptoService,
     private smsRealtime: SmsChatSignalRService,
     private sanitizer: DomSanitizer,
     private route: ActivatedRoute,
+    private router: Router,
   ) {}
+
+  // ========================= Templates Modal (inline composer) =========================
+  openTemplatesModal(): void {
+    this.templatesModalOpen = true;
+    this.templateSearchTerm = '';
+    if (!this.messageTemplates.length && !this.templatesLoading) {
+      this.loadMessageTemplates();
+    }
+    setTimeout(() => {
+      try { this.templateSearchInput?.nativeElement?.focus(); } catch {}
+    }, 80);
+  }
+
+  closeTemplatesModal(): void {
+    this.templatesModalOpen = false;
+    this.templateSearchTerm = '';
+    this.templateApplyingId = null;
+    this.templateApplyLoading = false;
+    this.templateApplyError = null;
+  }
+
+  onTemplateSearchChange(value: string): void {
+    this.templateSearchTerm = (value ?? '').toString();
+  }
+
+  get filteredTemplates() {
+    const term = (this.templateSearchTerm || '').trim().toLowerCase();
+    if (!term) return this.messageTemplates;
+    return this.messageTemplates.filter((tpl) => {
+      const hay = [
+        tpl.description ?? '',
+        tpl.subject ?? '',
+        tpl.content ?? '',
+        tpl.type ?? '',
+        tpl.rawBody ?? '',
+        tpl.code ?? '',
+        tpl.channel ?? '',
+        tpl.dataKey ?? '',
+      ].join(' ').toLowerCase();
+      return hay.includes(term);
+    });
+  }
+
+  trackTemplate(_i: number, item: any) {
+    return item?.id ?? item?.description ?? null;
+  }
+
+  private loadMessageTemplates(force: boolean = false): void {
+    if (this.templatesLoading) return;
+    if (!force && this.messageTemplates.length) return;
+    if (this.templatesRequestSub) {
+      this.templatesRequestSub.unsubscribe();
+      this.templatesRequestSub = null;
+    }
+    this.templatesLoading = true;
+    this.templatesError = null;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_notifications_templates_chat_list as any,
+      parameters: [],
+    } as any;
+    this.templatesRequestSub = this.core
+      .executeCommand<DriveWhipCommandResponse>(api)
+      .pipe(finalize(() => { this.templatesLoading = false; this.templatesRequestSub = null; }))
+      .subscribe({
+        next: (res) => {
+          if (!res || res.ok === false) {
+            const message = ((res as any)?.error?.toString() || '').trim() || 'Failed to load templates';
+            this.templatesError = message;
+            Utilities.showToast(message, 'error');
+            return;
+          }
+          let rows: any[] = [];
+          const data = (res as any).data;
+          if (Array.isArray(data)) rows = Array.isArray(data[0]) ? data[0] : data;
+          const normalized = Array.isArray(rows) ? rows.map((r) => this.normalizeTemplateRow(r)).filter(Boolean) : [];
+          this.messageTemplates = normalized as any;
+          this.templatesError = null;
+        },
+        error: (err) => {
+          console.error('[Messenger] templates load error', err);
+          const message = ((err as any)?.message?.toString() || '').trim() || 'Failed to load templates';
+          this.templatesError = message;
+          Utilities.showToast(message, 'error');
+        },
+      });
+  }
+
+  private normalizeTemplateRow(row: any) {
+    if (!row) return null;
+    const id = row.id ?? row.id_template ?? row.template_id ?? row.idNotificationTemplate ?? row.idTemplate ?? null;
+    const descriptionRaw = row.description ?? row.template_description ?? row.name ?? row.subject ?? (id != null ? `Template #${id}` : '');
+    const description = (descriptionRaw ?? '').toString().trim();
+    const subject = (row.subject ?? row.title ?? row.email_subject ?? '').toString().trim();
+    const type = (row.type ?? row.channel ?? row.delivery ?? row.delivery_method ?? '').toString().trim();
+    const code = row.code ?? row.CODE ?? row.template_code ?? row.templateCode ?? row.event_code ?? row.event ?? row.option ?? null;
+    const dataKey = row.data_key ?? row.dataKey ?? row.datakey ?? row.data_key_name ?? row.dataKeyName ?? row.folder ?? null;
+    const channelRaw = row.channel ?? row.delivery ?? row.delivery_method ?? row.deliveryMethod ?? row.type ?? row.template_type ?? null;
+    const channel = channelRaw != null ? String(channelRaw).trim() : null;
+    const rawBody = row.body ?? row.template_body ?? row.message ?? row.sms ?? row.email_body ?? row.content ?? '';
+    const rawBodyStr = typeof rawBody === 'string' ? rawBody : String(rawBody ?? '');
+    const content = this.htmlToSmsText(rawBodyStr);
+    if (!description && !content) return null;
+    const previewSource = (content || description).replace(/\s+/g, ' ').trim();
+    const preview = previewSource.length > 140 ? previewSource.slice(0, 140).trimEnd() + '...' : previewSource;
+    return {
+      id,
+      description: description || previewSource || 'Template',
+      subject: subject || null,
+      type: type || null,
+      content,
+      rawBody: rawBodyStr,
+      code: code != null ? String(code).trim() || null : null,
+      dataKey: dataKey != null ? String(dataKey).trim() || null : null,
+      channel,
+      preview,
+    };
+  }
+
+  async selectTemplate(template: any): Promise<void> {
+    if (!template) return;
+    const applicantId = this.selectedApplicantId;
+    let resolved: string | null = null;
+    if (applicantId) {
+      resolved = await this.loadTemplateMessageFromServer(template, String(applicantId));
+    } else {
+      Utilities.showToast('Applicant id not found', 'warning');
+    }
+    if (!resolved) {
+      // Fallback to local content + interpolation
+      const rawSource = (template.rawBody && template.rawBody.trim()) || template.content || template.description || '';
+      const textSource = rawSource ? this.htmlToSmsText(rawSource) : (template.content || '').toString();
+      let rendered = (textSource || '').trim();
+      if (rendered) {
+        const context = this.buildChatTemplateContext();
+        rendered = this.interpolateTemplate(rendered, context);
+        rendered = rendered.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n{3,}/g, '\n\n').replace(/[ \t]+\n/g, '\n').replace(/\s{2,}/g, ' ').trim();
+      }
+      resolved = rendered || null;
+    }
+    if (!resolved) {
+      Utilities.showToast('Template has no message content', 'warning');
+      return;
+    }
+    this.draftMessage = resolved;
+    this.closeTemplatesModal();
+  }
+
+  private async loadTemplateMessageFromServer(template: any, idApplicant: string): Promise<string | null> {
+    const code = (template.code ?? template.id ?? '').toString().trim();
+    if (!code) return null;
+    const description = (template.description || template.subject || code).toString();
+    const dataKey = (template.dataKey ?? '').toString();
+    const rawChannel = (template.channel ?? template.type ?? '').toString().trim().toLowerCase();
+    const channel = rawChannel.includes('email') ? 'email' : 'sms';
+    const token = Date.now();
+    this.templateApplyingId = template.id ?? template.code ?? null;
+    this.templateApplyLoading = true;
+    this.templateApplyError = null;
+    try {
+      const api: IDriveWhipCoreAPI = {
+        commandName: DriveWhipAdminCommand.crm_applicants_recollect_menssage as any,
+        parameters: [idApplicant, code, description, dataKey, channel],
+      } as any;
+      const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse<any>>(api));
+      let html = '';
+      if (res?.ok) {
+        let raw: any = res.data;
+        if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+        const row = Array.isArray(raw) && raw.length ? raw[0] : raw;
+        if (channel === 'email') {
+          html = String(row?.message_email ?? row?.MESSAGE_EMAIL ?? row?.message ?? row?.MESSAGE ?? row?.body ?? row?.BODY ?? row?.text ?? '');
+          return this.htmlToSmsText(html).trim().slice(0, 1000).trimEnd();
+        } else {
+          html = String(row?.message_sms ?? row?.MESSAGE_SMS ?? row?.message ?? row?.MESSAGE ?? row?.sms ?? row?.SMS ?? row?.body ?? row?.BODY ?? row?.text ?? '');
+          return (html || '').trim().slice(0, 1000).trimEnd();
+        }
+      } else {
+        const errMsg = ((res as any)?.error || '').toString().trim();
+        if (errMsg) {
+          this.templateApplyError = errMsg;
+          Utilities.showToast(errMsg, 'warning');
+        }
+      }
+      return null;
+    } catch (err) {
+      console.error('[Messenger] loadTemplateMessageFromServer error', err);
+      this.templateApplyError = 'Unable to load the template message.';
+      Utilities.showToast('Unable to load the template message.', 'error');
+      return null;
+    } finally {
+      this.templateApplyLoading = false;
+      this.templateApplyingId = null;
+    }
+  }
+
+  private buildChatTemplateContext(): any {
+    const context: any = { applicant: this.applicant || {} };
+    try {
+      const app: any = this.applicant || {};
+      const rawFirstSource = app.first_name ?? app.firstname ?? app.name ?? '';
+      const first = rawFirstSource ? String(rawFirstSource).trim().split(' ')[0] ?? '' : '';
+      const last = String(app.last_name ?? app.lastname ?? '').trim();
+      const fullNameCandidate = app.full_name ?? app.display_name ?? `${app.first_name ?? app.firstname ?? ''} ${app.last_name ?? app.lastname ?? ''}`;
+      const fullName = String(fullNameCandidate ?? '').trim();
+      if (first) context.applicantFirstName = first.trim();
+      if (last) context.applicantLastName = last;
+      if (fullName) context.applicantFullName = fullName;
+      const phone = this.applicantPhone;
+      if (phone) context.applicantPhone = phone;
+      const email = (app.email ?? app.email_address ?? app.primary_email ?? '').toString().trim();
+      if (email) context.applicantEmail = email;
+    } catch {}
+    const loc = this.getSelectedLocationName();
+    if (loc) { context.location = { name: loc }; context.locationName = loc; }
+    const stage = this.applicantStage; if (stage) { context.stage = { name: stage }; context.stageName = stage; }
+    if (this.applicantStatus) { context.status = { statusName: this.applicantStatus }; context.statusName = this.applicantStatus; }
+    return context;
+  }
+
+  // Simple {{ path.to.value }} interpolation using provided context
+  private interpolateTemplate(template: string, ctx: any): string {
+    if (!template || typeof template !== 'string') return template as any;
+    return template.replace(/{{\s*([\w\.]+)\s*}}/g, (_m, path) => {
+      const value = this.resolvePath(ctx, path);
+      return value !== undefined && value !== null ? String(value) : '';
+    });
+  }
+
+  private resolvePath(obj: any, path: string): any {
+    try {
+      if (!obj || !path) return undefined;
+      const parts = path.split('.');
+      let cur = obj;
+      for (const p of parts) { if (cur == null) return undefined; cur = cur[p]; }
+      return cur;
+    } catch { return undefined; }
+  }
+
+  private htmlToSmsText(html: string): string {
+    if (!html) return '';
+    if (typeof document !== 'undefined') {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const anchors = Array.from(tmp.querySelectorAll('a')) as HTMLAnchorElement[];
+      for (const a of anchors) {
+        const text = (a.textContent || '').trim();
+        const href = (a.getAttribute('href') || '').trim();
+        const replacement = document.createTextNode(href ? (text ? `${text}: ${href}` : href) : text);
+        a.parentNode?.replaceChild(replacement, a);
+      }
+      const brs = Array.from(tmp.querySelectorAll('br'));
+      for (const br of brs) { br.parentNode?.replaceChild(document.createTextNode('\n'), br); }
+      let text = (tmp.innerText || tmp.textContent || '').replace(/\u00a0/g, ' ');
+      text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      text = text.replace(/\n{3,}/g, '\n\n');
+      return text.trim();
+    }
+    return html
+      .replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, (_m, href, inner) => {
+        const t = String(inner).replace(/<[^>]+>/g, '').trim();
+        return t ? `${t}: ${href}` : href;
+      })
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  // Lightweight clipboard helper with transient visual feedback
+  copyToClipboard(text: string | null | undefined, key?: string): void {
+    if (!text) return;
+    const setFeedback = (k?: string) => {
+      this.copyFeedbackKey = k ?? null;
+      if (this._copyFeedbackTimer) {
+        clearTimeout(this._copyFeedbackTimer);
+        this._copyFeedbackTimer = null;
+      }
+      if (k) this._copyFeedbackTimer = setTimeout(() => { this.copyFeedbackKey = null; this._copyFeedbackTimer = null; }, 2000);
+    };
+    try {
+      void navigator.clipboard.writeText(String(text)).then(
+        () => setFeedback(key),
+        () => setFeedback(undefined)
+      );
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = String(text);
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); setFeedback(key); } catch { setFeedback(undefined); }
+      document.body.removeChild(ta);
+    }
+  }
+
+  navigateToTemplates(): void {
+    this.closeTemplatesModal();
+    try { this.router.navigate(['/configuration/templates']); } catch {}
+  }
 
   ngOnInit(): void {
     this.loadUnreadFromStorage();
@@ -2104,6 +2433,14 @@ export class MessengerComponent implements OnInit, OnDestroy {
   }
 
   private defaultSmsFromNumber(): string {
+    try {
+      const enc = localStorage.getItem('dw.sms.fromNumber');
+      if (enc) {
+        const val = this.crypto.decrypt<string>(enc);
+        const s = (val || '').toString().trim();
+        if (s) return s;
+      }
+    } catch {}
     return this.appConfig.smsDefaultFromNumber;
   }
 

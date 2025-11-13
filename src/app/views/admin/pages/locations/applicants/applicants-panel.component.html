@@ -245,6 +245,38 @@
                               placeholder="Email"
                             />
                           </div>
+                          <!-- Messaging/Calls permissions -->
+                          <div class="col-12">
+                            <div class="text-secondary small">Communication preferences</div>
+                          </div>
+                          <div class="col-12 col-sm-6">
+                            <div class="form-check form-switch mt-1">
+                              <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="editAllowMsg"
+                                name="editAllowMsg"
+                                [(ngModel)]="editableApplicant.allow_msg_updates"
+                              />
+                              <label class="form-check-label small" for="editAllowMsg">
+                                Allow messaging updates
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-12 col-sm-6">
+                            <div class="form-check form-switch mt-1">
+                              <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="editAllowCalls"
+                                name="editAllowCalls"
+                                [(ngModel)]="editableApplicant.allow_calls"
+                              />
+                              <label class="form-check-label small" for="editAllowCalls">
+                                Allow calls
+                              </label>
+                            </div>
+                          </div>
                           <!-- Address block -->
                           <div class="col-12">
                             <div class="row g-3">
@@ -393,6 +425,21 @@
                       {{ applicant.zip_code }}
                     </li>
                   </ng-container>
+                  <!-- Read-only messaging/calls preferences as chips -->
+                  <li class="small" *ngIf="!isEditingApplicant">
+                    <i class="feather icon-sliders me-2 text-primary"></i>
+                    Contact preferences:
+                    <span class="pref-chips ms-1">
+                      <span class="pref-chip" [class.on]="applicant.allow_msg_updates" [class.off]="!applicant.allow_msg_updates">
+                        <i class="feather" [ngClass]="applicant.allow_msg_updates ? 'icon-check-circle' : 'icon-slash'"></i>
+                        <span>Email</span>
+                      </span>
+                      <span class="pref-chip" [class.on]="applicant.allow_calls" [class.off]="!applicant.allow_calls">
+                        <i class="feather" [ngClass]="applicant.allow_calls ? 'icon-check-circle' : 'icon-slash'"></i>
+                        <span>Calls</span>
+                      </span>
+                    </span>
+                  </li>
                   <li *ngIf="displayLocation">
                     <i class="feather icon-map-pin me-2 text-primary"></i
                     >{{ displayLocation }}

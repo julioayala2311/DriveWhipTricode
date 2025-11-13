@@ -9,7 +9,8 @@
       "siteBaseUrl": "https://qa-whipflow.drivewhip.com",
       "accountCreatedTemplateId": "d-e32ef59d803445d4a324becc5a234ecf",
       "token_environment": "DEV",
-      "smsDefaultFromNumber": "18774142766"
+      "smsDefaultFromNumber": "18774142766",
+      "commonSettingsFromPhone": "NotificationFromPhone"
     },
     "QA": {
       "apiBaseUrl": "https://qa-whipbridge.drivewhip.com/api/",
@@ -19,7 +20,8 @@
       "siteBaseUrl": "https://qa-whipflow.drivewhip.com",
       "accountCreatedTemplateId": "d-e32ef59d803445d4a324becc5a234ecf",
       "token_environment": "QA",
-      "smsDefaultFromNumber": "18774142766"
+      "smsDefaultFromNumber": "18774142766",
+      "commonSettingsFromPhone": "NotificationFromPhone"
     },
     "PROD": {
       "apiBaseUrl": "https://api.drivewhip.com/api/",
@@ -29,7 +31,8 @@
       "siteBaseUrl": "https://app.drivewhip.com",
       "accountCreatedTemplateId": "REPLACE_PROD_TEMPLATE_ID",
       "token_environment": "0",
-      "smsDefaultFromNumber": "18774142766"
+      "smsDefaultFromNumber": "18774142766",
+      "commonSettingsFromPhone": "NotificationFromPhone"
     }
   }
 }

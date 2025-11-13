@@ -1,7 +1,7 @@
 import { Component, OnInit, AfterViewInit, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize, map, switchMap, tap } from 'rxjs/operators';
+import { finalize, map, switchMap, tap, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { GoogleAuthService } from '../../../../../core/services/googleAccounts/google.service';
 import { DriveWhipCoreService } from '../../../../../core/services/drivewhip-core/drivewhip-core.service';
@@ -9,6 +9,7 @@ import { Utilities } from '../../../../../Utilities/Utilities';
 import { IDriveWhipCoreAPI, DriveWhipCommandResponse, IAuthResponseModel } from '../../../../../core/models/entities.model';
 import { DriveWhipAdminCommand } from '../../../../../core/db/procedures';
 import { CryptoService } from '../../../../../core/services/crypto/crypto.service';
+import { AppConfigService } from '../../../../../core/services/app-config/app-config.service';
 import { HttpErrorResponse } from '@angular/common/http';
 
 interface GoogleAuthPayload {
@@ -38,7 +39,8 @@ export class LoginComponent implements OnInit, AfterViewInit {
               private googleAuthService: GoogleAuthService,
               private driveWhipCore: DriveWhipCoreService,
               private ngZone: NgZone,
-              private crypto: CryptoService) {}
+              private crypto: CryptoService,
+              private appConfig: AppConfigService) {}
 
   ngOnInit(): void {
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
@@ -178,6 +180,9 @@ export class LoginComponent implements OnInit, AfterViewInit {
               })
             );
           })
+        ).pipe(
+          // 3) After profile/routes, fetch and cache the common settings "from" phone
+          switchMap((profile) => this.fetchAndCacheSmsFromPhone().pipe(map(() => profile)))
         );
       }),
       finalize(() => {
@@ -328,6 +333,40 @@ export class LoginComponent implements OnInit, AfterViewInit {
 
   private persistGoogleState(): void {
     if (typeof window === 'undefined') return;
+  }
+
+  // Fetches the default SMS "from" number via common_settings(p_code)
+  // and stores it encrypted in localStorage. Swallows errors (non-blocking for login).
+  private fetchAndCacheSmsFromPhone() {
+    const code = this.appConfig.commonSettingsFromPhone;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.common_settings,
+      parameters: [code ?? 'NotificationFromPhone']
+    } as any;
+    return this.driveWhipCore.executeCommand<DriveWhipCommandResponse<any>>(api).pipe(
+      tap((res) => {
+        try {
+          if (!res || res.ok !== true) return;
+          let raw: any = res.data;
+          if (Array.isArray(raw)) raw = Array.isArray(raw[0]) ? raw[0] : raw;
+          const rows: any[] = Array.isArray(raw) ? raw : [];
+          const first = rows[0] || null;
+          const val = (
+            first?.value ?? first?.VALUE ?? first?.result ?? first?.RESULT ?? first?.phone ?? first?.PHONE ?? first?.setting_value ?? first?.SETTING_VALUE ?? ''
+          ).toString().trim();
+          if (val) {
+            localStorage.setItem('dw.sms.fromNumber', this.crypto.encrypt(val));
+          }
+        } catch (e) {
+          // non-blocking
+        }
+      }),
+      // Ensure the outer stream continues even on error
+      finalize(() => {}),
+      map(() => void 0),
+      // If backend fails, continue silently
+      catchError(() => of(void 0))
+    );
   }
 
   private redirectAfterLogin(): void {

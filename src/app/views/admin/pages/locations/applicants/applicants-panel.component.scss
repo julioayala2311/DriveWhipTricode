@@ -264,6 +264,24 @@
 .panel-list i {
   font-size: 0.95rem;
 }
+.pref-chips { display: inline-flex; gap: .35rem; flex-wrap: wrap; vertical-align: middle; }
+.pref-chip {
+  display: inline-flex; align-items: center; gap: .35rem; padding: .1rem .45rem;
+  border-radius: 999px; font-size: .75rem; line-height: 1.1;
+  border: 1px solid var(--bs-border-color, rgba(0,0,0,.1));
+  background: var(--bs-body-bg); color: var(--bs-body-color);
+}
+.pref-chip .feather { font-size: .95rem; line-height: 1; }
+.pref-chip.on {
+  color: var(--bs-success, #198754);
+  background: rgba(var(--bs-success-rgb, 25,135,84), .1);
+  border-color: rgba(var(--bs-success-rgb, 25,135,84), .35);
+}
+.pref-chip.off {
+  color: var(--bs-danger, #dc3545);
+  background: rgba(var(--bs-danger-rgb, 220,53,69), .08);
+  border-color: rgba(var(--bs-danger-rgb, 220,53,69), .35);
+}
 .edit-applicant-block {
   display: block;
   width: 100%;

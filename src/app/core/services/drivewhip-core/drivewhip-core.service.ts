@@ -167,7 +167,7 @@ export class DriveWhipCoreService {
   sendChatSms(payload: { from: string; to: string; message: string; id_applicant: string }): Observable<any> {
     const url = this.baseUrl + 'SMS/sendChat';
     const body = {
-      from: payload.from ?? '',
+      from: payload.from ?? '+18774142766',
       to: payload.to ?? '',
       message: payload.message ?? '',
       id_applicant: payload.id_applicant ?? ''
@@ -229,6 +229,7 @@ export class DriveWhipCoreService {
   clearCachedAuth(): void {
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    try { localStorage.removeItem('dw.sms.fromNumber'); } catch {}
   }
 
   /** Centralized error handling */
@@ -252,6 +253,7 @@ export class DriveWhipCoreService {
             localStorage.removeItem('dw.auth.user');
             localStorage.removeItem('google_picture');
             localStorage.removeItem('dw.selectedLocationId');
+            localStorage.removeItem('dw.sms.fromNumber');
             this.handlingUnauthorized = false;
           });
         }, 800);

@@ -87,6 +87,8 @@ export enum DriveWhipAdminCommand {
     // Clone a notification template
     notifcations_template_clone = "notifcations_template_clone",
     crm_notifications_template_body = "crm_notifications_template_body",
+    // Common settings lookup by code (e.g., NotificationFromPhone)
+    common_settings = "common_settings",
 }
 
 export enum DriveWhipAplicantsCommand {

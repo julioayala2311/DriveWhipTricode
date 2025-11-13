@@ -51,6 +51,7 @@ export class ErrorComponent implements OnInit {
       localStorage.removeItem('dw.auth.user');
       localStorage.removeItem('dw.selectedLocationId');
       localStorage.removeItem('google_picture');
+      localStorage.removeItem('dw.sms.fromNumber');
     } catch {
       /* ignore */
     }

@@ -154,11 +154,63 @@
                 <div class="general-section">
                   <div class="section-title">Information</div>
                   <ul class="info-list list-unstyled mb-0">
-                    <li *ngFor="let row of generalInfoRows">
-                      <span class="label">{{ row.label }}</span>
-                      <a *ngIf="row.kind === 'email'" [href]="'mailto:' + row.value">{{ row.value }}</a>
-                      <a *ngIf="row.kind === 'phone'" [href]="'tel:' + row.value">{{ row.value }}</a>
-                      <span *ngIf="!row.kind">{{ row.value }}</span>
+                    <li *ngIf="applicantEmail">
+                      <i class="feather icon-mail me-2 text-primary"></i>
+                      <a [href]="'mailto:' + applicantEmail" class="text-decoration-none">{{ applicantEmail }}</a>
+                      <button type="button" class="btn btn-link btn-xxs text-secondary ms-2" (click)="copyToClipboard(applicantEmail, 'email')" aria-label="Copy email">
+                        <i class="feather icon-copy"></i>
+                        <span class="visually-hidden">Copy</span>
+                      </button>
+                      <span class="copy-feedback ms-2 small text-success" *ngIf="copyFeedbackKey === 'email'">Copied!</span>
+                    </li>
+                    <li *ngIf="applicantPhone">
+                      <i class="feather icon-phone me-2 text-primary"></i>
+                      <a [href]="'tel:' + applicantPhone" class="text-decoration-none">{{ applicantPhone }}</a>
+                      <button type="button" class="btn btn-link btn-xxs text-secondary ms-2" (click)="copyToClipboard(applicantPhone, 'phone')" aria-label="Copy phone">
+                        <i class="feather icon-copy"></i>
+                        <span class="visually-hidden">Copy</span>
+                      </button>
+                      <span class="copy-feedback ms-2 small text-success" *ngIf="copyFeedbackKey === 'phone'">Copied!</span>
+                    </li>
+                    <!-- Read-only address display -->
+                    <ng-container>
+                      <li *ngIf="applicant?.street" class="small">
+                        <i class="feather icon-home me-2 text-primary"></i>
+                        {{ applicant?.street }}
+                      </li>
+                      <li *ngIf="applicant?.city" class="small">
+                        <i class="feather icon-map-pin me-2 text-primary"></i>
+                        {{ applicant?.city }}
+                      </li>
+                      <li *ngIf="applicant?.state_code" class="small">
+                        <i class="feather icon-flag me-2 text-primary"></i>
+                        {{ applicant?.state_code }}
+                      </li>
+                      <li *ngIf="applicant?.zip_code" class="small">
+                        <i class="feather icon-hash me-2 text-primary"></i>
+                        {{ applicant?.zip_code }}
+                      </li>
+                    </ng-container>
+                    <!-- Contact preferences chips -->
+                    <li class="small">
+                      <i class="feather icon-sliders me-2 text-primary"></i>
+                      Contact preferences:
+                      <span class="pref-chips ms-1">
+                        <span class="pref-chip" [class.on]="applicant?.allow_msg_updates" [class.off]="!applicant?.allow_msg_updates">
+                          <i class="feather" [ngClass]="applicant?.allow_msg_updates ? 'icon-check-circle' : 'icon-slash'"></i>
+                          <span>Email</span>
+                        </span>
+                        <span class="pref-chip" [class.on]="applicant?.allow_calls" [class.off]="!applicant?.allow_calls">
+                          <i class="feather" [ngClass]="applicant?.allow_calls ? 'icon-check-circle' : 'icon-slash'"></i>
+                          <span>Calls</span>
+                        </span>
+                      </span>
+                    </li>
+                    <li *ngIf="applicantLocation">
+                      <i class="feather icon-map-pin me-2 text-primary"></i>{{ applicantLocation }}
+                    </li>
+                    <li *ngIf="applicantStage">
+                      <i class="feather icon-layers me-2 text-primary"></i>{{ applicantStage }}
                     </li>
                   </ul>
                 </div>
@@ -211,8 +263,8 @@
                   </div>
                   <ul class="simple-bullet-list" *ngIf="!answersLoading && !answersError">
                     <li class="qa-item" *ngFor="let a of answers">
-                      <div class="small fw-semibold">{{ a.question }}</div>
-                      <div class="small text-secondary">{{ a.answer_text }}</div>
+                      <div class="small fw-semibold">{{ a.question || "" }}</div>
+                      <div class="small text-secondary">{{ a.answer_text || "No answer" }}</div>
                     </li>
                     <li *ngIf="!answers?.length" class="text-muted small">No answers yet.</li>
                   </ul>
@@ -260,6 +312,9 @@
                 </ng-container>
               </div>
               <form class="composer" (submit)="onSendMessage($event)">
+                <button type="button" class="attach-btn" aria-label="Insert template" aria-haspopup="dialog" (click)="openTemplatesModal()">
+                  <i class="feather icon-plus"></i>
+                </button>
                 <input
                   class="form-control"
                   name="messageInput"
@@ -564,4 +619,49 @@
     </ng-template>
   </section>
 </div>
+
+<!-- Templates Modal -->
+<div class="modal-backdrop" *ngIf="templatesModalOpen" (click)="closeTemplatesModal()"></div>
+<div class="modal-centered templates-modal" *ngIf="templatesModalOpen" (click)="$event.stopPropagation()">
+  <div class="modal-card templates-card shadow-lg">
+    <div class="modal-header templates-header d-flex align-items-center justify-content-between">
+      <strong>Insert a template</strong>
+      <button type="button" class="btn btn-link btn-sm text-secondary px-2" (click)="closeTemplatesModal()" aria-label="Close">
+        <i class="feather icon-x"></i>
+      </button>
+    </div>
+    <div class="modal-body templates-body">
+      <div class="templates-search">
+        <i class="feather icon-search"></i>
+        <input #templateSearchInput type="text" class="templates-search-input" placeholder="Search templates" [value]="templateSearchTerm" (input)="onTemplateSearchChange($any($event.target).value)" />
+      </div>
+
+      <div class="templates-content" *ngIf="!templatesLoading && !templatesError; else templatesState">
+        <button type="button" class="template-row" *ngFor="let tpl of filteredTemplates; trackBy: trackTemplate" (click)="selectTemplate(tpl)">
+          <div class="template-row-header">
+            <div class="d-flex align-items-center gap-2">
+              <span class="template-name">{{ tpl.description }}</span>
+              <span class="template-type" *ngIf="tpl.channel">{{ tpl.channel }}</span>
+            </div>
+          </div>
+          <div class="template-subject" *ngIf="tpl.subject">Subject: {{ tpl.subject }}</div>
+          <div class="template-preview text-secondary">{{ tpl.preview || tpl.content }}</div>
+        </button>
+        <p class="text-muted small mb-0" *ngIf="!filteredTemplates.length">No templates match your search.</p>
+      </div>
+
+      <ng-template #templatesState>
+        <div class="templates-state" *ngIf="templatesLoading">
+          <div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></div>
+          <span>Loading templates…</span>
+        </div>
+        <div class="alert alert-warning py-2 px-3" *ngIf="!templatesLoading && templatesError">{{ templatesError }}</div>
+      </ng-template>
+    </div>
+    <div class="modal-footer templates-footer">
+      <small class="text-secondary">Pick a template to insert into your message.</small>
+      <a class="manage-templates-link" (click)="$event.preventDefault(); navigateToTemplates()">Manage templates</a>
+    </div>
+  </div>
+  </div>
 

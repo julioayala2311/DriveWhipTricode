@@ -8,6 +8,7 @@ export interface EnvironmentEntry {
   googleClientId: string;
   token_environment: string;
   smsDefaultFromNumber?: string;
+  commonSettingsFromPhone?: string;
   [key: string]: any;
 }
 
@@ -71,6 +72,16 @@ export class AppConfigService {
   get googleEnv(): string { return this.environment; } // Backward compatibility name
   get smsDefaultFromNumber(): string {
     const value = (this.active.smsDefaultFromNumber || "").toString().trim();
-    return value || "+18774142766";
+    return value || "";
+  }
+
+  /**
+   * Code to pass into the common_settings stored procedure
+   * to retrieve the default SMS "from" phone number.
+   * Defaults to "NotificationFromPhone" if not configured.
+   */
+  get commonSettingsFromPhone(): string {
+    const val = (this.active.commonSettingsFromPhone || "NotificationFromPhone").toString().trim();
+    return val || "NotificationFromPhone";
   }
 }

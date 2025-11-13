@@ -32,6 +32,7 @@ import {
   SmsChatSignalRService,
 } from "../../../../../core/services/signalr/sms-chat-signalr.service";
 import { AppConfigService } from "../../../../../core/services/app-config/app-config.service";
+import { CryptoService } from "../../../../../core/services/crypto/crypto.service";
 import { Router } from "@angular/router";
 import {
   RoutePermissionAction,
@@ -76,6 +77,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private sanitizer = inject(DomSanitizer);
   private smsRealtime = inject(SmsChatSignalRService);
   private appConfig = inject(AppConfigService);
+  private crypto = inject(CryptoService);
   private router = inject(Router);
   private readonly permissions = inject(RoutePermissionService);
   @Input() applicant: any;
@@ -317,6 +319,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.smsTo = to;
     this.smsMessage = "";
     this.smsDelay = false;
+    // Reset inline Template selector so it doesn't keep previous selection
+    this.smsSelectedTemplateId = null;
+    this.smsTemplateError = null;
+    this.smsTemplateLoading = false;
     this.smsSidebarOpen = true;
     this.updatePhoneSubscription().catch(() => {});
     // Ensure SMS templates are available for the inline selector
@@ -1332,6 +1338,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.emailDelay = false;
     this.emailPreviewMode = "desktop";
     this.emailSourceMode = false;
+    // Reset inline Template selector so it doesn't keep previous selection
+    this.emailSelectedTemplateId = null;
+    this.emailTemplateError = null;
+    this.emailTemplateLoading = false;
     this.emailSidebarOpen = true;
     setTimeout(() => this.syncEmailEditorFromContent(), 0);
     // Ensure Email templates are available for the inline selector
@@ -3031,6 +3041,14 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private currentRealtimePhoneNumber: string | null = null;
 
   private defaultSmsFromNumber(): string {
+    try {
+      const enc = localStorage.getItem('dw.sms.fromNumber');
+      if (enc) {
+        const val = this.crypto.decrypt<string>(enc);
+        const s = (val || '').toString().trim();
+        if (s) return s;
+      }
+    } catch {}
     return this.appConfig.smsDefaultFromNumber;
   }
 

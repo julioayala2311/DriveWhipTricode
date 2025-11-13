@@ -182,6 +182,17 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
     } as const;
   }
 
+  // Map an incoming type (code or label) to a valid option value from templateTypes
+  private resolveTypeCode(input: string | null | undefined): string | null {
+    const val = (input || '').toString().trim();
+    if (!val) return null;
+    const byValue = this.templateTypes.find(t => (t.value || '').toString().toLowerCase() === val.toLowerCase());
+    if (byValue) return byValue.value;
+    const byLabel = this.templateTypes.find(t => (t.label || '').toString().toLowerCase() === val.toLowerCase());
+    if (byLabel) return byLabel.value;
+    return null;
+  }
+
   private stripHtml(value: string): string {
     return value.replace(/<[^>]+>/g, ' ');
   }
@@ -333,7 +344,7 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
         const v = p?.data?.active;
         const isActive = v === true || v === 1 || String(v).toLowerCase?.() === 'true';
         const toggleLabel = isActive ? 'Disable' : 'Activate';
-        const toggleAction = isActive ? 'delete' : 'activate';
+        const toggleAction = isActive ? 'disable' : 'activate';
         return `
           <div class="template-actions-inline dropdown position-relative">
             <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-toggle="actions-menu">
@@ -342,8 +353,9 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
             <div class="dropdown-menu">
               <button type="button" class="dropdown-item" data-action="edit">Edit</button>
               <button type="button" class="dropdown-item" data-action="clone">Clone</button>
-              <button type="button" class="dropdown-item text-danger" data-action="delete">Disable</button>
-              <!-- <button type="button" class="dropdown-item ${isActive ? 'text-danger' : 'text-success'}" data-action="${toggleAction}">${toggleLabel}</button> -->
+              <button type="button" class="dropdown-item" data-action="${toggleAction}">${toggleLabel}</button>
+              <div class="dropdown-divider"></div>
+              <button type="button" class="dropdown-item text-danger" data-action="delete-permanent">Delete permanently</button>
             </div>
           </div>
         `;
@@ -768,11 +780,12 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
       case "edit":
         this.openEditTemplate(row);
         break;
-      case "activate": {
+      case "disable": {
         void (async () => {
           const currentUser = this.authSession.user?.user || 'system';
-          // Fetch existing combined bodies for activation
+          // Keep existing content when disabling
           const { emailBody, smsBody, subject } = await this.fetchTemplateBody(row.id);
+          const typeCode = await this.fetchTemplateTypeCode(row.id);
           const api: IDriveWhipCoreAPI = {
             commandName: DriveWhipAdminCommand.crm_notifications_templates_crud_v2,
             parameters: [
@@ -782,7 +795,44 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
               (subject ?? ''),        // subject
               emailBody ?? null,      // body email
               smsBody ?? null,        // body sms
-              null,                   // type code (not available in grid row)
+              this.resolveTypeCode(typeCode || row.messageType) ?? null, // type code
+              null,                   // created_by (null on update)
+              currentUser,            // updated_by
+              0,                      // is_active (disable)
+              null                    // twilio id
+            ]
+          } as any;
+          try {
+            const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse>(api));
+            if (!res || (res as any).ok === false) {
+              const message = (res as any)?.error?.toString() || 'Failed to disable template';
+              throw new Error(message);
+            }
+            Utilities.showToast('Template disabled', 'success');
+            await this.loadTemplates();
+          } catch (err: any) {
+            const message = (err && err.message) ? err.message : 'Failed to disable template';
+            Utilities.showToast(message, 'error');
+          }
+        })();
+        break;
+      }
+      case "activate": {
+        void (async () => {
+          const currentUser = this.authSession.user?.user || 'system';
+          // Fetch existing combined bodies for activation
+          const { emailBody, smsBody, subject } = await this.fetchTemplateBody(row.id);
+          const typeCode = await this.fetchTemplateTypeCode(row.id);
+          const api: IDriveWhipCoreAPI = {
+            commandName: DriveWhipAdminCommand.crm_notifications_templates_crud_v2,
+            parameters: [
+              'U',                    // action update
+              row.id ?? null,         // template id
+              row.name ?? null,       // template name
+              (subject ?? ''),        // subject
+              emailBody ?? null,      // body email
+              smsBody ?? null,        // body sms
+              this.resolveTypeCode(typeCode || row.messageType) ?? null, // type code
               null,                   // created_by (null on update)
               currentUser,            // updated_by
               1,                      // is_active (activate)
@@ -848,6 +898,7 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
           }
         });
         break;
+      case "delete-permanent":
       case "delete":
         Utilities.confirm({
           title: "Delete template",
@@ -860,16 +911,16 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
           const api: IDriveWhipCoreAPI = {
             commandName: DriveWhipAdminCommand.crm_notifications_templates_crud_v2,
             parameters: [
-              'D',                  // action delete (logical inactivation)
+              'D',                  // action delete (permanent cleanup in SP)
               row.id ?? null,       // template id
               null,                 // name (not needed for delete)
               null,                 // subject
               null,                 // body email
               null,                 // body sms
-              row.format ?? null,   // type code (if available)
+              this.resolveTypeCode(row.messageType) ?? null,   // type code (if available)
               null,                 // created_by
               currentUser,          // updated_by
-              0,                    // is_active -> set inactive
+              0,                    // is_active (not used by SP D, safe to send 0)
               null                  // twilio id
             ]
           } as any;
@@ -899,7 +950,8 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
     this.templateForm = {
       id: row.id ?? null,
       name: row.name || '',
-      type: this.templateTypes[0]?.value || 'Follow Up',
+      // Tentative type; will be refined by fetching the authoritative code
+      type: (this.resolveTypeCode(row.messageType) || this.templateTypes[0]?.value || 'Follow Up'),
       emailSubject: row.emailSubject || '',
       emailBody: row.emailBody || '',
       smsBody: row.smsBody || '',
@@ -909,6 +961,15 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
     // After opening the modal, fetch the latest subject/body for this template id
     // using the SP crm_notifications_template_body. For Email we set subject+body; for SMS only body.
     void this.loadTemplateBodyForRow(row);
+    // Also fetch the type code via CRUD 'R' and set the select accurately
+    void (async () => {
+      const code = await this.fetchTemplateTypeCode(row.id);
+      const resolved = this.resolveTypeCode(code);
+      if (resolved) {
+        this.templateForm.type = resolved;
+        try { this.cdr.detectChanges(); } catch {}
+      }
+    })();
   }
 
   /**
@@ -971,6 +1032,38 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Retrieve template type code for a given id via CRUD 'R'
+  private async fetchTemplateTypeCode(templateId: string | number | null): Promise<string | null> {
+    if (templateId == null) return null;
+    const api: IDriveWhipCoreAPI = {
+      commandName: DriveWhipAdminCommand.crm_notifications_templates_crud_v2,
+      parameters: [
+        'R',            // read
+        templateId,     // id
+        null,           // name
+        null,           // subject
+        null,           // email body
+        null,           // sms body
+        null,           // type code
+        null,           // created by
+        null,           // updated by
+        null,           // is_active
+        null            // twilio id
+      ]
+    } as any;
+    try {
+      const res = await firstValueFrom(this.core.executeCommand<DriveWhipCommandResponse>(api));
+      const data = Array.isArray(res?.data)
+        ? (Array.isArray(res.data[0]) ? res.data[0] : res.data)
+        : [];
+      const first = (data && data[0]) ? data[0] : {};
+      const code = (first.message_type ?? first.type_code ?? first.TYPE ?? first.type ?? '').toString().trim();
+      return code || null;
+    } catch {
+      return null;
+    }
+  }
+
   // --- Sub-editors ---
   openSmsEditor(): void {
     this.showSmsEditor = true;
@@ -998,7 +1091,7 @@ export class TemplatesPageComponent implements OnInit, OnDestroy {
     if (id == null) { this.showEditorModal = false; return; }
     const row = this.rowData.find(r => r.id === id);
     if (!row) { this.showEditorModal = false; return; }
-    this.onActionClick('delete', row);
+    this.onActionClick('delete-permanent', row);
     this.showEditorModal = false;
   }
 

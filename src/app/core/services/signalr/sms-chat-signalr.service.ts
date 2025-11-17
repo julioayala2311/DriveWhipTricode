@@ -17,7 +17,10 @@ export interface ApplicantChatRealtimeMessage {
   to: string;
   status?: string;
   messageSid?: string;
-  mediaJson?: string;
+  mediaJson?: string;  
+  Attachments_Json?: string | null;
+  attachments_Json?: string | null;
+  attachmentsJson?: string | null;
   smsSid?: string;
   chatId?: number;
   sentAtUtc?: string;
@@ -164,6 +167,8 @@ export class SmsChatSignalRService {
   }
   
   private handleInbound(payload: unknown): void {
+    console.log("handleInbound");
+    console.log(payload);
     const normalized = this.normalizePayload(payload, "inbound");
     if (!normalized) return;
     this.debug('ReceiveInboundMessage <-', normalized);
@@ -171,6 +176,8 @@ export class SmsChatSignalRService {
   }
 
   private handleOutbound(payload: unknown): void {
+    console.log("handleOutbound");
+    console.log(payload);
     const normalized = this.normalizePayload(payload, "outbound");
     if (!normalized) return;
     this.debug('ReceiveOutboundMessage <-', normalized);
@@ -178,6 +185,8 @@ export class SmsChatSignalRService {
   }
 
   private handleInboundNotification(payload: unknown): void {
+    console.log("handleInboundNotification");
+    console.log(payload);
     const normalized = this.normalizePayload(payload, "inbound");
     if (!normalized) return;
     this.debug('ReceiveInboundNotification <-', normalized);
@@ -185,6 +194,8 @@ export class SmsChatSignalRService {
   }
 
   private normalizePayload(payload: any, fallbackDirection: "inbound" | "outbound"): ApplicantChatRealtimeMessage | null {
+     console.log("payload");
+    console.log(payload);
     if (!payload) {
       return null;
     }
@@ -205,10 +216,26 @@ export class SmsChatSignalRService {
       payload.IdApplicant ??
       undefined;
 
+    const mediaJson =
+      payload.mediaJson ??
+      payload.MediaJson ??
+      payload.attachmentsJson ??
+      payload.AttachmentsJson ??
+      "";
+    if (mediaJson) {
+      try {
+        console.log(
+          "[SmsChatSR] mediaJson received",
+          mediaJson,
+          "for applicant",
+          applicantIdRaw ?? "n/a"
+        );
+      } catch {}
+    }
     return {
       applicantId: (applicantIdRaw ?? "").toString(),
       body: (payload.body ?? payload.Body ?? "").toString(),
-      mediaJson: (payload.mediaJson ?? payload.mediaJson ?? ""),
+      mediaJson,
       direction,
       from: this.normalizePhone(payload.from ?? payload.From) ?? (payload.from ?? payload.From ?? "").toString(),
       to: this.normalizePhone(payload.to ?? payload.To) ?? (payload.to ?? payload.To ?? "").toString(),

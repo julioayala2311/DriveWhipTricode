@@ -1499,28 +1499,38 @@ export class MessengerComponent implements OnInit, OnDestroy {
       onSettled?.();
       return undefined;
     }
-    if (descriptor.directUrl) {
-      if (targetMessage) targetMessage.attachmentUrl = descriptor.directUrl;
-      onSettled?.();
-      return descriptor.directUrl;
+    const fallbackUrl = descriptor.directUrl
+      ? descriptor.directUrl
+      : this.core.getFileUrl(descriptor.folder, descriptor.documentName);
+
+    if (targetMessage) {
+      targetMessage.attachmentUrl = fallbackUrl;
     }
-    this.core.fetchFile(descriptor.folder, descriptor.documentName).subscribe({
-      next: (response: any) => {
-        const resolvedUrl =
-          response?.data?.url ||
-          this.core.getFileUrl(descriptor.folder, descriptor.documentName);
-        if (targetMessage) {
-          targetMessage.attachmentUrl = resolvedUrl;
+    if (!descriptor.directUrl) {
+      this.core.fetchFile(descriptor.folder, descriptor.documentName).subscribe({
+        next: (response: any) => {
+          const resolvedUrl =
+            response?.data?.url ||
+            fallbackUrl;
+          if (targetMessage) {
+            targetMessage.attachmentUrl = resolvedUrl;
+          }
+          this.panelMessages = [...(this.panelMessages || [])];
+          onSettled?.();
+        },
+        error: (err) => {
+          console.error('[Messenger] fetch chat attachment error', err);
+          if (targetMessage) {
+            targetMessage.attachmentUrl = fallbackUrl;
+            this.panelMessages = [...(this.panelMessages || [])];
+          }
+          onSettled?.();
         }
-        this.panelMessages = [...(this.panelMessages || [])];
-        onSettled?.();
-      },
-      error: (err) => {
-        console.error('[Messenger] fetch chat attachment error', err);
-        onSettled?.();
-      }
-    });
-    return undefined;
+      });
+    } else {
+      onSettled?.();
+    }
+    return fallbackUrl;
   }
 
   private parseAttachmentDescriptor(
@@ -1586,6 +1596,11 @@ export class MessengerComponent implements OnInit, OnDestroy {
     } catch {
       return null;
     }
+  }
+
+  get currentChatViewerDoc(): ApplicantDocument | null {
+    if (!this.chatViewerDocs || !this.chatViewerDocs.length) return null;
+    return this.chatViewerDocs[this.chatViewerIndex] ?? null;
   }
 
   private normalizeDocRecord(r: any): ApplicantDocument {
@@ -2660,8 +2675,10 @@ export class MessengerComponent implements OnInit, OnDestroy {
     if (!accept && this.matchesCurrentPhone(evt)) accept = true;
     if (!accept) return;
 
-    const body = (evt.body || '').toString();
-    if (!body.trim()) return;
+    const rawBody = (evt.body || '').toString();
+    const hasBody = rawBody.trim().length > 0;
+    const hasMedia = !!(evt.mediaJson && String(evt.mediaJson).trim().length > 0);
+    if (!hasBody && !hasMedia) return;
 
     const direction = (evt.direction || '').toLowerCase() === 'outbound' ? 'outbound' : 'inbound';
     const sentSource = evt.sentAtUtc || evt.createdAtUtc || new Date().toISOString();
@@ -2674,7 +2691,7 @@ export class MessengerComponent implements OnInit, OnDestroy {
     const message: any = {
       id: (evt.chatId != null ? String(evt.chatId) : (evt.messageSid ? `sid-${evt.messageSid}` : `rt-${Date.now()}`)),
       direction,
-      body,
+      body: hasBody ? rawBody : '',
       timestamp: timestampLabel,
       channel: (evt.channel || 'SMS').toString() || 'SMS',
       status,
@@ -2690,7 +2707,7 @@ export class MessengerComponent implements OnInit, OnDestroy {
     if (direction === 'outbound') {
       const temp = [...this.panelMessages]
         .reverse()
-        .find((m: any) => (m.id || '').toString().startsWith('temp-') && m.direction === 'outbound' && (m.body || '').toString().trim() === body.trim());
+        .find((m: any) => (m.id || '').toString().startsWith('temp-') && m.direction === 'outbound' && (m.body || '').toString().trim() === rawBody.trim());
       if (temp) {
         this.panelMessages = this.panelMessages.filter((m: any) => m.id !== temp.id);
       }

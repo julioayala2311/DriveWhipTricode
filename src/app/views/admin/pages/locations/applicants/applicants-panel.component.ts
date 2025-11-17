@@ -1088,6 +1088,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private _resolvedMessages: ApplicantMessage[] = [];
 
   ngOnChanges(changes: SimpleChanges): void {
+
     if (changes["messages"] || changes["applicant"]) {
       this.refreshResolvedMessages();
     }
@@ -2942,8 +2943,12 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       }
     } catch {}
 
+    const attachmentsJson = (evt.mediaJson ?? evt.Attachments_Json ?? evt.attachments_Json ?? evt.attachmentsJson) ?? null;
+
     const body = (evt.body || "").toString();
-    if (!body.trim()) return;
+
+    // Si NO hay body Y NO hay attachments → return
+    if (!body.trim() && !attachmentsJson) return;
 
     const candidateId =
       evt.chatId != null
@@ -3004,10 +3009,20 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       createdBy:
         direction === "outbound" ? this.authSession.user?.user || null : null,
       __isNew: true,
-      attachmentsJson: evt.mediaJson ?? null,
+      //attachmentsJson: evt.mediaJson ?? null,
+      attachmentsJson: (evt.mediaJson ?? evt.Attachments_Json ?? evt.attachments_Json ?? evt.attachmentsJson) ?? null,
+
       attachmentUrl: null,
     };
-    message.attachmentUrl = this.prepareImage(evt.mediaJson, message);
+    //message.attachmentUrl = this.prepareImage(evt.mediaJson, message);
+
+
+    console.log("aca van")
+    console.log(attachmentsJson)
+    message.attachmentUrl = attachmentsJson
+      ? this.prepareImage(attachmentsJson, message)
+      : undefined;
+
 
     const base = this.messages ?? [];
     this.messages = [...base, message];
@@ -6402,7 +6417,14 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           }).format(dt);
         }
       }
-      const attachmentUrl = this.ensureAttachmentUrl(msg);
+      const attachmentSource =
+        msg.attachmentsJson ??
+        (anyMsg.attachmentsJson ?? anyMsg.mediaJson ?? anyMsg.AttachmentsJson) ??
+        null;
+      let attachmentUrl = msg.attachmentUrl ?? null;
+      if (!attachmentUrl && attachmentSource) {
+        attachmentUrl = this.prepareImage(attachmentSource, msg) ?? null;
+      }
       // Avatar initial: prefer createdBy (from backend) then sender
       const createdBy = (msg.createdBy ?? null) as string | null;
       const sourceForInitial =
@@ -6410,6 +6432,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       const avatar =
         (msg.avatar ?? "").toString().trim() ||
         (sourceForInitial || "").slice(0, 1).toUpperCase();
+
       return {
         ...msg,
         id: msg.id ?? `msg-${idx}`,
@@ -6423,33 +6446,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         automated: msg.automated ?? false,
         dayLabel,
         avatar,
-        attachmentUrl: attachmentUrl ?? null,
-        attachmentsJson: msg.attachmentsJson ?? null,
+        attachmentUrl,
+        attachmentsJson: attachmentSource,
       };
     });
-  }
-
-  private ensureAttachmentUrl(msg: ApplicantMessage): string | undefined {
-    if (msg.attachmentUrl) {
-      return msg.attachmentUrl;
-    }
-    const source = msg.attachmentsJson;
-    if (!source) {
-      return undefined;
-    }
-    if ((msg as any).__attachmentResolving) {
-      return undefined;
-    }
-    (msg as any).__attachmentResolving = true;
-    const immediate = this.prepareImage(source, msg, () => {
-      (msg as any).__attachmentResolving = false;
-    });
-    if (immediate) {
-      msg.attachmentUrl = immediate;
-      (msg as any).__attachmentResolving = false;
-      return immediate;
-    }
-    return undefined;
   }
 
   // Simple template interpolation: replaces {{ path.to.value }} using values from ctx
@@ -7026,6 +7026,8 @@ interface ApplicantMessage {
   __isNew?: boolean;
   attachmentsJson?: any;
   attachmentUrl?: string | null;
+  mediaJson?: string | null;
+  AttachmentsJson?: string | null;
 }
 
 interface StageMenuOption {

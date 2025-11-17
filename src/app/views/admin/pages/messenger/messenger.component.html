@@ -659,8 +659,8 @@
         <button
           type="button"
           class="btn btn-outline-primary btn-sm"
-          (click)="chatViewerDocs.length && downloadDocument(chatViewerDocs[chatViewerIndex])"
-          [disabled]="!chatViewerDocs.length"
+          (click)="currentChatViewerDoc && downloadDocument(currentChatViewerDoc)"
+          [disabled]="!currentChatViewerDoc"
         >
           <i class="feather icon-download"></i>
         </button>
@@ -683,7 +683,7 @@
       <img
         *ngIf="chatViewerCurrentUrl"
         [src]="chatViewerCurrentUrl"
-        [alt]="chatViewerDocs[chatViewerIndex]?.document_name || 'Attachment'"
+        [alt]="currentChatViewerDoc?.document_name || 'Attachment'"
         [style.transform]="
           'translate(' +
           chatViewerPanX +

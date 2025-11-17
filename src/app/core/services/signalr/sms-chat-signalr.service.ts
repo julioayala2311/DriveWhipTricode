@@ -17,6 +17,7 @@ export interface ApplicantChatRealtimeMessage {
   to: string;
   status?: string;
   messageSid?: string;
+  mediaJson?: string;
   smsSid?: string;
   chatId?: number;
   sentAtUtc?: string;
@@ -207,6 +208,7 @@ export class SmsChatSignalRService {
     return {
       applicantId: (applicantIdRaw ?? "").toString(),
       body: (payload.body ?? payload.Body ?? "").toString(),
+      mediaJson: (payload.mediaJson ?? payload.mediaJson ?? ""),
       direction,
       from: this.normalizePhone(payload.from ?? payload.From) ?? (payload.from ?? payload.From ?? "").toString(),
       to: this.normalizePhone(payload.to ?? payload.To) ?? (payload.to ?? payload.To ?? "").toString(),

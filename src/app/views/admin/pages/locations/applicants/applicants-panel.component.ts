@@ -608,6 +608,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       dayLabel: "",
       sentAt: new Date().toISOString(),
       createdBy: this.authSession.user?.user || "You",
+      attachmentsJson: null,
+      attachmentUrl: null,
     };
     this.messages = [...(this.messages ?? []), optimistic];
     this.refreshResolvedMessages();
@@ -724,6 +726,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       dayLabel: "",
       sentAt: new Date().toISOString(),
       createdBy: this.authSession.user?.user || "You",
+      attachmentsJson: null,
+      attachmentUrl: null,
     };
     this.messages = [...(this.messages ?? []), optimistic];
     this.refreshResolvedMessages();
@@ -2851,6 +2855,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       }).format(new Date()),
       sentAt: nowIso,
       createdBy: this.authSession.user?.user || "You",
+      attachmentsJson: null,
+      attachmentUrl: null,
     };
     this.messages = [...(this.messages ?? []), optimistic];
     this.refreshResolvedMessages();
@@ -2998,7 +3004,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       createdBy:
         direction === "outbound" ? this.authSession.user?.user || null : null,
       __isNew: true,
+      attachmentsJson: evt.mediaJson ?? null,
+      attachmentUrl: null,
     };
+    message.attachmentUrl = this.prepareImage(evt.mediaJson, message);
 
     const base = this.messages ?? [];
     this.messages = [...base, message];
@@ -3050,6 +3059,124 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       }
     } catch {}
     return this.appConfig.smsDefaultFromNumber;
+  }
+
+  private prepareImage(
+    mediaJson: any,
+    targetMessage?: ApplicantMessage,
+    onSettled?: () => void
+  ): string | undefined {
+    if (!mediaJson) {
+      onSettled?.();
+      return undefined;
+    }
+
+    const descriptor = this.parseAttachmentDescriptor(mediaJson);
+    if (!descriptor) {
+      onSettled?.();
+      return undefined;
+    }
+
+    if (descriptor.directUrl) {
+      onSettled?.();
+      return descriptor.directUrl;
+    }
+
+    this.core
+      .fetchFile(descriptor.folder, descriptor.documentName)
+      .subscribe({
+        next: (response: any) => {
+          const resolvedUrl =
+            response?.data?.url ||
+            this.core.getFileUrl(
+              descriptor.folder,
+              descriptor.documentName
+            );
+          if (resolvedUrl && targetMessage) {
+            targetMessage.attachmentUrl = resolvedUrl;
+          }
+          this.refreshResolvedMessages();
+          onSettled?.();
+        },
+        error: (err) => {
+          console.error(
+            "[ApplicantPanel] fetch chat attachment error",
+            err
+          );
+          onSettled?.();
+        },
+      });
+    return undefined;
+  }
+
+  private parseAttachmentDescriptor(
+    mediaJson: any
+  ):
+    | { folder: string; documentName: string; directUrl?: string }
+    | null {
+    if (!mediaJson) {
+      return null;
+    }
+
+    if (typeof mediaJson === "string") {
+      const trimmed = mediaJson.trim();
+      if (!trimmed) {
+        return null;
+      }
+      if (/^(https?:|data:|blob:)/i.test(trimmed)) {
+        return { folder: "", documentName: "", directUrl: trimmed };
+      }
+    }
+
+    let media: Array<{ FileName?: string; fileName?: string }> = [];
+    try {
+      if (Array.isArray(mediaJson)) {
+        media = mediaJson;
+      } else if (typeof mediaJson === "string") {
+        let jsonStr = mediaJson.trim();
+        if (jsonStr.startsWith('"') && jsonStr.endsWith('"')) {
+          jsonStr = jsonStr.substring(1, jsonStr.length - 1);
+        }
+        const parsed = JSON.parse(jsonStr);
+        media = Array.isArray(parsed) ? parsed : [parsed];
+      } else if (typeof mediaJson === "object") {
+        media = [mediaJson];
+      }
+    } catch {
+      return null;
+    }
+
+    if (!Array.isArray(media) || media.length === 0) {
+      return null;
+    }
+
+    const doc = media[0] || {};
+    const fileNameRaw = (doc.FileName || doc.fileName || "").toString().trim();
+    if (!fileNameRaw) {
+      return null;
+    }
+    const lastSlash = fileNameRaw.lastIndexOf("/");
+    const folder = lastSlash >= 0 ? fileNameRaw.substring(0, lastSlash) : "";
+    const documentName =
+      lastSlash >= 0 ? fileNameRaw.substring(lastSlash + 1) : fileNameRaw;
+
+    if (!documentName) {
+      return null;
+    }
+
+    return { folder, documentName };
+  }
+
+  private attachmentFileNameFromUrl(url?: string | null): string | null {
+    if (!url) return null;
+    try {
+      const clean = url.split(/[?#]/)[0];
+      const idx = clean.lastIndexOf("/");
+      const name = idx >= 0 ? clean.substring(idx + 1) : clean;
+      return name || null;
+    } catch {
+      return null;
+    }
   }
 
   private normalizePhone(raw?: string | null): string | null {
@@ -4426,6 +4553,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private normalizeChatRecord(r: any): ApplicantMessage {
+
+    const attachmentsJson = (r.AttachmentsJson ?? r.AttachmentsJson ?? "")
     const directionRaw = (r.Direction ?? r.message_direction ?? "")
       .toString()
       .toLowerCase();
@@ -4478,7 +4607,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       // Default assumption: once persisted, outbound messages are effectively delivered
       status = "delivered";
     }
-    return {
+    const message: ApplicantMessage = {
       id: String(r.ID ?? r.id_chat ?? ""),
       direction,
       sender,
@@ -4491,7 +4620,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       dayLabel: "",
       sentAt: sent,
       createdBy,
+      attachmentsJson,
+      attachmentUrl: null,
     };
+    message.attachmentUrl = this.prepareImage(attachmentsJson, message);
+    return message;
   }
 
   private markOptimisticDelivered(tempId: string): void {
@@ -4774,6 +4907,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       this.viewerCurrentUrl = "";
       return;
     }
+    if (cur.directUrl) {
+      this.viewerCurrentUrl = cur.directUrl;
+      this.viewerLoading = false;
+      this.viewerPanX = 0;
+      this.viewerPanY = 0;
+      return;
+    }
     this.viewerLoading = true;
     this.core.fetchFile(cur.folder || "", cur.document_name || "").subscribe({
       next: (resp: any) => {
@@ -4969,6 +5109,54 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       });
     } catch {
       Utilities.showToast("Unable to open file", "error");
+    }
+  }
+
+  openChatAttachment(message: ApplicantMessage, ev?: Event): void {
+    try {
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+      if (!message || (!message.attachmentsJson && !message.attachmentUrl)) {
+        Utilities.showToast("Attachment not available", "warning");
+        return;
+      }
+      const descriptor =
+        this.parseAttachmentDescriptor(message.attachmentsJson ?? null) || null;
+      const docName =
+        descriptor?.documentName ||
+        this.attachmentFileNameFromUrl(message.attachmentUrl) ||
+        "attachment";
+      const viewerDoc: ApplicantDocument = {
+        id_applicant_document: 0,
+        id_applicant:
+          this.resolveApplicantId(this.applicant) ||
+          this.applicantId ||
+          "",
+        data_key: "chat_attachment",
+        document_name: docName,
+        status: null,
+        folder: descriptor?.folder || "",
+        url: message.attachmentUrl || descriptor?.directUrl || undefined,
+        directUrl:
+          descriptor?.directUrl ||
+          (!descriptor && message.attachmentUrl
+            ? message.attachmentUrl
+            : undefined),
+      };
+      this.viewerDocs = [viewerDoc];
+      this.viewerIndex = 0;
+      this.viewerZoom = 1;
+      this.viewerRotate = 0;
+      this.viewerPanX = 0;
+      this.viewerPanY = 0;
+      this.viewerCurrentUrl = "";
+      this.imageViewerOpen = true;
+      this.loadViewerUrl();
+    } catch (err) {
+      console.error("[ApplicantPanel] openChatAttachment error", err);
+      Utilities.showToast("Unable to preview attachment", "error");
     }
   }
 
@@ -6214,6 +6402,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           }).format(dt);
         }
       }
+      const attachmentUrl = this.ensureAttachmentUrl(msg);
       // Avatar initial: prefer createdBy (from backend) then sender
       const createdBy = (msg.createdBy ?? null) as string | null;
       const sourceForInitial =
@@ -6234,8 +6423,33 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         automated: msg.automated ?? false,
         dayLabel,
         avatar,
+        attachmentUrl: attachmentUrl ?? null,
+        attachmentsJson: msg.attachmentsJson ?? null,
       };
     });
+  }
+
+  private ensureAttachmentUrl(msg: ApplicantMessage): string | undefined {
+    if (msg.attachmentUrl) {
+      return msg.attachmentUrl;
+    }
+    const source = msg.attachmentsJson;
+    if (!source) {
+      return undefined;
+    }
+    if ((msg as any).__attachmentResolving) {
+      return undefined;
+    }
+    (msg as any).__attachmentResolving = true;
+    const immediate = this.prepareImage(source, msg, () => {
+      (msg as any).__attachmentResolving = false;
+    });
+    if (immediate) {
+      msg.attachmentUrl = immediate;
+      (msg as any).__attachmentResolving = false;
+      return immediate;
+    }
+    return undefined;
   }
 
   // Simple template interpolation: replaces {{ path.to.value }} using values from ctx
@@ -6810,6 +7024,8 @@ interface ApplicantMessage {
   createdBy?: string | null;
   /** transient: highlight new socket messages */
   __isNew?: boolean;
+  attachmentsJson?: any;
+  attachmentUrl?: string | null;
 }
 
 interface StageMenuOption {
@@ -6835,9 +7051,11 @@ interface ApplicantDocument {
   disapproved_by?: string | null;
   folder?: string | null;
   url?: string;
+  directUrl?: string | null;
 }
 
 interface DocumentGroup {
   dataKey: string;
   items: ApplicantDocument[];
 }
+

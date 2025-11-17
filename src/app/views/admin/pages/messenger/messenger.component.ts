@@ -57,6 +57,7 @@ interface ApplicantDocument {
   disapproved_by?: string | null;
   folder?: string | null;
   url?: string;
+  directUrl?: string | null;
 }
 
 interface DocumentGroup {
@@ -117,6 +118,20 @@ export class MessengerComponent implements OnInit, OnDestroy {
   panelMessages: any[] = [];
   panelMessagesLoading = false;
   panelMessagesError: string | null = null;
+
+  // Chat attachment viewer state
+  chatAttachmentViewerOpen = false;
+  chatViewerDocs: ApplicantDocument[] = [];
+  chatViewerIndex = 0;
+  chatViewerCurrentUrl = '';
+  chatViewerLoading = false;
+  chatViewerZoom = 1;
+  chatViewerRotate = 0;
+  chatViewerPanX = 0;
+  chatViewerPanY = 0;
+  private chatViewerPanning = false;
+  private _chatViewerLastX = 0;
+  private _chatViewerLastY = 0;
 
   // Unread tracking (Option A - frontend only)
   private readonly UNREAD_STORAGE_KEY = 'dw.messenger.unread.map';
@@ -1258,9 +1273,17 @@ export class MessengerComponent implements OnInit, OnDestroy {
   }
 
   downloadDocument(doc: ApplicantDocument): void {
+    if (!doc) {
+      Utilities.showToast('File URL not available', 'warning');
+      return;
+    }
     try {
-      const folder = doc.folder || '';
       const name = doc.document_name || 'download';
+      if (doc.directUrl) {
+        this.forceDownload(doc.directUrl, name);
+        return;
+      }
+      const folder = doc.folder || '';
       this.core.fetchFile(folder, doc.document_name || '').subscribe({
         next: async (response: any) => {
           const freshUrl =
@@ -1295,6 +1318,273 @@ export class MessengerComponent implements OnInit, OnDestroy {
       });
     } catch {
       /* noop */
+    }
+  }
+
+  openChatAttachment(message: any, ev?: Event): void {
+    try {
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+      if (!message || (!message.attachmentsJson && !message.attachmentUrl)) {
+        Utilities.showToast('Attachment not available', 'warning');
+        return;
+      }
+      const descriptor = this.parseAttachmentDescriptor(message.attachmentsJson);
+      const docName =
+        descriptor?.documentName ||
+        this.attachmentFileNameFromUrl(message.attachmentUrl) ||
+        'attachment';
+      const doc: ApplicantDocument = {
+        id_applicant_document: 0,
+        id_applicant: this.selectedApplicantId || this.applicant?.id_applicant || '',
+        data_key: 'chat_attachment',
+        document_name: docName,
+        status: null,
+        folder: descriptor?.folder || '',
+        url: message.attachmentUrl || descriptor?.directUrl || undefined,
+        directUrl: descriptor?.directUrl || message.attachmentUrl || null,
+      };
+      this.chatViewerDocs = [doc];
+      this.chatViewerIndex = 0;
+      this.chatViewerZoom = 1;
+      this.chatViewerRotate = 0;
+      this.chatViewerPanX = 0;
+      this.chatViewerPanY = 0;
+      this.chatViewerCurrentUrl = '';
+      this.chatAttachmentViewerOpen = true;
+      this.loadChatViewerUrl();
+    } catch (err) {
+      console.error('[Messenger] openChatAttachment error', err);
+      Utilities.showToast('Unable to preview attachment', 'error');
+    }
+  }
+
+  private loadChatViewerUrl(): void {
+    const cur = this.chatViewerDocs[this.chatViewerIndex];
+    if (!cur) {
+      this.chatViewerCurrentUrl = '';
+      return;
+    }
+    if (cur.directUrl || cur.url) {
+      this.chatViewerCurrentUrl = cur.directUrl || cur.url || '';
+      this.chatViewerPanX = 0;
+      this.chatViewerPanY = 0;
+      this.chatViewerLoading = false;
+      return;
+    }
+    this.chatViewerLoading = true;
+    this.core.fetchFile(cur.folder || '', cur.document_name || '').subscribe({
+      next: (resp: any) => {
+        const fresh = resp?.data?.url || this.core.getFileUrl(String(cur.folder || ''), String(cur.document_name || ''));
+        cur.url = fresh;
+        this.chatViewerCurrentUrl = fresh;
+        this.chatViewerLoading = false;
+        this.chatViewerPanX = 0;
+        this.chatViewerPanY = 0;
+      },
+      error: (err) => {
+        console.error('[Messenger] loadChatViewerUrl error', err);
+        this.chatViewerLoading = false;
+        Utilities.showToast('Unable to load image', 'error');
+      }
+    });
+  }
+
+  chatViewerNextImage(): void {
+    if (!this.chatViewerDocs.length) return;
+    this.chatViewerIndex = (this.chatViewerIndex + 1) % this.chatViewerDocs.length;
+    this.chatViewerZoom = 1;
+    this.chatViewerRotate = 0;
+    this.chatViewerPanX = 0;
+    this.chatViewerPanY = 0;
+    this.loadChatViewerUrl();
+  }
+
+  chatViewerPrevImage(): void {
+    if (!this.chatViewerDocs.length) return;
+    this.chatViewerIndex =
+      (this.chatViewerIndex - 1 + this.chatViewerDocs.length) % this.chatViewerDocs.length;
+    this.chatViewerZoom = 1;
+    this.chatViewerRotate = 0;
+    this.chatViewerPanX = 0;
+    this.chatViewerPanY = 0;
+    this.loadChatViewerUrl();
+  }
+
+  closeChatAttachmentViewer(): void {
+    this.chatAttachmentViewerOpen = false;
+    this.chatViewerDocs = [];
+    this.chatViewerIndex = 0;
+    this.chatViewerCurrentUrl = '';
+    this.chatViewerZoom = 1;
+    this.chatViewerRotate = 0;
+    this.chatViewerPanX = 0;
+    this.chatViewerPanY = 0;
+    this.chatViewerPanning = false;
+  }
+
+  chatViewerZoomIn(): void {
+    this.chatViewerZoom = Math.min(this.chatViewerZoom + 0.25, 5);
+  }
+
+  chatViewerZoomOut(): void {
+    this.chatViewerZoom = Math.max(this.chatViewerZoom - 0.25, 0.25);
+    if (this.chatViewerZoom <= 1) {
+      this.chatViewerPanX = 0;
+      this.chatViewerPanY = 0;
+    }
+  }
+
+  chatViewerReset(): void {
+    this.chatViewerZoom = 1;
+    this.chatViewerRotate = 0;
+    this.chatViewerPanX = 0;
+    this.chatViewerPanY = 0;
+  }
+
+  chatViewerRotateClockwise(): void {
+    this.chatViewerRotate = (this.chatViewerRotate + 90) % 360;
+  }
+
+  onChatViewerMouseDown(ev: MouseEvent): void {
+    if (!this.chatAttachmentViewerOpen || this.chatViewerZoom <= 1) return;
+    this.chatViewerPanning = true;
+    this._chatViewerLastX = ev.clientX;
+    this._chatViewerLastY = ev.clientY;
+    ev.preventDefault();
+  }
+
+  onChatViewerTouchStart(ev: TouchEvent): void {
+    if (!this.chatAttachmentViewerOpen || this.chatViewerZoom <= 1) return;
+    if (ev.touches && ev.touches.length > 0) {
+      const t = ev.touches[0];
+      this.chatViewerPanning = true;
+      this._chatViewerLastX = t.clientX;
+      this._chatViewerLastY = t.clientY;
+      ev.preventDefault();
+    }
+  }
+
+  onChatViewerTouchMove(ev: TouchEvent): void {
+    if (!this.chatAttachmentViewerOpen || !this.chatViewerPanning) return;
+    if (ev.touches && ev.touches.length > 0) {
+      const t = ev.touches[0];
+      const dx = t.clientX - this._chatViewerLastX;
+      const dy = t.clientY - this._chatViewerLastY;
+      this.chatViewerPanX += dx;
+      this.chatViewerPanY += dy;
+      this._chatViewerLastX = t.clientX;
+      this._chatViewerLastY = t.clientY;
+      ev.preventDefault();
+    }
+  }
+
+  onChatViewerTouchEnd(): void {
+    if (this.chatViewerPanning) this.chatViewerPanning = false;
+  }
+
+  private prepareAttachmentUrl(
+    mediaJson: any,
+    targetMessage?: { attachmentUrl?: string | null },
+    onSettled?: () => void
+  ): string | undefined {
+    if (!mediaJson) {
+      onSettled?.();
+      return undefined;
+    }
+    const descriptor = this.parseAttachmentDescriptor(mediaJson);
+    if (!descriptor) {
+      onSettled?.();
+      return undefined;
+    }
+    if (descriptor.directUrl) {
+      if (targetMessage) targetMessage.attachmentUrl = descriptor.directUrl;
+      onSettled?.();
+      return descriptor.directUrl;
+    }
+    this.core.fetchFile(descriptor.folder, descriptor.documentName).subscribe({
+      next: (response: any) => {
+        const resolvedUrl =
+          response?.data?.url ||
+          this.core.getFileUrl(descriptor.folder, descriptor.documentName);
+        if (targetMessage) {
+          targetMessage.attachmentUrl = resolvedUrl;
+        }
+        this.panelMessages = [...(this.panelMessages || [])];
+        onSettled?.();
+      },
+      error: (err) => {
+        console.error('[Messenger] fetch chat attachment error', err);
+        onSettled?.();
+      }
+    });
+    return undefined;
+  }
+
+  private parseAttachmentDescriptor(
+    mediaJson: any
+  ):
+    | { folder: string; documentName: string; directUrl?: string }
+    | null {
+    if (!mediaJson) {
+      return null;
+    }
+    if (typeof mediaJson === 'string') {
+      const trimmed = mediaJson.trim();
+      if (!trimmed) {
+        return null;
+      }
+      if (/^(https?:|data:|blob:)/i.test(trimmed)) {
+        return { folder: '', documentName: '', directUrl: trimmed };
+      }
+    }
+
+    let media: Array<{ FileName?: string; fileName?: string }> = [];
+    try {
+      if (Array.isArray(mediaJson)) {
+        media = mediaJson;
+      } else if (typeof mediaJson === 'string') {
+        let jsonStr = mediaJson.trim();
+        if (jsonStr.startsWith('"') && jsonStr.endsWith('"')) {
+          jsonStr = jsonStr.substring(1, jsonStr.length - 1);
+        }
+        const parsed = JSON.parse(jsonStr);
+        media = Array.isArray(parsed) ? parsed : [parsed];
+      } else if (typeof mediaJson === 'object') {
+        media = [mediaJson];
+      }
+    } catch {
+      return null;
+    }
+
+    if (!Array.isArray(media) || media.length === 0) {
+      return null;
+    }
+    const doc = media[0] || {};
+    const fileNameRaw = (doc.FileName || doc.fileName || '').toString().trim();
+    if (!fileNameRaw) {
+      return null;
+    }
+    const lastSlash = fileNameRaw.lastIndexOf('/');
+    const folder = lastSlash >= 0 ? fileNameRaw.substring(0, lastSlash) : '';
+    const documentName = lastSlash >= 0 ? fileNameRaw.substring(lastSlash + 1) : fileNameRaw;
+    if (!documentName) {
+      return null;
+    }
+    return { folder, documentName };
+  }
+
+  private attachmentFileNameFromUrl(url?: string | null): string | null {
+    if (!url) return null;
+    try {
+      const clean = url.split(/[?#]/)[0];
+      const idx = clean.lastIndexOf('/');
+      const name = idx >= 0 ? clean.substring(idx + 1) : clean;
+      return name || null;
+    } catch {
+      return null;
     }
   }
 
@@ -1743,7 +2033,8 @@ export class MessengerComponent implements OnInit, OnDestroy {
               ? new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(ts)
               : String(sent ?? '');
             const status = this.inferStatus(r);
-            return {
+            const attachmentsJson = r.AttachmentsJson ?? r.attachmentsJson ?? null;
+            const message: any = {
               id: r.id ?? r.ID ?? r.id_chat ?? null,
               direction: (r.Direction ?? r.message_direction ?? '').toString().toLowerCase() === 'outbound' ? 'outbound' : 'inbound',
               body: String(r.Message ?? r.message_text ?? ''),
@@ -1752,7 +2043,11 @@ export class MessengerComponent implements OnInit, OnDestroy {
               status,
               statusLabel: this.defaultStatusLabel(status),
               __ts: (ts && !Number.isNaN(ts.getTime())) ? ts.getTime() : undefined,
-            } as any;
+              attachmentsJson,
+              attachmentUrl: null,
+            };
+            message.attachmentUrl = this.prepareAttachmentUrl(attachmentsJson, message);
+            return message;
           })
           .reverse();
         // Initial load or explicit load: stick to bottom
@@ -2254,7 +2549,9 @@ export class MessengerComponent implements OnInit, OnDestroy {
       timestamp: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date()),
       channel: 'SMS',
       status: 'sending',
-      statusLabel: 'Sending'
+      statusLabel: 'Sending',
+      attachmentsJson: null,
+      attachmentUrl: null,
     } as any;
   this.panelMessages = [...(this.panelMessages ?? []), optimistic];
   // Force-stick on local send to keep the composer anchored
@@ -2373,6 +2670,7 @@ export class MessengerComponent implements OnInit, OnDestroy {
       .format(Number.isNaN(sentDate.getTime()) ? new Date() : sentDate);
     const status = direction === 'outbound' ? 'delivered' : undefined;
 
+    const attachmentsJson = evt.mediaJson ?? null;
     const message: any = {
       id: (evt.chatId != null ? String(evt.chatId) : (evt.messageSid ? `sid-${evt.messageSid}` : `rt-${Date.now()}`)),
       direction,
@@ -2383,7 +2681,10 @@ export class MessengerComponent implements OnInit, OnDestroy {
       statusLabel: this.defaultStatusLabel(status),
       __isNew: true,
       __ts: Number.isNaN(sentDate.getTime()) ? Date.now() : sentDate.getTime(),
+      attachmentsJson,
+      attachmentUrl: null,
     };
+    message.attachmentUrl = this.prepareAttachmentUrl(attachmentsJson, message);
     this.panelMessages = [...(this.panelMessages ?? []), message];
     // If a persisted outbound arrives, drop any matching temp 'sending' bubble
     if (direction === 'outbound') {

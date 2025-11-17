@@ -293,7 +293,17 @@
                   </div>
                   <div class="chat-message" [ngClass]="[m.direction, m.__isNew ? 'is-new' : '']">
                   <div class="chat-content">
-                    <div class="chat-bubble" [ngClass]="m.direction" [innerHTML]="m.body"></div>
+                    <div class="chat-bubble" [ngClass]="m.direction">
+                      <div class="chat-text" *ngIf="m.body" [innerHTML]="m.body"></div>
+                      <img
+                        *ngIf="m.attachmentUrl"
+                        class="chat-attachment"
+                        [src]="m.attachmentUrl"
+                        alt="Message attachment"
+                        loading="lazy"
+                        (click)="openChatAttachment(m, $event)"
+                      />
+                    </div>
                     <div class="chat-meta small">
                       <span>{{ formatMessageTimestamp(m.timestamp) }}</span>
                       <span class="dot">•</span>
@@ -618,6 +628,80 @@
       </div>
     </ng-template>
   </section>
+</div>
+
+<!-- Chat Attachment Viewer -->
+<div class="image-viewer-backdrop" *ngIf="chatAttachmentViewerOpen" (click)="closeChatAttachmentViewer()">
+  <div class="image-viewer" (click)="$event.stopPropagation()">
+    <div class="viewer-toolbar d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="chatViewerPrevImage()" [disabled]="chatViewerDocs.length < 2">
+          <i class="feather icon-chevron-left"></i>
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="chatViewerNextImage()" [disabled]="chatViewerDocs.length < 2">
+          <i class="feather icon-chevron-right"></i>
+        </button>
+        <span class="small text-secondary" *ngIf="chatViewerDocs.length">{{ chatViewerIndex + 1 }} / {{ chatViewerDocs.length }}</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="chatViewerZoomOut()">
+          <i class="feather icon-zoom-out"></i>
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="chatViewerReset()">
+          <i class="feather icon-minimize-2"></i>
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="chatViewerZoomIn()">
+          <i class="feather icon-zoom-in"></i>
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="chatViewerRotateClockwise()">
+          <i class="feather icon-rotate-cw"></i>
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-primary btn-sm"
+          (click)="chatViewerDocs.length && downloadDocument(chatViewerDocs[chatViewerIndex])"
+          [disabled]="!chatViewerDocs.length"
+        >
+          <i class="feather icon-download"></i>
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeChatAttachmentViewer()">
+          <i class="feather icon-x"></i>
+        </button>
+      </div>
+    </div>
+    <div
+      class="viewer-canvas"
+      (mousedown)="onChatViewerMouseDown($event)"
+      (touchstart)="onChatViewerTouchStart($event)"
+      (touchmove)="onChatViewerTouchMove($event)"
+      (touchend)="onChatViewerTouchEnd()"
+    >
+      <div
+        class="viewer-stage"
+        [style.transform]="'scale(' + chatViewerZoom + ') rotate(' + chatViewerRotate + 'deg)'"
+      ></div>
+      <img
+        *ngIf="chatViewerCurrentUrl"
+        [src]="chatViewerCurrentUrl"
+        [alt]="chatViewerDocs[chatViewerIndex]?.document_name || 'Attachment'"
+        [style.transform]="
+          'translate(' +
+          chatViewerPanX +
+          'px,' +
+          chatViewerPanY +
+          'px) scale(' +
+          chatViewerZoom +
+          ') rotate(' +
+          chatViewerRotate +
+          'deg)'
+        "
+        loading="lazy"
+      />
+      <div class="viewer-loading" *ngIf="chatViewerLoading">
+        <span class="spinner-border" role="status" aria-hidden="true"></span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Templates Modal -->

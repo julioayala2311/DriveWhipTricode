@@ -541,6 +541,23 @@ body.dark .chat-day::after {
   word-break: break-word;
 }
 
+.chat-text {
+  font-size: 0.85rem;
+}
+
+.chat-attachment {
+  margin-top: 0.35rem;
+  width: 100%;
+  max-width: 260px;
+  max-height: 260px;
+  border-radius: 12px;
+  display: block;
+  object-fit: cover;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 6px 20px -12px rgba(15, 23, 42, 0.35);
+  cursor: zoom-in;
+}
+
 .chat-meta {
   display: flex;
   align-items: center;
@@ -1422,6 +1439,78 @@ body.dark .timeline-marker {
   color: var(--bs-secondary-color, #64748b);
   font-size: 0.84rem;
   margin: 0;
+}
+
+.image-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-viewer {
+  background: var(--bs-body-bg, #fff);
+  width: min(96vw, 1080px);
+  height: min(92vh, 800px);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.image-viewer .viewer-toolbar {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.08));
+  background: var(--bs-body-bg, #fafafa);
+  position: relative;
+  z-index: 2;
+}
+
+.image-viewer .viewer-canvas {
+  position: relative;
+  flex: 1;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+}
+
+.image-viewer img {
+  max-width: 100%;
+  max-height: 100%;
+  transition: transform 0.2s ease;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+.image-viewer img:hover {
+  cursor: grab;
+}
+.image-viewer img:active {
+  cursor: grabbing;
+}
+
+.image-viewer .viewer-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.dark .image-viewer {
+  background: #1b2027;
+}
+body.dark .image-viewer .viewer-toolbar {
+  background: #1b2027;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 @media (max-width: 1280px) {

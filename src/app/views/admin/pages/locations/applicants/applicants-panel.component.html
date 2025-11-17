@@ -976,7 +976,19 @@
               </div> -->
               <div class="chat-content">
                 <div class="chat-bubble" [ngClass]="message.direction">
-                  <div class="chat-text" [innerHTML]="message.body"></div>
+                  <div
+                    class="chat-text"
+                    [innerHTML]="message.body"
+                    *ngIf="message.body"
+                  ></div>
+                  <img
+                    *ngIf="message.attachmentUrl"
+                    class="chat-attachment"
+                    [src]="message.attachmentUrl"
+                    alt="Message attachment"
+                    loading="lazy"
+                    (click)="openChatAttachment(message, $event)"
+                  />
                 </div>
                 <div class="chat-meta small">
                   <span>{{ message.timestamp }}</span>

@@ -3081,6 +3081,10 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     targetMessage?: ApplicantMessage,
     onSettled?: () => void
   ): string | undefined {
+    if (targetMessage?.attachmentUrl) {
+      onSettled?.();
+      return targetMessage.attachmentUrl;
+    }
     if (!mediaJson) {
       onSettled?.();
       return undefined;
@@ -3092,36 +3096,54 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       return undefined;
     }
 
-    if (descriptor.directUrl) {
-      onSettled?.();
-      return descriptor.directUrl;
+    const fallbackUrl = descriptor.directUrl
+      ? descriptor.directUrl
+      : this.core.getFileUrl(descriptor.folder, descriptor.documentName);
+
+    if (targetMessage) {
+      targetMessage.attachmentUrl = fallbackUrl;
     }
 
-    this.core
-      .fetchFile(descriptor.folder, descriptor.documentName)
-      .subscribe({
-        next: (response: any) => {
-          const resolvedUrl =
-            response?.data?.url ||
-            this.core.getFileUrl(
-              descriptor.folder,
-              descriptor.documentName
+    if (!descriptor.directUrl) {
+      if ((targetMessage as any)?.__attachmentResolving) {
+        onSettled?.();
+        return fallbackUrl;
+      }
+      (targetMessage as any).__attachmentResolving = true;
+      this.core
+        .fetchFile(descriptor.folder, descriptor.documentName)
+        .subscribe({
+          next: (response: any) => {
+            const resolvedUrl =
+              response?.data?.url ||
+              this.core.getFileUrl(
+                descriptor.folder,
+                descriptor.documentName
+              );
+            if (resolvedUrl && targetMessage) {
+              targetMessage.attachmentUrl = resolvedUrl;
+            }
+            if (targetMessage) {
+              (targetMessage as any).__attachmentResolving = false;
+            }
+            this.refreshResolvedMessages();
+            onSettled?.();
+          },
+          error: (err) => {
+            console.error(
+              "[ApplicantPanel] fetch chat attachment error",
+              err
             );
-          if (resolvedUrl && targetMessage) {
-            targetMessage.attachmentUrl = resolvedUrl;
-          }
-          this.refreshResolvedMessages();
-          onSettled?.();
-        },
-        error: (err) => {
-          console.error(
-            "[ApplicantPanel] fetch chat attachment error",
-            err
-          );
-          onSettled?.();
-        },
-      });
-    return undefined;
+            if (targetMessage) {
+              (targetMessage as any).__attachmentResolving = false;
+            }
+            onSettled?.();
+          },
+        });
+    } else {
+      onSettled?.();
+    }
+    return fallbackUrl;
   }
 
   private parseAttachmentDescriptor(

@@ -1,5 +1,5 @@
 {
-  "env": "DEV",
+  "env": "QA",
   "environments": {
     "DEV": {
       "apiBaseUrl": "https://qa-whipbridge.drivewhip.com/api/",

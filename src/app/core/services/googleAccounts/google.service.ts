@@ -10,6 +10,13 @@ declare const google: any;
  * and credential (ID token) handling. This keeps integration code centralized
  * and allows future expansion (real backend verification, refresh logic, etc.).
  */
+export interface GoogleSignInInitOptions {
+  clientId?: string;
+  hostedDomain?: string;
+  promptParentId?: string;
+  autoSelect?: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class GoogleAuthService {
 
@@ -72,36 +79,42 @@ export class GoogleAuthService {
    * Initializes the Google Accounts Id library. Must be called after script load.
    * @param callback - function invoked with response containing credential.
    */
-  initializeGoogleSignIn(callback: (response: any) => void): void {
+  initializeGoogleSignIn(callback: (response: any) => void, options?: GoogleSignInInitOptions): void {
     if (typeof google === 'undefined' || !google?.accounts?.id) {
       console.error('[GoogleAuthService] Google library not available when initializing.');
       return;
     }
 
-    const clientId = this.clientId;
+    const clientId = options?.clientId || this.clientId;
     if (!clientId) {
       console.error('[GoogleAuthService] Aborting initialize: missing client id. Check app-config.json google section.');
       return;
     }
 
-    google.accounts.id.initialize({
+    const initConfig: any = {
       client_id: clientId,
       callback,
-      auto_select: false,              // Do not auto sign-in silently
-      cancel_on_tap_outside: false,    // Prevent closing One Tap on outside click
-      prompt_parent_id: 'googleButton',// Ensure it anchors correctly (if One Tap is used)
-      prompt: 'select_account',        // Force account chooser
+      auto_select: options?.autoSelect ?? false,
+      cancel_on_tap_outside: false,
+      prompt_parent_id: options?.promptParentId || 'googleButton',
+      prompt: 'select_account',
       error_callback: (error: any) => {
         console.error('[GoogleAuthService] Google Sign-In error:', error);
       }
-    });
+    };
+
+    if (options?.hostedDomain) {
+      initConfig.hosted_domain = options.hostedDomain;
+    }
+
+    google.accounts.id.initialize(initConfig);
   }
 
   /**
    * Renders the Google Sign-In button inside the specified element.
    * @param elementId - ID of the container element for the button.
    */
-  renderGoogleButton(elementId: string = 'googleButton'): void {
+  renderGoogleButton(elementId: string = 'googleButton', buttonOptions?: Record<string, any>): void {
     if (typeof google === 'undefined' || !google?.accounts?.id) {
       console.error('[GoogleAuthService] Cannot render button: Google library not initialized.');
       return;
@@ -119,7 +132,8 @@ export class GoogleAuthService {
       text: 'signin_with',
       shape: 'rectangular',
       logo_alignment: 'center',
-      locale: 'en'
+      locale: 'en',
+      ...buttonOptions
     });
   }
 }

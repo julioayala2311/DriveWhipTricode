@@ -5,6 +5,20 @@
       <h1 id="loginTitle" class="panel-title">DriveWhip Portal</h1>
       <p id="loginTagline" class="panel-tagline">Access your workspace with your Google account.</p>
     </div>
+
+    <div class="domain-picker" *ngIf="restrictGoogleDomains && googleProviders.length > 1">
+      <p class="domain-picker__label">Select your DriveWhip domain</p>
+      <div class="domain-picker__buttons">
+        <button
+          type="button"
+          class="domain-picker__btn"
+          *ngFor="let provider of googleProviders"
+          [class.active]="provider.domain === activeProvider?.domain"
+          (click)="onSelectProvider(provider)">
+          {{ provider.label || provider.domain }}
+        </button>
+      </div>
+    </div>
     <div class="google-btn-wrapper mb-3">
       <div id="googleButton" aria-label="Sign in with Google"></div>
     </div>

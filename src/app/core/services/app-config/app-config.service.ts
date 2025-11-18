@@ -17,6 +17,13 @@ export interface RuntimeAppConfig {
   environments: Record<string, EnvironmentEntry>;
 }
 
+export interface GoogleAuthProviderConfig {
+  domain: string;
+  clientId: string;
+  label?: string;
+  hostedDomain?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AppConfigService {
   private config: RuntimeAppConfig | null = null;
@@ -67,7 +74,17 @@ export class AppConfigService {
 
   get driveWhipCoreServiceUser(): string { return this.active.driveWhipCoreServiceUser || ''; }
   get driveWhipCoreServicePassword(): string { return this.active.driveWhipCoreServicePassword || ''; }
-  get googleClientId(): string { return this.active.googleClientId || ''; }
+  get googleClientId(): string {
+    const providers = this.googleAuthProviders;
+    if (providers.length) {
+      const configuredDefault = ((this.active as any)?.googleAuth?.defaultDomain || providers[0].domain || '').toLowerCase();
+      const preferred = providers.find(p => p.domain === configuredDefault) || providers[0];
+      if (preferred?.clientId) {
+        return preferred.clientId;
+      }
+    }
+    return this.active.googleClientId || '';
+  }
   get token_environment(): string { return this.active.token_environment || ''; }
   get googleEnv(): string { return this.environment; } // Backward compatibility name
   get smsDefaultFromNumber(): string {
@@ -83,5 +100,60 @@ export class AppConfigService {
   get commonSettingsFromPhone(): string {
     const val = (this.active.commonSettingsFromPhone || "NotificationFromPhone").toString().trim();
     return val || "NotificationFromPhone";
+  }
+
+  get googleAuthProviders(): GoogleAuthProviderConfig[] {
+    const entry: any = (this.active as any)?.googleAuth;
+    const fallbackId = this.active.googleClientId || '';
+    if (!entry) {
+      if (!fallbackId) return [];
+      return [{ domain: 'drivewhip.com', clientId: fallbackId, label: 'drivewhip.com', hostedDomain: 'drivewhip.com' }];
+    }
+    const providersRaw: any[] = Array.isArray(entry.providers) ? entry.providers : [];
+    const mapped = providersRaw
+      .map((raw) => {
+        const domain = (raw?.domain || '').toString().toLowerCase();
+        const clientId = (raw?.clientId || fallbackId || '').toString();
+        if (!domain || !clientId) return null;
+        return {
+          domain,
+          clientId,
+          label: raw?.label || raw?.displayName || domain,
+          hostedDomain: (raw?.hostedDomain ?? domain)
+        } as GoogleAuthProviderConfig;
+      })
+      .filter(Boolean) as GoogleAuthProviderConfig[];
+
+    if (!mapped.length && fallbackId) {
+      const defaultDomain = (entry.defaultDomain || 'drivewhip.com').toString().toLowerCase();
+      mapped.push({ domain: defaultDomain, clientId: fallbackId, label: defaultDomain, hostedDomain: defaultDomain });
+    }
+
+    return mapped;
+  }
+
+  get googleAllowedDomains(): string[] {
+    if (!this.googleEnforceDomainRestriction) {
+      return [];
+    }
+    return this.googleAuthProviders.map(p => p.domain.toLowerCase());
+  }
+
+  get googleEnforceDomainRestriction(): boolean {
+    const entry: any = (this.active as any)?.googleAuth;
+    if (entry && typeof entry.enforceDomainRestriction === 'boolean') {
+      return entry.enforceDomainRestriction;
+    }
+    // Default to true when provider metadata exists to avoid accidentally relaxing prod
+    return true;
+  }
+
+  resolveGoogleClientId(domain?: string): string {
+    if (!domain) {
+      return this.googleClientId;
+    }
+    const normalized = domain.toLowerCase();
+    const match = this.googleAuthProviders.find(p => p.domain === normalized);
+    return match?.clientId || this.googleClientId;
   }
 }

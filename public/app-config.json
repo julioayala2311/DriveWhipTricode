@@ -1,5 +1,5 @@
 {
-  "env": "DEV",
+  "env": "QA",
   "environments": {
     "DEV": {
       "apiBaseUrl": "https://qa-whipbridge.drivewhip.com/api/",
@@ -10,7 +10,23 @@
       "accountCreatedTemplateId": "d-e32ef59d803445d4a324becc5a234ecf",
       "token_environment": "DEV",
       "smsDefaultFromNumber": "18774142766",
-      "commonSettingsFromPhone": "NotificationFromPhone"
+      "commonSettingsFromPhone": "NotificationFromPhone",
+      "googleAuth": {
+        "defaultDomain": "drivewhip.com",
+        "enforceDomainRestriction": false,
+        "providers": [
+          {
+            "domain": "drivewhip.com",
+            "label": "drivewhip.com",
+            "clientId": "294673509392-r28uave2kur9aah2l6kvlfbbs7tgra9n.apps.googleusercontent.com"
+          },
+          {
+            "domain": "drivewhip.page",
+            "label": "drivewhip.page",
+            "clientId": "79508462300-rev6fvn0iqi706l9ane3ofm9nt12lquk.apps.googleusercontent.com"
+          }
+        ]
+      }
     },
     "QA": {
       "apiBaseUrl": "https://qa-whipbridge.drivewhip.com/api/",
@@ -21,7 +37,23 @@
       "accountCreatedTemplateId": "d-e32ef59d803445d4a324becc5a234ecf",
       "token_environment": "QA",
       "smsDefaultFromNumber": "18774142766",
-      "commonSettingsFromPhone": "NotificationFromPhone"
+      "commonSettingsFromPhone": "NotificationFromPhone",
+      "googleAuth": {
+        "defaultDomain": "drivewhip.com",
+        "enforceDomainRestriction": true,
+        "providers": [
+          {
+            "domain": "drivewhip.com",
+            "label": "drivewhip.com",
+            "clientId": "328839192035-jkus1253hvcma6evd9tpfnvfcfg4p37j.apps.googleusercontent.com"
+          },
+          {
+            "domain": "drivewhip.page",
+            "label": "drivewhip.page",
+            "clientId": "79508462300-rev6fvn0iqi706l9ane3ofm9nt12lquk.apps.googleusercontent.com"
+          }
+        ]
+      }
     },
     "PROD": {
       "apiBaseUrl": "https://api.drivewhip.com/api/",
@@ -32,7 +64,23 @@
       "accountCreatedTemplateId": "REPLACE_PROD_TEMPLATE_ID",
       "token_environment": "0",
       "smsDefaultFromNumber": "18774142766",
-      "commonSettingsFromPhone": "NotificationFromPhone"
+      "commonSettingsFromPhone": "NotificationFromPhone",
+      "googleAuth": {
+        "defaultDomain": "drivewhip.com",
+        "enforceDomainRestriction": true,
+        "providers": [
+          {
+            "domain": "drivewhip.com",
+            "label": "drivewhip.com",
+            "clientId": "REEMPLAZAR_CLIENT_ID_PROD"
+          },
+          {
+            "domain": "drivewhip.page",
+            "label": "drivewhip.page",
+            "clientId": "79508462300-rev6fvn0iqi706l9ane3ofm9nt12lquk.apps.googleusercontent.com"
+          }
+        ]
+      }
     }
   }
 }

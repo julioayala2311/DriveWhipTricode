@@ -9,7 +9,7 @@ import { Utilities } from '../../../../../Utilities/Utilities';
 import { IDriveWhipCoreAPI, DriveWhipCommandResponse, IAuthResponseModel } from '../../../../../core/models/entities.model';
 import { DriveWhipAdminCommand } from '../../../../../core/db/procedures';
 import { CryptoService } from '../../../../../core/services/crypto/crypto.service';
-import { AppConfigService } from '../../../../../core/services/app-config/app-config.service';
+import { AppConfigService, GoogleAuthProviderConfig } from '../../../../../core/services/app-config/app-config.service';
 import { HttpErrorResponse } from '@angular/common/http';
 
 interface GoogleAuthPayload {
@@ -33,6 +33,11 @@ export class LoginComponent implements OnInit, AfterViewInit {
   returnUrl: string = '/';
   coreLoginLoading = false;
   private pendingGooglePayload: GoogleAuthPayload | null = null;
+  googleProviders: GoogleAuthProviderConfig[] = [];
+  activeProvider: GoogleAuthProviderConfig | null = null;
+  allowedGoogleDomains: string[] = [];
+  restrictGoogleDomains = true;
+  private googleScriptReady = false;
 
   constructor(private router: Router,
               private route: ActivatedRoute,
@@ -44,22 +49,78 @@ export class LoginComponent implements OnInit, AfterViewInit {
 
   ngOnInit(): void {
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
+    this.googleProviders = this.appConfig.googleAuthProviders;
+    this.restrictGoogleDomains = this.appConfig.googleEnforceDomainRestriction;
+    this.allowedGoogleDomains = this.appConfig.googleAllowedDomains.map(d => d.toLowerCase());
+    this.activeProvider = this.googleProviders[0] ?? null;
   }
 
   ngAfterViewInit(): void {
-    this.googleAuthService.loadGoogleScript().then(() => {
-      this.googleAuthService.initializeGoogleSignIn(this.handleCredentialResponse.bind(this));
+    this.prepareGoogleButton();
+  }
+
+  onSelectProvider(provider: GoogleAuthProviderConfig): void {
+    if (!provider || provider.domain === this.activeProvider?.domain) {
+      return;
+    }
+    this.prepareGoogleButton(provider);
+  }
+
+  private prepareGoogleButton(nextProvider?: GoogleAuthProviderConfig | null): void {
+    const provider = nextProvider || this.activeProvider || this.googleProviders[0] || null;
+    if (!provider) {
+      console.error('[Login] No Google provider configured.');
+      return;
+    }
+    this.activeProvider = provider;
+
+    const render = () => {
+      this.googleScriptReady = true;
+      const host = document.getElementById('googleButton');
+      if (host) {
+        host.innerHTML = '';
+      }
+      const googleOptions: Record<string, any> = {
+        clientId: provider.clientId,
+        promptParentId: 'googleButton'
+      };
+      if (this.restrictGoogleDomains) {
+        const hostedDomain = provider.hostedDomain || provider.domain;
+        if (hostedDomain) {
+          googleOptions.hostedDomain = hostedDomain;
+        }
+      }
+      this.googleAuthService.initializeGoogleSignIn(this.handleCredentialResponse.bind(this), {
+        ...googleOptions
+      });
       this.googleAuthService.renderGoogleButton('googleButton');
-    }).catch((error) => {
+    };
+
+    const handleError = (error: unknown) => {
       console.error('Failed to load Google script:', error);
       Utilities.showToast('We could not load Google Sign-in. Please refresh and try again.', 'error');
-    });
+    };
+
+    if (this.googleScriptReady) {
+      render();
+      return;
+    }
+
+    this.googleAuthService.loadGoogleScript()
+      .then(render)
+      .catch(handleError);
   }
 
   handleCredentialResponse(response: any): void {
     const payload = this.buildGooglePayload(response);
     if (!payload) {
       Utilities.showToast('Invalid Google response. Please try again.', 'error');
+      return;
+    }
+
+    const domain = this.extractDomain(payload.email);
+    if (domain && this.allowedGoogleDomains.length && !this.allowedGoogleDomains.includes(domain)) {
+      Utilities.showToast('This Google account is not part of the authorized DriveWhip domains.', 'error');
       return;
     }
 
@@ -100,6 +161,10 @@ export class LoginComponent implements OnInit, AfterViewInit {
     }
 
     return { email, firstName, lastName, jwt, picture };
+  }
+
+  private extractDomain(email: string): string {
+    return email?.split('@')?.[1]?.toLowerCase?.() || '';
   }
 
   private startDriveWhipWorkflow(googlePayload: GoogleAuthPayload): void {

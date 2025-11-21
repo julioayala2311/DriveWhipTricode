@@ -226,6 +226,22 @@ export class DriveWhipCoreService {
     );
   }
 
+  /**
+   * Retrieve an Argyle driver record by Argyle profile id.
+   * GET {baseUrl}ArgyleHelper/driverecord/{id}
+   */
+  fetchArgyleDriverRecord(id: string): Observable<any> {
+    const normalized = (id ?? '').toString().trim();
+    if (!normalized) {
+      return throwError(() => ({ message: 'Argyle id is required', status: 400 }));
+    }
+    const url = `${this.baseUrl}ArgyleHelper/driverecord/${encodeURIComponent(normalized)}`;
+    return this.http.get(url, { headers: this.buildHeaders() }).pipe(
+      map(res => res),
+      catchError(err => this.handleError(err))
+    );
+  }
+
   clearCachedAuth(): void {
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);

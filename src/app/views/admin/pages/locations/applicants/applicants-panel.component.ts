@@ -155,6 +155,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   viewerIndex = 0;
   viewerCurrentUrl = "";
   viewerLoading = false;
+  private readonly driverRecordHiddenKeys = new Set(["picture_url"]);
 
   // Copy-to-clipboard feedback
   copyFeedbackKey: string | null = null;
@@ -480,13 +481,13 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           ? `<span class="badge bg-success">Yes</span>`
           : `<span class="badge bg-danger">No</span>`;
       }
-      if (!isNaN(Date.parse(value))) {
+      if (typeof value === "number") {
+        return `<span class="badge bg-info">${value}</span>`;
+      }
+      if (this.isLikelyDateValue(value)) {
         return `<span class="badge bg-primary text-white">${new Date(
           value
         ).toLocaleDateString()}</span>`;
-      }
-      if (typeof value === "number") {
-        return `<span class="badge bg-info">${value}</span>`;
       }
       if (typeof value === "string" && value.startsWith("http")) {
         return `<a href="${value}" target="_blank" class="text-primary text-decoration-underline">Open link</a>`;
@@ -504,6 +505,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
       let html = `<div class="card border-0 shadow-sm mb-3"><div class="card-body shadow-sm rounded">`;
 
       for (const [key, value] of Object.entries(obj)) {
+        if (this.isHiddenDriverRecordKey(key)) {
+          continue;
+        }
         if (value && typeof value === "object" && !Array.isArray(value)) {
           html += `
           <div class="border-start border-3 border-primary ps-3 py-2">
@@ -577,6 +581,33 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
           ${this.driverRecordStatusHtml('loading')}
         </div>
       </div>`;
+  }
+
+  private isHiddenDriverRecordKey(key: string | undefined | null): boolean {
+    if (!key) return false;
+    return this.driverRecordHiddenKeys.has(key.toLowerCase());
+  }
+
+  private isLikelyDateValue(value: any): boolean {
+    if (value instanceof Date) {
+      return !isNaN(value.getTime());
+    }
+    if (typeof value !== "string") {
+      return false;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    const isoLike = /^(\d{4}-\d{2}-\d{2})(?:[T\s].*)?$/i.test(trimmed);
+    const slashFormat = /^(\d{2})\/(\d{2})\/(\d{4})$/.test(trimmed);
+    if (!isoLike && !slashFormat) {
+      return false;
+    }
+    const timestamp = Date.parse(trimmed);
+    if (Number.isNaN(timestamp)) {
+      return false;
+    }
+    const year = new Date(timestamp).getUTCFullYear();
+    return year >= 1900 && year <= 2100;
   }
 
   private driverRecordStatusHtml(state: "loading" | "error" | "empty"): string {

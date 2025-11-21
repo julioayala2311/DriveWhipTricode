@@ -975,7 +975,13 @@
                 <span>{{ message.avatar }}</span>
               </div> -->
               <div class="chat-content">
-                <div class="chat-bubble" [ngClass]="message.direction">
+                <div
+                  class="chat-bubble"
+                  [ngClass]="[
+                    message.direction,
+                    !message.body && message.attachmentUrl ? 'image-only' : ''
+                  ]"
+                >
                   <div
                     class="chat-text"
                     [innerHTML]="message.body"

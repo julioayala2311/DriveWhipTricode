@@ -18,7 +18,6 @@ import { finalize } from "rxjs/operators";
 import Swal from "sweetalert2";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { NgxMaskDirective } from "ngx-mask";
 import { DriveWhipCoreService } from "../../../../../core/services/drivewhip-core/drivewhip-core.service";
 import {
   DriveWhipCommandResponse,
@@ -43,7 +42,7 @@ import { PHONE_COUNTRIES, PhoneCountry } from "../../../../../shared/phone-count
 @Component({
   selector: "app-applicant-panel",
   standalone: true,
-  imports: [CommonModule, FormsModule, NgxMaskDirective],
+  imports: [CommonModule, FormsModule],
   templateUrl: "./applicants-panel.component.html",
   styleUrls: ["./applicants-panel.component.scss"],
 })
@@ -364,7 +363,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     } as any;
 
     this.core.executeCommand<DriveWhipCommandResponse<any>>(api).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         try {
           // Ensure loading spinner is removed before rendering final content
           try {
@@ -423,7 +422,11 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
             });
             return;
           }
-          const html = this.buildEmploymentDetailsMarkup(profile);
+          const argyleProfileId = this.resolveArgyleProfileId(profile);
+          const html = this.composeArgyleModalContent(
+            profile,
+            Boolean(argyleProfileId)
+          );
           try {
             Swal.hideLoading();
           } catch {}
@@ -435,6 +438,9 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
             confirmButtonText: "Close",
             customClass: { popup: "employment-profile-popup" },
           });
+          if (argyleProfileId) {
+            this.fetchAndRenderArgyleDriverRecord(argyleProfileId);
+          }
         } catch (e) {
           try {
             Swal.hideLoading();
@@ -548,6 +554,227 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     };
 
     return renderObject(profile);
+  }
+
+  private composeArgyleModalContent(
+    _profile: any,
+    includeDriverRecordSection: boolean
+  ): string {
+    if (!includeDriverRecordSection) {
+      return `
+        <div class="alert alert-info mb-0">
+          <i class="mdi mdi-information-outline me-1"></i>
+          No Argyle driver profile id is available for this applicant.
+        </div>`;
+    }
+    return this.buildDriverRecordShell();
+  }
+
+  private buildDriverRecordShell(): string {
+    return `
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body" id="${this.argyleDriverRecordSectionId}">
+          ${this.driverRecordStatusHtml('loading')}
+        </div>
+      </div>`;
+  }
+
+  private driverRecordStatusHtml(state: "loading" | "error" | "empty"): string {
+    if (state === "loading") {
+      return `<div class="text-secondary small d-flex align-items-center gap-2"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Fetching driver record…</div>`;
+    }
+    if (state === "error") {
+      return `<div class="text-danger small d-flex align-items-center gap-2"><i class="mdi mdi-alert-circle-outline"></i> Unable to load driver record.</div>`;
+    }
+    return `<div class="text-muted small d-flex align-items-center gap-2"><i class="mdi mdi-information-outline"></i>No driver record data returned.</div>`;
+  }
+
+  private buildDriverRecordTabsMarkup(record: any): string {
+    if (!record || typeof record !== "object") {
+      return this.driverRecordStatusHtml("empty");
+    }
+    const sections = this.argyleDriverTabConfig.map((cfg) => {
+      const value = (record as any)?.[cfg.key];
+      return {
+        ...cfg,
+        value,
+        hasData: this.hasDriverTabContent(value),
+      };
+    });
+    const firstWithData = sections.find((s) => s.hasData) || null;
+    const activeKey = firstWithData?.key ?? null;
+    const navHtml = sections
+      .map((section) => {
+        const isActive = section.hasData && section.key === activeKey;
+        const classes = ["nav-link", "px-3", "py-1"];
+        if (isActive) classes.push("active");
+        if (!section.hasData) classes.push("disabled");
+        const disabledAttr = section.hasData ? "" : "disabled";
+        return `<button type="button" class="${classes.join(" ")}" data-argyle-tab="${section.key}" ${disabledAttr}>${section.label}</button>`;
+      })
+      .join("");
+    const hasData = sections.some((s) => s.hasData);
+    const contentHtml = hasData
+      ? sections
+          .map((section) => {
+            const isActive =
+              activeKey !== null && section.key === activeKey;
+            const classes = [
+              "tab-pane",
+              "fade",
+              "border",
+              "rounded",
+            ];
+            if (isActive) {
+              classes.push("show", "active");
+            }
+            const body = section.hasData
+              ? this.renderDriverTabValue(section.label, section.value)
+              : this.driverRecordStatusHtml("empty");
+            return `<div class="${classes.join(" ")}" data-argyle-tab-pane="${section.key}">${body}</div>`;
+          })
+          .join("")
+      : this.driverRecordStatusHtml("empty");
+
+    return `
+      <div class="argyle-driver-tabs" data-argyle-tab-group="${this.argyleDriverRecordSectionId}">
+        <div class="nav nav-pills gap-2 mb-3 flex-wrap">
+          ${navHtml}
+        </div>
+        <div class="tab-content">
+          ${contentHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  private hasDriverTabContent(value: any): boolean {
+    if (value === null || value === undefined) return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === "object") return Object.keys(value).length > 0;
+    if (typeof value === "string") return value.trim().length > 0;
+    return true;
+  }
+
+  private renderDriverTabValue(label: string, value: any): string {
+    if (value === null || value === undefined) {
+      return `<div class="text-muted small"><i class="mdi mdi-information-outline me-1"></i>No ${label} data available.</div>`;
+    }
+    if (Array.isArray(value)) {
+      return this.buildEmploymentDetailsMarkup({ items: value });
+    }
+    if (typeof value === "object") {
+      return this.buildEmploymentDetailsMarkup(value);
+    }
+    return `<div class="fw-semibold">${value}</div>`;
+  }
+
+  private setDriverRecordSectionContent(html: string): void {
+    const container = Swal.getHtmlContainer();
+    if (!container) return;
+    const section = container.querySelector<HTMLElement>(
+      `#${this.argyleDriverRecordSectionId}`
+    );
+    if (section) {
+      section.innerHTML = html;
+      this.initializeDriverRecordTabs(section);
+    }
+  }
+
+  private initializeDriverRecordTabs(root?: HTMLElement): void {
+    const scope = root || Swal.getHtmlContainer();
+    if (!scope) return;
+    const group = scope.querySelector<HTMLElement>(
+      `[data-argyle-tab-group="${this.argyleDriverRecordSectionId}"]`
+    );
+    if (!group) return;
+    const buttons = Array.from(
+      group.querySelectorAll<HTMLButtonElement>("[data-argyle-tab]")
+    );
+    const panes = Array.from(
+      group.querySelectorAll<HTMLElement>("[data-argyle-tab-pane]")
+    );
+    if (!buttons.length || !panes.length) return;
+
+    const activate = (key: string) => {
+      buttons.forEach((btn) => {
+        if (btn.disabled) return;
+        btn.classList.toggle("active", btn.dataset.argyleTab === key);
+      });
+      panes.forEach((pane) => {
+        const isMatch = pane.dataset.argyleTabPane === key;
+        pane.classList.toggle("show", isMatch);
+        pane.classList.toggle("active", isMatch);
+      });
+    };
+
+    buttons.forEach((btn) => {
+      if (btn.disabled) return;
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        const key = btn.dataset.argyleTab;
+        if (key) {
+          activate(key);
+        }
+      });
+    });
+
+    const defaultButton =
+      buttons.find((btn) => btn.classList.contains("active") && !btn.disabled) ||
+      buttons.find((btn) => !btn.disabled);
+    if (defaultButton && defaultButton.dataset.argyleTab) {
+      activate(defaultButton.dataset.argyleTab);
+    }
+  }
+
+  private fetchAndRenderArgyleDriverRecord(argyleId: string): void {
+    this.setDriverRecordSectionContent(this.driverRecordStatusHtml("loading"));
+    this.core.fetchArgyleDriverRecord(argyleId).subscribe({
+      next: (record) => {
+        console.log(record);
+        const payload =
+          (record &&
+            (record.data ?? record.result ?? record.response ?? record)) ||
+          null;
+        const normalized = Array.isArray(payload)
+          ? Array.isArray(payload[0])
+            ? payload[0]
+            : payload[0]
+          : payload;
+        if (
+          normalized &&
+          typeof normalized === "object" &&
+          Object.keys(normalized).length
+        ) {
+          this.setDriverRecordSectionContent(
+            this.buildDriverRecordTabsMarkup(normalized)
+          );
+        } else {
+          this.setDriverRecordSectionContent(
+            this.driverRecordStatusHtml("empty")
+          );
+        }
+      },
+      error: (err) => {
+        console.error("[ApplicantPanel] fetchArgyleDriverRecord error", err);
+        this.setDriverRecordSectionContent(
+          this.driverRecordStatusHtml("error")
+        );
+      },
+    });
+  }
+
+  private resolveArgyleProfileId(profile: any): string | null {
+    if (!profile || typeof profile !== "object") return null;
+    const candidates = ["id", "ID", "argyle_id", "argyleId", "profile_id"];
+    for (const key of candidates) {
+      const value = (profile as any)[key];
+      if (value !== null && value !== undefined) {
+        const str = value.toString().trim();
+        if (str) return str;
+      }
+    }
+    return null;
   }
 
   onSmsInput(val: string): void {
@@ -797,6 +1024,14 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   stateOptions: Array<{ code: string; name: string; country?: string }> = [];
   statesLoading: boolean = false;
   statesError: string | null = null;
+  private readonly argyleDriverRecordSectionId = "argyle-driver-record-section";
+  private readonly argyleDriverTabConfig: Array<{ key: string; label: string }> = [
+    { key: "identity", label: "Identity" },
+    { key: "paystub", label: "Paystub" },
+    { key: "ratings", label: "Ratings" },
+    { key: "vehicles", label: "Vehicles" },
+    { key: "gigs", label: "Gigs" },
+  ];
 
   private ensureStatesLoaded(): void {
     if (this.stateOptions.length || this.statesLoading) return;
@@ -3016,9 +3251,6 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     };
     //message.attachmentUrl = this.prepareImage(evt.mediaJson, message);
 
-
-    console.log("aca van")
-    console.log(attachmentsJson)
     message.attachmentUrl = attachmentsJson
       ? this.prepareImage(attachmentsJson, message)
       : undefined;
@@ -6010,7 +6242,7 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
   private applyApplicantRecord(record: any): void {
     if (!record) return;
     const normalized = this.normalizeApplicantRecord(record);
-    console.log(normalized);
+
     // Merge cautiously: do not overwrite existing non-empty names with empty strings
     const merged = { ...this.applicant, ...normalized } as any;
     if (this.applicant?.first_name && !normalized.first_name) {

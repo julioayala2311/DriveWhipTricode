@@ -987,14 +987,21 @@
                     [innerHTML]="message.body"
                     *ngIf="message.body"
                   ></div>
-                  <img
+                  <div
                     *ngIf="message.attachmentUrl"
-                    class="chat-attachment"
-                    [src]="message.attachmentUrl"
-                    alt="Message attachment"
-                    loading="lazy"
-                    (click)="openChatAttachment(message, $event)"
-                  />
+                    class="chat-attachment-wrapper"
+                    [class.loading]="!message.__attachmentLoaded"
+                  >
+                    <img
+                      class="chat-attachment"
+                      [src]="message.attachmentUrl"
+                      alt="Message attachment"
+                      loading="lazy"
+                      (click)="openChatAttachment(message, $event)"
+                      (load)="onAttachmentLoad(message)"
+                      (error)="onAttachmentError(message)"
+                    />
+                  </div>
                 </div>
                 <div class="chat-meta small">
                   <span>{{ message.timestamp }}</span>

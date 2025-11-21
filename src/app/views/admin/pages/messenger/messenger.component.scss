@@ -557,6 +557,70 @@ body.dark .chat-day::after {
   box-shadow: 0 6px 20px -12px rgba(15, 23, 42, 0.35);
   cursor: zoom-in;
 }
+.chat-attachment-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+}
+.chat-attachment-wrapper.loading::before {
+  content: "";
+  position: absolute;
+  inset: 0.35rem 0 0 0;
+  border-radius: 14px;
+  background: linear-gradient(
+    120deg,
+    rgba(15, 23, 42, 0.05) 0%,
+    rgba(15, 23, 42, 0.12) 45%,
+    rgba(15, 23, 42, 0.05) 90%
+  );
+  background-size: 200% 100%;
+  animation: attachmentSkeleton 2.4s ease-in-out infinite;
+  z-index: 1;
+}
+.chat-bubble.image-only .chat-attachment-wrapper.loading::before {
+  inset: 0.1rem 0.1rem;
+}
+body.dark .chat-attachment-wrapper.loading::before {
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.32) 45%,
+    rgba(255, 255, 255, 0.14) 90%
+  );
+}
+body.dark .chat-bubble.image-only .chat-attachment-wrapper.loading::before {
+  inset: 0.1rem 0.1rem;
+}
+.chat-attachment-wrapper.loading .chat-attachment {
+  opacity: 0;
+}
+.chat-attachment-wrapper:not(.loading) .chat-attachment {
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+.chat-bubble.image-only {
+  padding: 0.25rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px -16px rgba(15, 23, 42, 0.45);
+}
+.chat-bubble.image-only .chat-attachment {
+  margin-top: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.45);
+}
+.chat-bubble.image-only .chat-attachment-wrapper.loading::before {
+  inset: 0.1rem 0.1rem;
+}
+@keyframes attachmentSkeleton {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: 200px 0;
+  }
+}
 
 .chat-meta {
   display: flex;

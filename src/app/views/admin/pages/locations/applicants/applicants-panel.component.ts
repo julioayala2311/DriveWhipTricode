@@ -490,7 +490,8 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
         ).toLocaleDateString()}</span>`;
       }
       if (typeof value === "string" && value.startsWith("http")) {
-        return `<a href="${value}" target="_blank" class="text-primary text-decoration-underline">Open link</a>`;
+        return `<span class="badge bg-secondary text-white">N/A</span>`;
+        //return  ''; //`<a href="${value}" target="_blank" class="text-primary text-decoration-underline">Open link</a>`;
       }
       return `<span class="fw-semibold">${value}</span>`;
     };
@@ -6761,6 +6762,18 @@ export class ApplicantPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
   }
 
+  onAttachmentLoad(message: ApplicantMessage): void {
+    if (message) {
+      message.__attachmentLoaded = true;
+    }
+  }
+
+  onAttachmentError(message: ApplicantMessage): void {
+    if (message) {
+      message.__attachmentLoaded = false;
+    }
+  }
+
   private loadNotes(applicantId: string): void {
     this.notesLoading = true;
     this.notes = [];
@@ -7309,6 +7322,7 @@ interface ApplicantMessage {
   createdBy?: string | null;
   /** transient: highlight new socket messages */
   __isNew?: boolean;
+  __attachmentLoaded?: boolean;
   attachmentsJson?: any;
   attachmentUrl?: string | null;
   mediaJson?: string | null;

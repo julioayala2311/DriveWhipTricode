@@ -1361,6 +1361,18 @@ export class MessengerComponent implements OnInit, OnDestroy {
     }
   }
 
+  onMessengerAttachmentLoad(message: any): void {
+    if (message) {
+      message.__attachmentLoaded = true;
+    }
+  }
+
+  onMessengerAttachmentError(message: any): void {
+    if (message) {
+      message.__attachmentLoaded = false;
+    }
+  }
+
   private loadChatViewerUrl(): void {
     const cur = this.chatViewerDocs[this.chatViewerIndex];
     if (!cur) {

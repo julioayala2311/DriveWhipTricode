@@ -293,16 +293,29 @@
                   </div>
                   <div class="chat-message" [ngClass]="[m.direction, m.__isNew ? 'is-new' : '']">
                   <div class="chat-content">
-                    <div class="chat-bubble" [ngClass]="m.direction">
+                    <div
+                      class="chat-bubble"
+                      [ngClass]="[
+                        m.direction,
+                        !m.body && m.attachmentUrl ? 'image-only' : ''
+                      ]"
+                    >
                       <div class="chat-text" *ngIf="m.body" [innerHTML]="m.body"></div>
-                      <img
+                      <div
                         *ngIf="m.attachmentUrl"
-                        class="chat-attachment"
-                        [src]="m.attachmentUrl"
-                        alt="Message attachment"
-                        loading="lazy"
-                        (click)="openChatAttachment(m, $event)"
-                      />
+                        class="chat-attachment-wrapper"
+                        [class.loading]="!m.__attachmentLoaded"
+                      >
+                        <img
+                          class="chat-attachment"
+                          [src]="m.attachmentUrl"
+                          alt="Message attachment"
+                          loading="lazy"
+                          (click)="openChatAttachment(m, $event)"
+                          (load)="onMessengerAttachmentLoad(m)"
+                          (error)="onMessengerAttachmentError(m)"
+                        />
+                      </div>
                     </div>
                     <div class="chat-meta small">
                       <span>{{ formatMessageTimestamp(m.timestamp) }}</span>
